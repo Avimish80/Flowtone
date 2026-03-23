@@ -1,0 +1,172 @@
+import { useState } from "react";
+import { Link, useLocation } from "react-router-dom";
+import { createPageUrl } from "@/utils";
+import { useTheme } from "@/lib/ThemeContext";
+import {
+  Music2, CalendarDays, Users, Receipt,
+  Package, Mail, Car, Settings, LayoutDashboard, MoreHorizontal, X, Sun, Moon,
+  Music, Dumbbell
+} from "lucide-react";
+
+const primaryNav = [
+  { icon: LayoutDashboard, label: "Home",    page: "Dashboard" },
+  { icon: CalendarDays,    label: "Events",  page: "WorkEvents" },
+  { icon: Users,           label: "Clients", page: "Clients" },
+  { icon: Receipt,         label: "Finance", page: "Finance" },
+];
+
+const moreItems = [
+  { icon: Music,    label: "Library",    page: "Charts" },
+  { icon: Dumbbell, label: "Practice",   page: "Practice" },
+  { icon: Car,      label: "Drive Mode", page: "DrivingMode" },
+  { icon: Settings, label: "Settings",   page: "AppSettings" },
+];
+
+// Map sub-pages to their parent nav group
+const NAV_GROUP = {
+  Dashboard: "Dashboard",
+  WorkEvents: "WorkEvents",
+  WorkEventDetail: "WorkEvents",
+  CalendarView: "WorkEvents",
+  Clients: "Clients",
+  ClientDetail: "Clients",
+  Finance: "Finance",
+  Invoices: "Finance",
+  Estimates: "Finance",
+  DocumentDetail: "Finance",
+  InvoiceDetail: "Finance",
+  EstimateDetail: "Finance",
+  Charts: "Charts",
+  ChartDetail: "Charts",
+  Practice: "Practice",
+  Equipment: "Equipment",
+  EmailInbox: "EmailInbox",
+  DrivingMode: "DrivingMode",
+  AppSettings: "AppSettings",
+};
+
+// Map page names to user-friendly section labels
+const SECTION_LABELS = {
+  Dashboard: null,
+  WorkEvents: "Events",
+  WorkEventDetail: "Event",
+  CalendarView: "Calendar",
+  Clients: "Clients",
+  ClientDetail: "Client",
+  Finance: "Finance",
+  Invoices: "Invoices",
+  Estimates: "Estimates",
+  Charts: "Music Library",
+  ChartDetail: "Music Library",
+  Practice: "Practice",
+  Equipment: "Gear",
+  EmailInbox: "Inbox",
+  DrivingMode: "Drive",
+  AppSettings: "Settings",
+};
+
+export default function Layout({ children, currentPageName }) {
+  const location = useLocation();
+  const [showMore, setShowMore] = useState(false);
+  const { theme, toggleTheme } = useTheme();
+
+  let sectionLabel = currentPageName in SECTION_LABELS ? SECTION_LABELS[currentPageName] : currentPageName;
+  if (currentPageName === "DocumentDetail") {
+    const params = new URLSearchParams(location.search);
+    const type = params.get("type");
+    sectionLabel = type === "estimate" ? "Estimate" : "Invoice";
+  }
+
+  const activeGroup = NAV_GROUP[currentPageName] || currentPageName;
+  const isMoreActive = ["Charts", "ChartDetail", "Practice", "Equipment", "EmailInbox", "DrivingMode", "AppSettings"].includes(activeGroup);
+
+  return (
+    <div className="min-h-screen bg-gray-950 text-white flex flex-col">
+      {/* Top bar */}
+      <header className="flex items-center justify-between px-4 py-3 border-b border-gray-800 bg-gray-950 sticky top-0 z-30">
+        <div className="flex items-center gap-2.5">
+          <Music2 className="w-5 h-5 text-indigo-400" />
+          <span className="font-bold text-white tracking-tight">Musician OS</span>
+          {sectionLabel && (
+            <>
+              <span className="text-gray-600 text-sm">/</span>
+              <span className="text-xs font-medium text-indigo-300 bg-indigo-500/15 px-2 py-0.5 rounded-md">{sectionLabel}</span>
+            </>
+          )}
+        </div>
+        <button
+          onClick={toggleTheme}
+          className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
+          title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+        >
+          {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+        </button>
+      </header>
+
+      {/* Content */}
+      <main className="flex-1 overflow-auto pb-20">
+        {children}
+      </main>
+
+      {/* More Menu Overlay */}
+      {showMore && (
+        <>
+          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setShowMore(false)} />
+          <div className="fixed bottom-16 left-0 right-0 bg-gray-900 border-t border-gray-700 z-50 px-4 py-3 rounded-t-2xl shadow-2xl">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">More</span>
+              <button onClick={() => setShowMore(false)} className="text-gray-500 hover:text-white p-1">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="grid grid-cols-4 gap-3">
+              {moreItems.map(({ icon: Icon, label, page }) => (
+                <Link
+                  key={page}
+                  to={createPageUrl(page)}
+                  onClick={() => setShowMore(false)}
+                  className={`flex flex-col items-center gap-1.5 py-3 rounded-xl transition-colors ${
+                    activeGroup === page
+                      ? "bg-indigo-600/20 text-indigo-400"
+                      : "text-gray-400 hover:text-white hover:bg-gray-800"
+                  }`}
+                >
+                  <Icon className="w-5 h-5" />
+                  <span className="text-[11px] font-medium">{label}</span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Bottom Nav — 5 items */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-800 z-30 flex justify-around items-center px-2 py-2">
+        {primaryNav.map(({ icon: Icon, label, page }) => {
+          const active = activeGroup === page;
+          return (
+            <Link
+              key={page}
+              to={createPageUrl(page)}
+              className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg transition-colors ${
+                active ? "text-indigo-400" : "text-gray-500 hover:text-gray-300"
+              }`}
+            >
+              <Icon className="w-5 h-5" />
+              <span className="text-[10px] font-medium">{label}</span>
+            </Link>
+          );
+        })}
+        <button
+          onClick={() => setShowMore(v => !v)}
+          className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg transition-colors ${
+            isMoreActive || showMore ? "text-indigo-400" : "text-gray-500 hover:text-gray-300"
+          }`}
+        >
+          <MoreHorizontal className="w-5 h-5" />
+          <span className="text-[10px] font-medium">More</span>
+        </button>
+      </nav>
+    </div>
+  );
+}

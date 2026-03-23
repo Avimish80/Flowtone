@@ -1,0 +1,206 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 3.9%;
+    --primary: 0 0% 9%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 0 0% 96.1%;
+    --secondary-foreground: 0 0% 9%;
+    --muted: 0 0% 96.1%;
+    --muted-foreground: 0 0% 45.1%;
+    --accent: 0 0% 96.1%;
+    --accent-foreground: 0 0% 9%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 89.8%;
+    --input: 0 0% 89.8%;
+    --ring: 0 0% 3.9%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 0 0% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 0 0% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 0 0% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 0 0% 9%;
+    --secondary: 0 0% 14.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 0 0% 14.9%;
+    --muted-foreground: 0 0% 63.9%;
+    --accent: 0 0% 14.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 14.9%;
+    --input: 0 0% 14.9%;
+    --ring: 0 0% 83.1%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   LIGHT THEME
+   Strategy: override Tailwind's hardcoded gray/indigo utility classes
+   using html:not(.dark) prefix + !important.
+   ═══════════════════════════════════════════════════════════════════ */
+
+html:not(.dark) {
+  background-color: #f0f4f8;
+  color: #0f172a;
+}
+
+/* ── Page backgrounds ─────────────────────────────────────────────── */
+html:not(.dark) .bg-gray-950 { background-color: #eef2f7 !important; }
+html:not(.dark) .bg-gray-900 { background-color: #f8fafc !important; }
+html:not(.dark) .bg-gray-800 { background-color: #ffffff !important; }
+html:not(.dark) .bg-gray-700 { background-color: #e8eef4 !important; }
+
+/* Opacity bg variants */
+html:not(.dark) [class*="bg-gray-800/"] { background-color: rgba(255,255,255,0.85) !important; }
+html:not(.dark) [class*="bg-gray-900/"] { background-color: rgba(248,250,252,0.85) !important; }
+html:not(.dark) [class*="bg-gray-700/"] { background-color: rgba(232,238,244,0.85) !important; }
+
+/* ── Gradient cards (Dashboard hero "Next Up") ────────────────────── */
+/* Override the Tailwind CSS variables for gradient from/to classes */
+html:not(.dark) [class*="from-indigo-900"] {
+  --tw-gradient-from: #dde4ff !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to, rgba(221,228,255,0)) !important;
+}
+html:not(.dark) [class*="to-gray-900"] {
+  --tw-gradient-to: #eef2f7 !important;
+}
+/* Also handle the border on gradient cards */
+html:not(.dark) [class*="from-indigo-900"] + * { border-color: rgba(99,102,241,0.2) !important; }
+
+/* ── Indigo background chips & badges ─────────────────────────────── */
+html:not(.dark) [class*="bg-indigo-900"]  { background-color: #e0e7ff !important; }
+html:not(.dark) [class*="bg-indigo-600/"] { background-color: rgba(99,102,241,0.12) !important; }
+html:not(.dark) [class*="bg-indigo-500/"] { background-color: rgba(99,102,241,0.10) !important; }
+
+/* Keep solid indigo buttons looking sharp */
+html:not(.dark) .bg-indigo-600        { background-color: #4f46e5 !important; }
+html:not(.dark) .bg-indigo-500        { background-color: #6366f1 !important; }
+
+/* ── Status banner backgrounds ────────────────────────────────────── */
+html:not(.dark) [class*="bg-red-950"]    { background-color: rgba(255,241,241,1)   !important; }
+html:not(.dark) [class*="bg-green-950"]  { background-color: rgba(240,253,244,1)   !important; }
+html:not(.dark) [class*="bg-blue-950"]   { background-color: rgba(239,246,255,1)   !important; }
+html:not(.dark) [class*="bg-yellow-950"] { background-color: rgba(254,252,232,1)   !important; }
+
+/* Status chips on cards */
+html:not(.dark) [class*="bg-yellow-500/"] { background-color: rgba(234,179,8,0.14)  !important; }
+html:not(.dark) [class*="bg-blue-500/"]   { background-color: rgba(59,130,246,0.12) !important; }
+html:not(.dark) [class*="bg-green-500/"]  { background-color: rgba(34,197,94,0.12)  !important; }
+html:not(.dark) [class*="bg-gray-500/"]   { background-color: rgba(107,114,128,0.1) !important; }
+
+/* ── Text colours ─────────────────────────────────────────────────── */
+html:not(.dark) .text-white    { color: #0f172a !important; }
+html:not(.dark) .text-gray-100 { color: #1e293b !important; }
+html:not(.dark) .text-gray-200 { color: #334155 !important; }
+html:not(.dark) .text-gray-300 { color: #475569 !important; }
+html:not(.dark) .text-gray-400 { color: #64748b !important; }
+html:not(.dark) .text-gray-500 { color: #94a3b8 !important; }
+html:not(.dark) .text-gray-600 { color: #94a3b8 !important; }
+
+/* Indigo text — darken for readability on light backgrounds */
+html:not(.dark) .text-indigo-100 { color: #312e81 !important; }
+html:not(.dark) .text-indigo-200 { color: #3730a3 !important; }
+html:not(.dark) .text-indigo-300 { color: #4338ca !important; }
+html:not(.dark) .text-indigo-400 { color: #4f46e5 !important; }
+
+/* ── Borders ──────────────────────────────────────────────────────── */
+html:not(.dark) .border-gray-800  { border-color: #e2e8f0 !important; }
+html:not(.dark) .border-gray-700  { border-color: #cbd5e1 !important; }
+html:not(.dark) .border-gray-600  { border-color: #94a3b8 !important; }
+html:not(.dark) [class*="border-indigo-700"]  { border-color: rgba(99,102,241,0.25) !important; }
+html:not(.dark) [class*="border-indigo-500"]  { border-color: rgba(99,102,241,0.30) !important; }
+html:not(.dark) [class*="border-gray-700/"]   { border-color: rgba(203,213,225,0.8) !important; }
+html:not(.dark) [class*="border-gray-800/"]   { border-color: rgba(226,232,240,0.9) !important; }
+html:not(.dark) [class*="border-red-700"]     { border-color: rgba(239,68,68,0.35)  !important; }
+html:not(.dark) [class*="border-green-700"]   { border-color: rgba(34,197,94,0.35)  !important; }
+html:not(.dark) [class*="border-blue-700"]    { border-color: rgba(59,130,246,0.35) !important; }
+html:not(.dark) [class*="border-yellow-700"]  { border-color: rgba(234,179,8,0.35)  !important; }
+
+/* ── Card shadows ─────────────────────────────────────────────────── */
+html:not(.dark) .bg-gray-800 {
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04) !important;
+}
+
+/* ── Inputs / Selects / Textareas ─────────────────────────────────── */
+html:not(.dark) input,
+html:not(.dark) select,
+html:not(.dark) textarea {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+html:not(.dark) input::placeholder,
+html:not(.dark) textarea::placeholder { color: #94a3b8 !important; }
+html:not(.dark) input:focus,
+html:not(.dark) select:focus,
+html:not(.dark) textarea:focus { border-color: #6366f1 !important; outline-color: rgba(99,102,241,0.3) !important; }
+
+/* ── Structural elements ──────────────────────────────────────────── */
+
+/* Top header bar */
+html:not(.dark) header.sticky {
+  background-color: #f8fafc !important;
+  border-bottom-color: #e2e8f0 !important;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05) !important;
+}
+
+/* Document detail sticky header uses bg-gray-900 class */
+html:not(.dark) .sticky.bg-gray-900,
+html:not(.dark) .bg-gray-900.sticky {
+  background-color: #f8fafc !important;
+  border-bottom-color: #e2e8f0 !important;
+}
+
+/* Calendar sticky day-header row */
+html:not(.dark) .bg-gray-950.sticky { background-color: #eef2f7 !important; }
+
+/* Calendar time-grid cells */
+html:not(.dark) .bg-gray-950.min-h-\[72px\] { background-color: #ffffff !important; }
+
+/* Bottom navigation */
+html:not(.dark) nav.fixed {
+  background-color: #ffffff !important;
+  border-top-color: #e2e8f0 !important;
+  box-shadow: 0 -2px 14px rgba(0,0,0,0.07) !important;
+}
+
+/* More-menu overlay backdrop */
+html:not(.dark) .bg-black\/50 { background-color: rgba(15,23,42,0.3) !important; }
+
+/* More-menu panel */
+html:not(.dark) .fixed.bg-gray-900.border-t {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 -4px 24px rgba(0,0,0,0.1) !important;
+}
+
+/* ── Scrollbar ────────────────────────────────────────────────────── */
+html:not(.dark) ::-webkit-scrollbar { width: 6px; height: 6px; }
+html:not(.dark) ::-webkit-scrollbar-track { background: #f0f4f8; }
+html:not(.dark) ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+html:not(.dark) ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
