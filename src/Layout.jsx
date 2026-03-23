@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { useTheme } from "@/lib/ThemeContext";
 import {
@@ -7,6 +7,9 @@ import {
   Package, Mail, Car, Settings, LayoutDashboard, MoreHorizontal, X, Sun, Moon,
   Music, Dumbbell
 } from "lucide-react";
+import AIAssistantButton from "@/components/AIAssistant/AIAssistantButton";
+import AIAssistantPanel from "@/components/AIAssistant/AIAssistantPanel";
+import { useAIAssistant } from "@/components/AIAssistant/useAIAssistant";
 
 const primaryNav = [
   { icon: LayoutDashboard, label: "Home",    page: "Dashboard" },
@@ -67,8 +70,21 @@ const SECTION_LABELS = {
 
 export default function Layout({ children, currentPageName }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const [showMore, setShowMore] = useState(false);
   const { theme, toggleTheme } = useTheme();
+
+  const {
+    messages,
+    loading: aiLoading,
+    open: aiOpen,
+    openPanel,
+    closePanel,
+    sendMessage,
+    clearHistory,
+    pendingNavigate,
+    clearPendingNavigate,
+  } = useAIAssistant();
 
   let sectionLabel = currentPageName in SECTION_LABELS ? SECTION_LABELS[currentPageName] : currentPageName;
   if (currentPageName === "DocumentDetail") {
@@ -139,6 +155,20 @@ export default function Layout({ children, currentPageName }) {
           </div>
         </>
       )}
+
+      {/* AI Assistant */}
+      <AIAssistantButton onClick={openPanel} />
+      <AIAssistantPanel
+        open={aiOpen}
+        onClose={closePanel}
+        navigate={navigate}
+        messages={messages}
+        loading={aiLoading}
+        sendMessage={sendMessage}
+        clearHistory={clearHistory}
+        pendingNavigate={pendingNavigate}
+        clearPendingNavigate={clearPendingNavigate}
+      />
 
       {/* Bottom Nav — 5 items */}
       <nav className="fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-800 z-30 flex justify-around items-center px-2 py-2">

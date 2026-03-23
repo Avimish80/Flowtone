@@ -1,6 +1,7 @@
 import { MapPin, Clock, Calendar, User, Tag, RefreshCw, Loader2, CheckCircle2, ArrowRight } from "lucide-react";
 import { useState } from "react";
 import { appClient } from "@/api/appClient";
+import MicButton from "@/components/MicButton";
 
 /** Parse "HH:MM" → total minutes */
 function toMins(t) {
@@ -62,12 +63,15 @@ export default function EventInfoSection({ event, onChange, clients }) {
     <div className="space-y-3">
       <div>
         <label className="text-xs text-gray-400 mb-1 block">Title</label>
-        <input
-          className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500"
-          placeholder="Event title"
-          value={event.title || ""}
-          onChange={e => onChange("title", e.target.value)}
-        />
+        <div className="flex items-center gap-2">
+          <input
+            className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500"
+            placeholder="Event title"
+            value={event.title || ""}
+            onChange={e => onChange("title", e.target.value)}
+          />
+          <MicButton onResult={(text) => onChange("title", text)} />
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3">

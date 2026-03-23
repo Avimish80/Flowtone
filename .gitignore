@@ -28,3 +28,7 @@ dist-ssr
 *.sw?
 
 .env
+
+# Server
+server/.env
+server/node_modules
