@@ -4,6 +4,8 @@ import { dirname, join } from 'path';
 import express from 'express';
 import cors from 'cors';
 import aiRoutes from './routes/ai.js';
+import pushRoutes from './routes/push.js';
+import { startScheduler } from './scheduler.js';
 
 // Load .env manually — works even if env vars are pre-set to empty
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -47,6 +49,7 @@ app.use(express.json());
 
 // ─── Routes ────────────────────────────────────────────────────────
 app.use('/api/ai', aiRoutes);
+app.use('/api/push', pushRoutes);
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -55,4 +58,5 @@ app.get('/api/health', (_req, res) => {
 // ─── Start ─────────────────────────────────────────────────────────
 app.listen(PORT, () => {
   console.log(`GigFlow server running on http://localhost:${PORT}`);
+  startScheduler();
 });

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { useTheme } from "@/lib/ThemeContext";
@@ -10,6 +10,8 @@ import {
 import AIAssistantButton from "@/components/AIAssistant/AIAssistantButton";
 import AIAssistantPanel from "@/components/AIAssistant/AIAssistantPanel";
 import { useAIAssistant } from "@/components/AIAssistant/useAIAssistant";
+import { isPushActive, schedulePushNotifications } from "@/lib/pushManager";
+import { appClient } from "@/api/appClient";
 
 const primaryNav = [
   { icon: LayoutDashboard, label: "Home",    page: "Dashboard" },
@@ -74,6 +76,21 @@ export default function Layout({ children, currentPageName }) {
   const navigate = useNavigate();
   const [showMore, setShowMore] = useState(false);
   const { theme, toggleTheme } = useTheme();
+
+  // Schedule push notifications on app open (if user has push enabled)
+  useEffect(() => {
+    isPushActive().then(active => {
+      if (!active) return;
+      Promise.all([
+        appClient.entities.WorkEvent.list().catch(() => []),
+        appClient.entities.Client.list().catch(() => []),
+        appClient.entities.AppSettings.list().catch(() => []),
+      ]).then(([events, clients, settingsList]) => {
+        const level = settingsList[0]?.notification_level || 'standard';
+        schedulePushNotifications(events, clients, level).catch(() => {});
+      });
+    });
+  }, []);
 
   const {
     messages,

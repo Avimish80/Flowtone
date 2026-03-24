@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { appClient } from "@/api/appClient";
 import { Settings, Check, Mail, Navigation, Bell, DollarSign, Building2, Hash, ChevronDown, ChevronUp, Upload, X, Palette } from "lucide-react";
 import { TEMPLATE_DEFS } from "@/lib/invoiceTemplates";
+import { registerPush, unregisterPush, isPushActive, schedulePushNotifications } from "@/lib/pushManager";
 
 export default function AppSettings() {
   const [settings, setSettings] = useState(null);
@@ -11,6 +12,11 @@ export default function AppSettings() {
   const [loading, setLoading] = useState(true);
   const [openSections, setOpenSections] = useState(new Set(["finance"]));
   const logoInputRef = useRef(null);
+
+  // ── Push Notification state ────────────────────────────────────────
+  const [pushActive, setPushActive] = useState(false);
+  const [pushLoading, setPushLoading] = useState(false);
+  const [pushError, setPushError] = useState("");
 
   useEffect(() => {
     Promise.all([
@@ -52,10 +58,69 @@ export default function AppSettings() {
       });
       setLoading(false);
     }).catch(() => setLoading(false));
+
+    // Check current push subscription status
+    isPushActive().then(setPushActive).catch(() => {});
   }, []);
 
   const onChange = (field, value) => setSettings(prev => ({ ...prev, [field]: value }));
   const onProfileChange = (field, value) => setProfile(prev => ({ ...prev, [field]: value }));
+
+  // ── Push helpers ───────────────────────────────────────────────────
+
+  /** Load events + clients then reschedule all notifications. */
+  const reschedule = useCallback(async (level) => {
+    try {
+      const [events, clients] = await Promise.all([
+        appClient.entities.WorkEvent.list(),
+        appClient.entities.Client.list(),
+      ]);
+      await schedulePushNotifications(events, clients, level);
+    } catch (err) {
+      console.warn("Push reschedule failed:", err);
+    }
+  }, []);
+
+  const handleEnablePush = async () => {
+    setPushLoading(true);
+    setPushError("");
+    const level = settings?.notification_level || "standard";
+    try {
+      const result = await registerPush(level);
+      if (result.success) {
+        setPushActive(true);
+        await reschedule(level);
+      } else if (result.reason === "denied") {
+        setPushError("Notification permission was denied. Please allow notifications in your browser settings.");
+      } else {
+        setPushError("Push notifications are not supported on this device or browser.");
+      }
+    } catch (err) {
+      console.error("Enable push error:", err);
+      setPushError("Something went wrong enabling notifications.");
+    }
+    setPushLoading(false);
+  };
+
+  const handleDisablePush = async () => {
+    setPushLoading(true);
+    setPushError("");
+    try {
+      await unregisterPush();
+      setPushActive(false);
+    } catch (err) {
+      console.error("Disable push error:", err);
+      setPushError("Something went wrong disabling notifications.");
+    }
+    setPushLoading(false);
+  };
+
+  const handleLevelChange = async (level) => {
+    onChange("notification_level", level);
+    if (pushActive) {
+      await reschedule(level);
+    }
+  };
 
   const handleLogoUpload = (e) => {
     const file = e.target.files?.[0];
@@ -408,6 +473,101 @@ export default function AppSettings() {
                   </button>
                 ))}
               </div>
+            </div>
+          )}
+        </section>
+
+        {/* Notifications */}
+        <section>
+          <SectionHeader icon={Bell} label="Notifications" sectionKey="notifications" />
+          {openSections.has("notifications") && (
+            <div className="bg-gray-800 rounded-xl p-4 space-y-4">
+
+              {/* Status badge */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-400 uppercase tracking-wide">Status</span>
+                {pushActive ? (
+                  <span className="flex items-center gap-1 text-xs font-semibold text-green-400 bg-green-900/40 px-2 py-0.5 rounded-full">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block" />
+                    Active
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1 text-xs font-semibold text-gray-500 bg-gray-700 px-2 py-0.5 rounded-full">
+                    <span className="w-1.5 h-1.5 rounded-full bg-gray-500 inline-block" />
+                    Off
+                  </span>
+                )}
+              </div>
+
+              {/* Mode selector */}
+              <div>
+                <label className={labelCls}>Notification Level</label>
+                <div className="flex gap-2">
+                  {[
+                    { key: "minimal", label: "Minimal" },
+                    { key: "standard", label: "Standard" },
+                    { key: "full", label: "Full" },
+                  ].map(({ key, label }) => (
+                    <button
+                      key={key}
+                      onClick={() => handleLevelChange(key)}
+                      className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors border ${
+                        (settings.notification_level || "standard") === key
+                          ? "bg-indigo-600 border-indigo-500 text-white"
+                          : "bg-gray-900 border-gray-700 text-gray-400 hover:text-white"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Level descriptions */}
+              <div className="space-y-1.5">
+                {[
+                  { key: "minimal", desc: "Invoice reminders + Leave alerts" },
+                  { key: "standard", desc: "+ Day-before gig reminders" },
+                  { key: "full", desc: "All notifications" },
+                ].map(({ key, desc }) => (
+                  <div
+                    key={key}
+                    className={`flex items-start gap-2 text-xs transition-colors ${
+                      (settings.notification_level || "standard") === key
+                        ? "text-indigo-300"
+                        : "text-gray-500"
+                    }`}
+                  >
+                    <span className="mt-0.5 capitalize font-medium w-16 flex-shrink-0">{key}:</span>
+                    <span>{desc}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Error message */}
+              {pushError && (
+                <p className="text-xs text-red-400 bg-red-900/30 rounded-lg px-3 py-2">{pushError}</p>
+              )}
+
+              {/* Enable / Disable button */}
+              <button
+                onClick={pushActive ? handleDisablePush : handleEnablePush}
+                disabled={pushLoading}
+                className={`w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50 ${
+                  pushActive
+                    ? "bg-gray-700 hover:bg-gray-600 text-gray-200 border border-gray-600"
+                    : "bg-indigo-600 hover:bg-indigo-500 text-white"
+                }`}
+              >
+                <Bell className="w-4 h-4" />
+                {pushLoading
+                  ? pushActive ? "Disabling…" : "Enabling…"
+                  : pushActive ? "Disable Notifications" : "Enable Notifications"}
+              </button>
+
+              <p className="text-[10px] text-gray-600 leading-relaxed">
+                Push notifications work even when the app is closed. Your browser will ask for permission when you enable them.
+              </p>
             </div>
           )}
         </section>
