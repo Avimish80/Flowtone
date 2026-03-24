@@ -1,4 +1,6 @@
-const AI_BASE_URL = 'http://localhost:3001/api/ai';
+const AI_BASE_URL = import.meta.env.VITE_API_URL
+  ? `${import.meta.env.VITE_API_URL}/api/ai`
+  : 'http://localhost:3001/api/ai';
 
 /**
  * Send a chat request to the GigFlow AI backend.

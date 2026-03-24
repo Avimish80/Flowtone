@@ -21,6 +21,7 @@ const primaryNav = [
 const moreItems = [
   { icon: Music,    label: "Library",    page: "Charts" },
   { icon: Dumbbell, label: "Practice",   page: "Practice" },
+  { icon: Package,  label: "Gear",       page: "Equipment" },
   { icon: Car,      label: "Drive Mode", page: "DrivingMode" },
   { icon: Settings, label: "Settings",   page: "AppSettings" },
 ];

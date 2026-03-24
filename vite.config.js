@@ -4,7 +4,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 import path from 'path'
 
 export default defineConfig({
-  logLevel: 'error',
+  logLevel: 'info',
   plugins: [
     react(),
     VitePWA({
@@ -110,7 +110,8 @@ export default defineConfig({
   ],
   server: {
     host: true,        // listen on 0.0.0.0 so phones on the same WiFi can connect
-    port: 5173,
+    port: parseInt(process.env.PORT) || 5173,
+    strictPort: false,
   },
   resolve: {
     alias: {

@@ -189,13 +189,16 @@ router.post('/chat', async (req, res) => {
       .map((block) => block.text)
       .join('');
 
-    // Parse the JSON the model returned and forward it directly so the
-    // client receives a structured { message, action } object.
+    // Strip markdown code fences the model sometimes adds, then parse JSON
     let parsed;
     try {
-      parsed = JSON.parse(rawText);
+      const cleaned = rawText
+        .replace(/^```(?:json)?\s*/i, '')
+        .replace(/\s*```\s*$/i, '')
+        .trim();
+      parsed = JSON.parse(cleaned);
     } catch {
-      // If the model somehow returned non-JSON, wrap it gracefully.
+      // If the model returned non-JSON, wrap it gracefully.
       parsed = { message: rawText, action: null };
     }
 

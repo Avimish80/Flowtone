@@ -89,7 +89,11 @@
       "Bash(head -20 \"/Users/avimishali/Documents/Code/defiant-harmony-flow-app \\(1\\)/src/pages/Clients.jsx\")",
       "Bash(for pkg:*)",
       "Bash(npm uninstall:*)",
-      "Bash(ls \"/Users/avimishali/Documents/Code/defiant-harmony-flow-app \\(1\\)/public/\")"
+      "Bash(ls \"/Users/avimishali/Documents/Code/defiant-harmony-flow-app \\(1\\)/public/\")",
+      "Bash(ipconfig getifaddr:*)",
+      "Bash(cat \"/Users/avimishali/Documents/Code/defiant-harmony-flow-app \\(1\\)/server/.env\")",
+      "Bash(curl -s -X POST http://localhost:3001/api/ai/chat -H \"Content-Type: application/json\" -d '{\"\"\"\"messages\"\"\"\":[{\"\"\"\"role\"\"\"\":\"\"\"\"user\"\"\"\",\"\"\"\"content\"\"\"\":\"\"\"\"hello\"\"\"\"}],\"\"\"\"context\"\"\"\":{\"\"\"\"today\"\"\"\":\"\"\"\"2026-03-24\"\"\"\",\"\"\"\"upcomingEvents\"\"\"\":[],\"\"\"\"clients\"\"\"\":[],\"\"\"\"practiceGoals\"\"\"\":[],\"\"\"\"recentSessions\"\"\"\":[]}}')",
+      "WebSearch"
     ]
   }
 }
