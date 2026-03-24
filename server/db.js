@@ -1,54 +1,101 @@
-import Database from 'better-sqlite3';
-import { existsSync, mkdirSync } from 'fs';
+/**
+ * Simple JSON file store — replaces better-sqlite3.
+ * No native compilation needed. Works on any platform.
+ *
+ * Structure of store.json:
+ * {
+ *   subscriptions:    { [endpoint]: { endpoint, p256dh, auth, user_agent, notification_level } },
+ *   scheduledPushes:  { [id]:       { id, endpoint, fire_at, title, body, url, icon, actions, tag, sent } }
+ * }
+ */
 
-// ─── Resolve DB path ────────────────────────────────────────────────
-// Production: /app/data/flowtone.db  (container / deployment)
-// Local dev:  ./flowtone.db          (fallback when /app/data is absent)
-function resolveDbPath() {
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+// ─── Resolve store path ──────────────────────────────────────────────
+function resolveStorePath() {
   const prodDir = '/app/data';
   try {
-    if (!existsSync(prodDir)) {
-      mkdirSync(prodDir, { recursive: true });
-    }
-    return `${prodDir}/flowtone.db`;
+    if (!existsSync(prodDir)) mkdirSync(prodDir, { recursive: true });
+    return join(prodDir, 'store.json');
   } catch {
-    // Can't create /app/data — fall back to local file
-    return './flowtone.db';
+    return join(__dirname, 'store.json');
   }
 }
 
-const dbPath = resolveDbPath();
-const db = new Database(dbPath);
+const STORE_PATH = resolveStorePath();
 
-// Enable WAL mode for better concurrent read performance
-db.pragma('journal_mode = WAL');
+// ─── Load / save ─────────────────────────────────────────────────────
+function load() {
+  try {
+    if (existsSync(STORE_PATH)) {
+      return JSON.parse(readFileSync(STORE_PATH, 'utf8'));
+    }
+  } catch (e) {
+    console.warn('[db] Could not read store.json, starting fresh:', e.message);
+  }
+  return { subscriptions: {}, scheduledPushes: {} };
+}
 
-// ─── Schema ─────────────────────────────────────────────────────────
-db.exec(`
-  CREATE TABLE IF NOT EXISTS push_subscriptions (
-    endpoint           TEXT PRIMARY KEY,
-    p256dh             TEXT NOT NULL,
-    auth               TEXT NOT NULL,
-    user_agent         TEXT,
-    notification_level TEXT NOT NULL DEFAULT 'standard',
-    created_at         TEXT NOT NULL DEFAULT (datetime('now'))
+function save(store) {
+  try {
+    writeFileSync(STORE_PATH, JSON.stringify(store, null, 2), 'utf8');
+  } catch (e) {
+    console.error('[db] Could not write store.json:', e.message);
+  }
+}
+
+// ─── In-memory store ─────────────────────────────────────────────────
+const store = load();
+console.log(`[db] JSON store ready at ${STORE_PATH} — ${Object.keys(store.subscriptions).length} subscriptions, ${Object.keys(store.scheduledPushes).length} scheduled pushes`);
+
+// ─── Subscription helpers ────────────────────────────────────────────
+export function upsertSubscription({ endpoint, p256dh, auth, user_agent, notification_level }) {
+  store.subscriptions[endpoint] = { endpoint, p256dh, auth, user_agent, notification_level };
+  save(store);
+}
+
+export function getSubscription(endpoint) {
+  return store.subscriptions[endpoint] ?? null;
+}
+
+export function deleteSubscription(endpoint) {
+  const existed = endpoint in store.subscriptions;
+  delete store.subscriptions[endpoint];
+  if (existed) save(store);
+  return existed;
+}
+
+// ─── Scheduled push helpers ──────────────────────────────────────────
+export function insertScheduledPush(row) {
+  // row: { id, endpoint, fire_at, title, body, url, icon, actions, tag }
+  store.scheduledPushes[row.id] = { ...row, sent: 0 };
+  save(store);
+}
+
+export function deleteUnsentByTagAndEndpoint(tag, endpoint) {
+  let changed = false;
+  for (const [id, push] of Object.entries(store.scheduledPushes)) {
+    if (push.tag === tag && push.endpoint === endpoint && push.sent === 0) {
+      delete store.scheduledPushes[id];
+      changed = true;
+    }
+  }
+  if (changed) save(store);
+}
+
+export function getDuePushes(nowTs) {
+  return Object.values(store.scheduledPushes).filter(
+    (p) => p.sent === 0 && p.fire_at <= nowTs
   );
+}
 
-  CREATE TABLE IF NOT EXISTS scheduled_pushes (
-    id         TEXT    PRIMARY KEY,
-    endpoint   TEXT    NOT NULL,
-    fire_at    INTEGER NOT NULL,
-    title      TEXT    NOT NULL,
-    body       TEXT    NOT NULL,
-    url        TEXT,
-    icon       TEXT,
-    actions    TEXT,
-    tag        TEXT,
-    sent       INTEGER NOT NULL DEFAULT 0,
-    created_at TEXT    NOT NULL DEFAULT (datetime('now'))
-  );
-`);
-
-console.log(`[db] SQLite ready at ${dbPath}`);
-
-export default db;
+export function markPushSent(id) {
+  if (store.scheduledPushes[id]) {
+    store.scheduledPushes[id].sent = 1;
+    save(store);
+  }
+}

@@ -1,10 +1,16 @@
 import { Router } from 'express';
 import { randomUUID } from 'crypto';
-import db from '../db.js';
+import {
+  upsertSubscription,
+  deleteSubscription,
+  insertScheduledPush,
+  deleteUnsentByTagAndEndpoint,
+} from '../db.js';
 
 const router = Router();
 
 const VAPID_PUBLIC_KEY =
+  process.env.VAPID_PUBLIC_KEY ||
   'BJWmGOrJ5Uhw71uHgDI8DvOLGwLUYuENkni_a76qZHKzwDMMns67wk6kwU2TCvTK-sXbzn7RwgfozaBtbyPBN8I';
 
 // ─── GET /api/push/vapid-public-key ─────────────────────────────────
@@ -22,17 +28,7 @@ router.post('/subscribe', (req, res) => {
       return res.status(400).json({ error: 'Missing required subscription fields' });
     }
 
-    const upsert = db.prepare(`
-      INSERT INTO push_subscriptions (endpoint, p256dh, auth, user_agent, notification_level)
-      VALUES (@endpoint, @p256dh, @auth, @user_agent, @notification_level)
-      ON CONFLICT(endpoint) DO UPDATE SET
-        p256dh             = excluded.p256dh,
-        auth               = excluded.auth,
-        user_agent         = excluded.user_agent,
-        notification_level = excluded.notification_level
-    `);
-
-    upsert.run({
+    upsertSubscription({
       endpoint: subscription.endpoint,
       p256dh: subscription.keys.p256dh,
       auth: subscription.keys.auth,
@@ -57,28 +53,22 @@ router.post('/schedule', (req, res) => {
       return res.status(400).json({ error: 'endpoint, fireAt, title, and body are required' });
     }
 
-    const fireAtTs = Math.floor(new Date(fireAt).getTime() / 1000);
-    if (isNaN(fireAtTs)) {
+    const fire_at = Math.floor(new Date(fireAt).getTime() / 1000);
+    if (isNaN(fire_at)) {
       return res.status(400).json({ error: 'fireAt must be a valid ISO date string' });
     }
 
-    // Deduplicate by tag + endpoint — remove any unsent rows with same tag+endpoint
+    // Deduplicate by tag + endpoint
     if (tag) {
-      db.prepare(`
-        DELETE FROM scheduled_pushes
-        WHERE tag = ? AND endpoint = ? AND sent = 0
-      `).run(tag, endpoint);
+      deleteUnsentByTagAndEndpoint(tag, endpoint);
     }
 
     const id = randomUUID();
 
-    db.prepare(`
-      INSERT INTO scheduled_pushes (id, endpoint, fire_at, title, body, url, icon, actions, tag)
-      VALUES (@id, @endpoint, @fire_at, @title, @body, @url, @icon, @actions, @tag)
-    `).run({
+    insertScheduledPush({
       id,
       endpoint,
-      fire_at: fireAtTs,
+      fire_at,
       title,
       body,
       url: url ?? null,
@@ -104,9 +94,9 @@ router.delete('/subscription', (req, res) => {
       return res.status(400).json({ error: 'endpoint is required' });
     }
 
-    const result = db.prepare('DELETE FROM push_subscriptions WHERE endpoint = ?').run(endpoint);
+    const existed = deleteSubscription(endpoint);
 
-    if (result.changes === 0) {
+    if (!existed) {
       return res.status(404).json({ error: 'Subscription not found' });
     }
 
