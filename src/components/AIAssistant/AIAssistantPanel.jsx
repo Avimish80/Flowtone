@@ -247,36 +247,51 @@ export default function AIAssistantPanel({
 
         {/* ── Input area ── */}
         <div
-          className="flex-shrink-0 px-3 py-3 border-t border-gray-800 bg-gray-950 rounded-b-2xl"
-          style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}
+          className="flex-shrink-0 border-t border-gray-800 bg-gray-950 rounded-b-2xl"
+          style={{ padding: "12px", paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}
         >
-          <div className="flex items-center gap-2 bg-gray-900 rounded-2xl px-3 py-2 border border-gray-800 focus-within:border-indigo-700/60 transition-colors overflow-hidden">
+          {/* Row: input + mic + send — all in one line, no overflow */}
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", width: "100%" }}>
             <input
               ref={inputRef}
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask anything about your gigs…"
+              placeholder="Ask anything…"
               disabled={loading}
-              className="flex-1 bg-transparent text-sm text-white placeholder-gray-500 outline-none min-w-0 w-0 disabled:opacity-50"
+              style={{
+                flex: "1 1 0%",
+                minWidth: 0,
+                background: "#111827",
+                border: "1px solid #374151",
+                borderRadius: "16px",
+                padding: "10px 14px",
+                color: "white",
+                fontSize: "14px",
+                outline: "none",
+              }}
             />
-            <MicButton
-              onResult={handleVoiceResult}
-              className="flex-shrink-0"
-            />
+            <MicButton onResult={handleVoiceResult} />
             <button
               onClick={handleSend}
               disabled={loading || !input.trim()}
-              aria-label="Send message"
-              className={[
-                "flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center transition-all",
-                loading || !input.trim()
-                  ? "bg-gray-800 text-gray-600 cursor-not-allowed"
-                  : "bg-indigo-600 text-white hover:bg-indigo-500 shadow-lg shadow-indigo-900/50 active:scale-95",
-              ].join(" ")}
+              aria-label="Send"
+              style={{
+                flexShrink: 0,
+                width: "36px",
+                height: "36px",
+                borderRadius: "10px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background: loading || !input.trim() ? "#1f2937" : "#4f46e5",
+                color: loading || !input.trim() ? "#4b5563" : "white",
+                border: "none",
+                cursor: loading || !input.trim() ? "not-allowed" : "pointer",
+              }}
             >
-              <Send className="w-3.5 h-3.5" />
+              <Send size={14} />
             </button>
           </div>
           <p className="text-center text-[10px] text-gray-700 mt-1.5">
