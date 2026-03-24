@@ -37,7 +37,6 @@ export default function SortDropdown({ options, activeSort, onSortChange }) {
         title={dirLabel}
       >
         <ArrowUpDown className="w-4 h-4" />
-        <span className="max-w-[5rem] truncate">{active?.label || "Sort"}</span>
       </button>
 
       {open && (

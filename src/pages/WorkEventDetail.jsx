@@ -270,7 +270,11 @@ export default function WorkEventDetail() {
             <p className="text-xs text-gray-500 truncate">
               {event.event_type}
               {event.status ? ` · ${{ lead: "Tentative", confirmed: "Confirmed", completed: "Completed", cancelled: "Cancelled" }[event.status] || event.status}` : ""}
-              {event.start_time ? ` · ${event.start_time}${event.end_time ? `–${event.end_time}` : ""}` : ""}
+            </p>
+          )}
+          {event.start_time && (
+            <p className="text-xs text-gray-500">
+              {event.start_time}{event.end_time ? `–${event.end_time}` : ""}
             </p>
           )}
         </div>

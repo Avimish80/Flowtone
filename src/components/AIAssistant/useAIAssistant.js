@@ -178,8 +178,28 @@ export function useAIAssistant() {
         const assistantMsg = makeMessage("assistant", aiMessage);
         setMessages((prev) => [...prev, assistantMsg]);
 
+        // Handle LOCATION_SEARCH inline (no executeAction needed)
+        if (action && action.type === "LOCATION_SEARCH") {
+          try {
+            const query = encodeURIComponent(action.data?.query || "");
+            const resp = await fetch(
+              `https://nominatim.openstreetmap.org/search?format=json&limit=3&q=${query}`,
+              { headers: { "User-Agent": "Flowtone/1.0" } }
+            );
+            const results = await resp.json();
+            if (results && results.length > 0) {
+              const locationMsg = results.map((r) => `📍 ${r.display_name}`).join("\n");
+              setMessages((prev) => [...prev, makeMessage("assistant", locationMsg)]);
+            } else {
+              setMessages((prev) => [...prev, makeMessage("assistant", "Couldn't find that location. Try being more specific.")]);
+            }
+          } catch {
+            setMessages((prev) => [...prev, makeMessage("assistant", "Couldn't find that location. Try being more specific.")]);
+          }
+        }
+
         // Execute action if present
-        if (action && action.type) {
+        if (action && action.type && action.type !== "LOCATION_SEARCH") {
           try {
             const result = await executeAction(action);
             if (result) {

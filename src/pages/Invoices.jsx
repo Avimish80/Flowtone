@@ -292,8 +292,7 @@ export default function Invoices() {
   return (
     <div className="p-4 max-w-xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-xl font-bold text-white">Finance</h1>
+      <div className="flex items-center justify-end gap-2 mb-4">
         <div className="flex items-center gap-2">
           <SortDropdown options={isInvoiceTab ? INV_SORT_OPTIONS : EST_SORT_OPTIONS} activeSort={sort} onSortChange={setSort} />
           <div className="relative">
@@ -302,7 +301,7 @@ export default function Invoices() {
               className="bg-gray-700 hover:bg-gray-600 text-gray-200 px-3 py-2 rounded-lg flex items-center gap-1.5 text-sm font-medium transition-colors"
             >
               <CalendarDays className="w-4 h-4" />
-              <span className="max-w-[5rem] truncate">{filterYear === "all" ? "All Years" : filterYear}</span>
+              <span className="max-w-[3rem] truncate">{filterYear === "all" ? "All" : filterYear}</span>
               <ChevronDown className="w-3 h-3 text-gray-400" />
             </button>
             {showYearDropdown && (
@@ -454,10 +453,10 @@ export default function Invoices() {
                     {!isInvoiceTab && item.valid_until && <span className="text-xs text-gray-500">Until {format(parseISO(item.valid_until), "d MMM")}</span>}
                   </div>
                   <p className="font-semibold text-white truncate">{item.title || clientName}</p>
-                  <p className="text-sm text-gray-400">
-                    {clientName}
-                    {isInvoiceTab && item.due_date ? ` \u00b7 Due ${format(parseISO(item.due_date), "d MMM yy")}` : ""}
-                  </p>
+                  <p className="text-sm text-gray-400 truncate">{clientName}</p>
+                  {isInvoiceTab && item.due_date && (
+                    <p className="text-xs text-gray-500">Due {format(parseISO(item.due_date), "d MMM yy")}</p>
+                  )}
                 </div>
                 <div className="text-right flex-shrink-0 flex flex-col items-end gap-1">
                   <p className="font-bold text-white">{currencySymbol(item.currency)}{(item.total ?? item.subtotal ?? 0).toFixed(2)}</p>

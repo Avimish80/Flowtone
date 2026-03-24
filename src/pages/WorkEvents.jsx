@@ -110,8 +110,7 @@ export default function WorkEvents() {
         <CSVImportModal onClose={() => setShowImport(false)} onImported={() => { setShowImport(false); loadEvents(); }} />
       )}
 
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-xl font-bold text-white">Events</h1>
+      <div className="flex items-center justify-end mb-4">
         <div className="flex items-center gap-2">
           <button onClick={() => {
             sessionStorage.setItem("mos_events_preferCalendar", "true");
