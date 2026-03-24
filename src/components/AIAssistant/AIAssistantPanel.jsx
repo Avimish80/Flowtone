@@ -268,7 +268,7 @@ export default function AIAssistantPanel({
                 borderRadius: "16px",
                 padding: "10px 14px",
                 color: "white",
-                fontSize: "14px",
+                fontSize: "16px", /* must be 16px+ to prevent iOS Safari zoom-on-focus */
                 outline: "none",
               }}
             />
