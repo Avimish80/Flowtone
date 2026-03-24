@@ -5,6 +5,7 @@ import express from 'express';
 import cors from 'cors';
 import aiRoutes from './routes/ai.js';
 import pushRoutes from './routes/push.js';
+import gmailRoutes from './routes/gmail.js';
 import { startScheduler } from './scheduler.js';
 
 // Load .env manually — works even if env vars are pre-set to empty
@@ -50,6 +51,7 @@ app.use(express.json());
 // ─── Routes ────────────────────────────────────────────────────────
 app.use('/api/ai', aiRoutes);
 app.use('/api/push', pushRoutes);
+app.use('/api/gmail', gmailRoutes);
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

@@ -13,6 +13,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
 import { printInvoice, buildMailtoLink } from "@/lib/invoiceTemplates";
+import { isGmailConnected, getGmailEmail, sendGmailEmail } from "@/lib/gmailClient";
 
 const CURRENCIES = ["GBP", "USD", "EUR", "AUD", "CAD"];
 const CLIENT_TYPES = ["venue", "agent", "student", "band", "other"];
@@ -84,6 +85,7 @@ export default function DocumentDetail() {
   const [clientModalContext, setClientModalContext] = useState("invoice");
   const [bizProfile, setBizProfile] = useState(null);
   const [appSettings, setAppSettings] = useState(null);
+  const [gmailConnected, setGmailConnected] = useState(false);
 
   const isInvoice = doc.document_type === "invoice";
   const isEstimate = doc.document_type === "estimate";
@@ -102,6 +104,7 @@ export default function DocumentDetail() {
     ]).then(([profiles, settingsArr]) => {
       setBizProfile(profiles[0] || null);
       setAppSettings(settingsArr[0] || null);
+      setGmailConnected(isGmailConnected());
     }).catch(() => {});
   }, []);
 
@@ -581,6 +584,37 @@ export default function DocumentDetail() {
   };
 
   // ─── Email ───────────────────────────────────────────────────────
+  function buildInvoiceHtml(doc, profile) {
+    const cs = currencySymbol(doc.currency);
+    const items = (doc.line_items || []).map(item =>
+      `<tr>
+        <td style="padding:8px;border-bottom:1px solid #eee">${item.description}</td>
+        <td style="padding:8px;border-bottom:1px solid #eee;text-align:right">${item.quantity}</td>
+        <td style="padding:8px;border-bottom:1px solid #eee;text-align:right">${cs}${(item.unit_price || 0).toFixed(2)}</td>
+        <td style="padding:8px;border-bottom:1px solid #eee;text-align:right">${cs}${((item.quantity || 1) * (item.unit_price || 0)).toFixed(2)}</td>
+      </tr>`
+    ).join('');
+
+    return `<!DOCTYPE html>
+<html><body style="font-family:Arial,sans-serif;color:#333;max-width:600px;margin:0 auto;padding:20px">
+  <h2 style="color:#4f46e5">${profile?.business_name || 'Invoice'}</h2>
+  <p><strong>${doc.document_type === 'invoice' ? 'Invoice' : 'Estimate'} #${doc.document_number || ''}</strong></p>
+  ${doc.due_date ? `<p>Due: ${format(parseISO(doc.due_date), 'd MMM yyyy')}</p>` : ''}
+  <table style="width:100%;border-collapse:collapse;margin:16px 0">
+    <thead><tr style="background:#f5f5f5">
+      <th style="padding:8px;text-align:left">Description</th>
+      <th style="padding:8px;text-align:right">Qty</th>
+      <th style="padding:8px;text-align:right">Unit</th>
+      <th style="padding:8px;text-align:right">Total</th>
+    </tr></thead>
+    <tbody>${items}</tbody>
+  </table>
+  <p style="text-align:right"><strong>Total: ${cs}${(doc.total || doc.subtotal || 0).toFixed(2)}</strong></p>
+  ${doc.notes ? `<p style="color:#666;font-size:14px">${doc.notes}</p>` : ''}
+  ${profile?.payment_instructions ? `<p style="color:#666;font-size:13px">${profile.payment_instructions}</p>` : ''}
+</body></html>`;
+  }
+
   const handleSendEmail = async () => {
     if (!emailTo?.trim()) return;
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTo.trim())) {
@@ -589,22 +623,32 @@ export default function DocumentDetail() {
     }
     setSendingEmail(true);
     setShowEmailDialog(false);
-    setSaveError("");
     try {
-      await appClient.functions.invoke("generateAndSendInvoice", {
-        document_id: id,
-        send_email: true,
-        recipient_email: emailTo.trim(),
-      });
-      if (emailTo.trim() !== doc.client_email) {
+      if (gmailConnected) {
+        // Send via Gmail API
+        const profile = await appClient.entities.BusinessProfile.list().then(d => d[0] || {});
+        const settings = await appClient.entities.AppSettings.list().then(d => d[0] || {});
+        const subject = `${typeLabel} #${doc.document_number || ''} from ${profile?.business_name || 'us'}`;
+        const htmlBody = buildInvoiceHtml(doc, profile, settings);
+        await sendGmailEmail({ to: emailTo.trim(), subject, htmlBody });
+        // Update status to 'sent' if still draft
+        if (doc.status === 'draft' && id) {
+          await appClient.entities.Document.update(id, { status: 'sent', client_email: emailTo.trim() });
+          setDoc(prev => ({ ...prev, status: 'sent', client_email: emailTo.trim() }));
+        }
+      } else {
+        // Fallback: open mailto
+        const profile = await appClient.entities.BusinessProfile.list().then(d => d[0] || {});
+        const settings = await appClient.entities.AppSettings.list().then(d => d[0] || {});
+        const link = buildMailtoLink(doc, profile, settings, emailTo.trim());
+        window.open(link, '_blank');
+      }
+      if (emailTo.trim() !== doc.client_email && id) {
         await appClient.entities.Document.update(id, { client_email: emailTo.trim() });
         setDoc(prev => ({ ...prev, client_email: emailTo.trim() }));
       }
-      const docs = await appClient.entities.Document.filter({ id });
-      if (docs[0]) setDoc(docs[0]);
     } catch (err) {
-      console.error("Send error:", err);
-      setSaveError(`Failed to send ${typeLabel.toLowerCase()} email`);
+      setSaveError(`Failed to send email: ${err.message}`);
     }
     setSendingEmail(false);
   };
@@ -736,7 +780,9 @@ export default function DocumentDetail() {
           <div className="bg-gray-800 border border-indigo-700/40 rounded-xl p-4 space-y-3">
             <p className="text-sm font-medium text-white">Send {typeLabel} by Email</p>
             <p className="text-xs text-gray-400">
-              We'll open your email app with a pre-filled message. Use Print&nbsp;→&nbsp;Save as PDF to attach the invoice.
+              {gmailConnected
+                ? `Sending from ${getGmailEmail()}. The ${typeLabel.toLowerCase()} will be delivered directly.`
+                : "Gmail not connected — we'll open your email app with a pre-filled message instead."}
             </p>
             <div>
               <label className="text-xs text-gray-400 mb-1 block">Recipient Email</label>

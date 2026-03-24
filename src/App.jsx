@@ -7,6 +7,8 @@ import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import { runMigration } from '@/api/migration';
+import { useEffect } from 'react';
+import { saveGmailTokens } from '@/lib/gmailClient';
 
 // Run one-time schema migration before app renders
 runMigration();
@@ -68,6 +70,25 @@ const AuthenticatedApp = () => {
 
 
 function App() {
+  useEffect(() => {
+    // Catch Gmail OAuth callback tokens from URL hash
+    const hash = window.location.hash;
+    if (hash.includes('gmail_access=') || hash.includes('gmail_error=')) {
+      if (hash.includes('gmail_error=true')) {
+        console.error('Gmail connection failed');
+      } else {
+        const params = new URLSearchParams(hash.slice(1));
+        const accessToken = params.get('gmail_access');
+        const refreshToken = params.get('gmail_refresh');
+        const email = params.get('gmail_email');
+        if (accessToken && refreshToken) {
+          saveGmailTokens({ accessToken, refreshToken, email });
+        }
+      }
+      // Clean the hash from the URL
+      window.history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
+  }, []);
 
   return (
     <AuthProvider>

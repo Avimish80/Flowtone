@@ -3,6 +3,7 @@ import { appClient } from "@/api/appClient";
 import { Settings, Check, Mail, Navigation, Bell, DollarSign, Building2, Hash, ChevronDown, ChevronUp, Upload, X, Palette } from "lucide-react";
 import { TEMPLATE_DEFS } from "@/lib/invoiceTemplates";
 import { registerPush, unregisterPush, isPushActive, schedulePushNotifications } from "@/lib/pushManager";
+import { isGmailConnected, getGmailEmail, connectGmail, disconnectGmail } from "@/lib/gmailClient";
 
 export default function AppSettings() {
   const [settings, setSettings] = useState(null);
@@ -17,6 +18,10 @@ export default function AppSettings() {
   const [pushActive, setPushActive] = useState(false);
   const [pushLoading, setPushLoading] = useState(false);
   const [pushError, setPushError] = useState("");
+
+  // ── Gmail state ───────────────────────────────────────────────────
+  const [gmailConnected, setGmailConnected] = useState(false);
+  const [gmailEmail, setGmailEmail] = useState('');
 
   useEffect(() => {
     Promise.all([
@@ -61,6 +66,10 @@ export default function AppSettings() {
 
     // Check current push subscription status
     isPushActive().then(setPushActive).catch(() => {});
+
+    // Check Gmail connection status
+    setGmailConnected(isGmailConnected());
+    setGmailEmail(getGmailEmail());
   }, []);
 
   const onChange = (field, value) => setSettings(prev => ({ ...prev, [field]: value }));
@@ -568,6 +577,43 @@ export default function AppSettings() {
               <p className="text-[10px] text-gray-600 leading-relaxed">
                 Push notifications work even when the app is closed. Your browser will ask for permission when you enable them.
               </p>
+            </div>
+          )}
+        </section>
+
+        {/* Gmail */}
+        <section>
+          <SectionHeader icon={Mail} label="Gmail" sectionKey="gmail" />
+          {openSections.has("gmail") && (
+            <div className="bg-gray-800 rounded-xl p-4 space-y-4">
+              {gmailConnected ? (
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-green-900/40 flex items-center justify-center flex-shrink-0">
+                    <Check className="w-4 h-4 text-green-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-green-400">Connected</p>
+                    <p className="text-xs text-gray-400 truncate">{gmailEmail}</p>
+                  </div>
+                  <button
+                    onClick={() => { disconnectGmail(); setGmailConnected(false); setGmailEmail(''); }}
+                    className="text-xs text-red-400 hover:text-red-300 underline underline-offset-2 flex-shrink-0"
+                  >
+                    Disconnect
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <p className="text-xs text-gray-400">Send invoices directly from your Gmail account.</p>
+                  <button
+                    onClick={connectGmail}
+                    className="w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white transition-colors"
+                  >
+                    <Mail className="w-4 h-4" />
+                    Connect Gmail
+                  </button>
+                </>
+              )}
             </div>
           )}
         </section>
