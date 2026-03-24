@@ -246,8 +246,11 @@ export default function AIAssistantPanel({
         </div>
 
         {/* ── Input area ── */}
-        <div className="flex-shrink-0 px-3 py-3 border-t border-gray-800 bg-gray-950 rounded-b-2xl">
-          <div className="flex items-center gap-2 bg-gray-900 rounded-2xl px-3 py-2 border border-gray-800 focus-within:border-indigo-700/60 transition-colors">
+        <div
+          className="flex-shrink-0 px-3 py-3 border-t border-gray-800 bg-gray-950 rounded-b-2xl"
+          style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}
+        >
+          <div className="flex items-center gap-2 bg-gray-900 rounded-2xl px-3 py-2 border border-gray-800 focus-within:border-indigo-700/60 transition-colors overflow-hidden">
             <input
               ref={inputRef}
               type="text"
@@ -256,7 +259,7 @@ export default function AIAssistantPanel({
               onKeyDown={handleKeyDown}
               placeholder="Ask anything about your gigs…"
               disabled={loading}
-              className="flex-1 bg-transparent text-sm text-white placeholder-gray-500 outline-none min-w-0 disabled:opacity-50"
+              className="flex-1 bg-transparent text-sm text-white placeholder-gray-500 outline-none min-w-0 w-0 disabled:opacity-50"
             />
             <MicButton
               onResult={handleVoiceResult}

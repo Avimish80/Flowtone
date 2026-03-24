@@ -99,8 +99,8 @@ export default function Layout({ children, currentPageName }) {
 
   return (
     <div className="min-h-screen bg-gray-950 text-white flex flex-col">
-      {/* Top bar */}
-      <header className="flex items-center justify-between px-4 py-3 border-b border-gray-800 bg-gray-950 sticky top-0 z-30">
+      {/* Top bar — pt-safe pushes content below iPhone notch/Dynamic Island */}
+      <header className="flex items-center justify-between px-4 py-3 border-b border-gray-800 bg-gray-950 sticky top-0 z-30" style={{ paddingTop: "max(12px, env(safe-area-inset-top))" }}>
         <div className="flex items-center gap-2.5">
           <Music2 className="w-5 h-5 text-indigo-400" />
           <span className="font-bold text-white tracking-tight">Musician OS</span>
@@ -172,7 +172,7 @@ export default function Layout({ children, currentPageName }) {
       />
 
       {/* Bottom Nav — 5 items */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-800 z-30 flex justify-around items-center px-2 py-2">
+      <nav className="fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-800 z-30 flex justify-around items-center px-2 py-2" style={{ paddingBottom: "max(8px, env(safe-area-inset-bottom))" }}>
         {primaryNav.map(({ icon: Icon, label, page }) => {
           const active = activeGroup === page;
           return (
