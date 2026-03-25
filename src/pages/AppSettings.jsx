@@ -710,6 +710,41 @@ export default function AppSettings() {
                 >
                   {testImporting === "invoices" ? "Importing…" : testImported === "invoices" ? "✓ 25 Invoices Imported!" : "Load Sample Invoices (25)"}
                 </button>
+                <button
+                  onClick={async () => {
+                    setTestImporting("lessons");
+                    try {
+                      const res = await fetch("/test-lessons.csv");
+                      const text = await res.text();
+                      const lines = text.trim().split(/\r?\n/);
+                      const headers = lines[0].split(",");
+                      const rows = lines.slice(1).filter(l => l.trim()).map(line => {
+                        const vals = []; let cur = "", inQ = false;
+                        for (const ch of line) {
+                          if (ch === '"') inQ = !inQ;
+                          else if (ch === ',' && !inQ) { vals.push(cur.trim()); cur = ""; }
+                          else cur += ch;
+                        }
+                        vals.push(cur.trim());
+                        const obj = {}; headers.forEach((h, i) => { obj[h] = vals[i] || ""; }); return obj;
+                      });
+                      for (const r of rows) {
+                        await appClient.entities.WorkEvent.create({
+                          title: r.title, date: r.date, start_time: r.start_time || "",
+                          end_time: r.end_time || "", event_type: "lesson",
+                          status: r.status || "confirmed", location_address: r.location_address || "",
+                          fee: parseFloat(r.fee) || 0, notes: r.notes || "",
+                          is_recurring: true,
+                        });
+                      }
+                      setTestImporting(null); setTestImported("lessons");
+                    } catch { setTestImporting(null); }
+                  }}
+                  disabled={testImporting === "lessons"}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-teal-900/40 hover:bg-teal-900/60 disabled:opacity-50 text-teal-300 border border-teal-700/40 transition-colors"
+                >
+                  {testImporting === "lessons" ? "Importing…" : testImported === "lessons" ? "✓ 357 Lessons Imported!" : "Load Sample Lessons (12 students, Jan–Jul)"}
+                </button>
               </div>
               <div className="border-t border-gray-700 pt-3 space-y-2">
                 <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Export</p>
