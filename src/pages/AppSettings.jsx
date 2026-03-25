@@ -6,6 +6,7 @@ import { registerPush, unregisterPush, isPushActive, schedulePushNotifications, 
 import { isGmailConnected, getGmailEmail, connectGmail, disconnectGmail } from "@/lib/gmailClient";
 import SmartCSVImport from "@/components/SmartCSVImport";
 import { exportClients, exportEvents, exportInvoices, downloadCSV } from "@/lib/csvExport";
+import { eventsToIcal, downloadIcal } from "@/lib/icalExport";
 
 export default function AppSettings() {
   const [settings, setSettings] = useState(null);
@@ -781,7 +782,18 @@ export default function AppSettings() {
                   className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-gray-700 hover:bg-gray-600 text-gray-200 transition-colors"
                 >
                   <Download className="w-4 h-4" />
-                  Export Events
+                  Export Events (CSV)
+                </button>
+                <button
+                  onClick={async () => {
+                    const events = await appClient.entities.WorkEvent.list().catch(() => []);
+                    const ics = eventsToIcal(events);
+                    downloadIcal("gigflow-events.ics", ics);
+                  }}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-indigo-900/60 hover:bg-indigo-900 text-indigo-300 border border-indigo-700/40 transition-colors"
+                >
+                  <Download className="w-4 h-4" />
+                  Export to iPhone Calendar (.ics)
                 </button>
                 <button
                   onClick={async () => { const csv = await exportInvoices(appClient); downloadCSV("invoices.csv", csv); }}

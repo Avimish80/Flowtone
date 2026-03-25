@@ -7,8 +7,9 @@ import { format } from "date-fns";
 import {
   ArrowLeft, Save, Trash2, DollarSign,
   Package, Mail, Navigation, ChevronDown, ChevronUp, AlertTriangle, FileText, CalendarDays, RefreshCw,
-  Dumbbell, Check, X, CheckCircle2, Target, ExternalLink, Loader2
+  Dumbbell, Check, X, CheckCircle2, Target, ExternalLink, Loader2, CalendarPlus
 } from "lucide-react";
+import { eventsToIcal, downloadIcal } from "@/lib/icalExport";
 import EventInfoSection from "../components/workevent/EventInfoSection";
 import EventFinancialsSection from "../components/workevent/EventFinancialsSection";
 import EventEquipmentSection from "../components/workevent/EventEquipmentSection";
@@ -278,20 +279,34 @@ export default function WorkEventDetail() {
             </p>
           )}
         </div>
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className={`flex-shrink-0 px-4 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-all ${
-            savedFlash
-              ? "bg-green-600 text-white"
-              : "bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white"
-          }`}
-        >
-          {savedFlash
-            ? <><CheckCircle2 className="w-4 h-4" /> Saved</>
-            : <><Save className="w-4 h-4" /> {saving ? "Saving..." : "Save"}</>
-          }
-        </button>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {id && event.date && (
+            <button
+              onClick={() => {
+                const ics = eventsToIcal([event]);
+                downloadIcal(`${(event.title || "event").replace(/[^a-z0-9]/gi, "-").toLowerCase()}.ics`, ics);
+              }}
+              title="Add to iPhone Calendar"
+              className="p-1.5 rounded-lg text-gray-400 hover:text-indigo-300 hover:bg-gray-800 transition-colors"
+            >
+              <CalendarPlus className="w-4 h-4" />
+            </button>
+          )}
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className={`px-4 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-all ${
+              savedFlash
+                ? "bg-green-600 text-white"
+                : "bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white"
+            }`}
+          >
+            {savedFlash
+              ? <><CheckCircle2 className="w-4 h-4" /> Saved</>
+              : <><Save className="w-4 h-4" /> {saving ? "Saving..." : "Save"}</>
+            }
+          </button>
+        </div>
       </div>
 
       {/* Practice check-in banner — shown for past/today practice events */}
