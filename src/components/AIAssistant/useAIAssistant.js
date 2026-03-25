@@ -119,6 +119,49 @@ async function executeAction(action) {
       };
     }
 
+    case "CREATE_INVOICE": {
+      // Get next invoice number
+      const docNumber = await appClient.helpers.getNextDocumentNumber("invoice");
+
+      // Calculate totals from line items
+      const lineItems = (data.line_items || [{ description: data.title || "Service", quantity: 1, unit_price: 0 }]).map(item => ({
+        description: item.description || "Service",
+        quantity: Number(item.quantity) || 1,
+        unit_price: Number(item.unit_price) || 0,
+        total: (Number(item.quantity) || 1) * (Number(item.unit_price) || 0),
+      }));
+      const subtotal = lineItems.reduce((sum, i) => sum + i.total, 0);
+
+      const created = await appClient.entities.Document.create({
+        document_type: "invoice",
+        document_number: docNumber,
+        title: data.title || "New Invoice",
+        client_id: data.client_id || "",
+        status: "draft",
+        currency: data.currency || "GBP",
+        line_items: lineItems,
+        subtotal,
+        total: subtotal,
+        due_date: data.due_date || "",
+        notes: data.notes || "",
+        tax_rate: 0,
+        tax_amount: 0,
+        discount_value: 0,
+        discount_amount: 0,
+        is_locked: false,
+        paid_amount: 0,
+      });
+
+      return {
+        success: true,
+        type,
+        label: `Created invoice: ${data.title || "New Invoice"}${docNumber ? " #" + docNumber : ""}`,
+        entityId: created?.id,
+        page: "DocumentDetail",
+        navigate: { page: "DocumentDetail", params: { id: created?.id } },
+      };
+    }
+
     case "NAVIGATE": {
       return {
         success: true,

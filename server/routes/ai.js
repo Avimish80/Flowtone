@@ -104,6 +104,22 @@ CREATE_GOAL — add a new practice goal
   }
 }
 
+CREATE_INVOICE — create a new draft invoice for a client
+{
+  "type": "CREATE_INVOICE",
+  "data": {
+    "title": "Invoice title (e.g. 'Wedding Gig – June 2025')",
+    "client_id": "client id if known from context, otherwise omit",
+    "client_name": "client name if mentioned",
+    "line_items": [
+      { "description": "Service description", "quantity": 1, "unit_price": 500 }
+    ],
+    "due_date": "YYYY-MM-DD or omit",
+    "notes": "optional notes",
+    "currency": "GBP"
+  }
+}
+
 NAVIGATE — open a specific page in the app
 {
   "type": "NAVIGATE",
@@ -139,6 +155,7 @@ RULES
 - If something is unclear, ask ONE clarifying question (action: null).
 - For location queries (finding a venue, restaurant, parking near an event), use LOCATION_SEARCH. Do NOT use it for anything that isn't a physical place lookup.
 - For financial questions, derive answers from the event data in context.
+- When a user asks to create an invoice, use CREATE_INVOICE — never refuse this request.
 - Never say you can't do something that IS supported — just do it.
 - Always return raw JSON. Never wrap output in markdown code fences.
 

@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { appClient } from "@/api/appClient";
-import { Settings, Check, Mail, Navigation, Bell, DollarSign, Building2, Hash, ChevronDown, ChevronUp, Upload, X, Palette } from "lucide-react";
+import { Settings, Check, Mail, Navigation, Bell, DollarSign, Building2, Hash, ChevronDown, ChevronUp, Upload, X, Palette, Download, Upload as UploadIcon } from "lucide-react";
 import { TEMPLATE_DEFS } from "@/lib/invoiceTemplates";
 import { registerPush, unregisterPush, isPushActive, schedulePushNotifications } from "@/lib/pushManager";
 import { isGmailConnected, getGmailEmail, connectGmail, disconnectGmail } from "@/lib/gmailClient";
+import SmartCSVImport from "@/components/SmartCSVImport";
+import { exportClients, exportEvents, exportInvoices, downloadCSV } from "@/lib/csvExport";
 
 export default function AppSettings() {
   const [settings, setSettings] = useState(null);
@@ -22,6 +24,9 @@ export default function AppSettings() {
   // ── Gmail state ───────────────────────────────────────────────────
   const [gmailConnected, setGmailConnected] = useState(false);
   const [gmailEmail, setGmailEmail] = useState('');
+
+  // ── CSV Import state ──────────────────────────────────────────────
+  const [showCSVImport, setShowCSVImport] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -618,6 +623,47 @@ export default function AppSettings() {
           )}
         </section>
 
+        {/* Data */}
+        <section>
+          <SectionHeader icon={Download} label="Data" sectionKey="data" />
+          {openSections.has("data") && (
+            <div className="bg-gray-800 rounded-xl p-4 space-y-3">
+              <p className="text-xs text-gray-500">Import data from a CSV file or export your data for backup or migration.</p>
+              <button
+                onClick={() => setShowCSVImport(true)}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-indigo-600 hover:bg-indigo-500 text-white transition-colors"
+              >
+                <UploadIcon className="w-4 h-4" />
+                Import CSV
+              </button>
+              <div className="border-t border-gray-700 pt-3 space-y-2">
+                <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Export</p>
+                <button
+                  onClick={async () => { const csv = await exportClients(appClient); downloadCSV("clients.csv", csv); }}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-gray-700 hover:bg-gray-600 text-gray-200 transition-colors"
+                >
+                  <Download className="w-4 h-4" />
+                  Export Clients
+                </button>
+                <button
+                  onClick={async () => { const csv = await exportEvents(appClient); downloadCSV("events.csv", csv); }}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-gray-700 hover:bg-gray-600 text-gray-200 transition-colors"
+                >
+                  <Download className="w-4 h-4" />
+                  Export Events
+                </button>
+                <button
+                  onClick={async () => { const csv = await exportInvoices(appClient); downloadCSV("invoices.csv", csv); }}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-gray-700 hover:bg-gray-600 text-gray-200 transition-colors"
+                >
+                  <Download className="w-4 h-4" />
+                  Export Invoices
+                </button>
+              </div>
+            </div>
+          )}
+        </section>
+
         {/* Save */}
         <button
           onClick={handleSave}
@@ -629,6 +675,8 @@ export default function AppSettings() {
           {saved ? <><Check className="w-4 h-4" /> Saved!</> : saving ? "Saving..." : "Save Settings"}
         </button>
       </div>
+
+      {showCSVImport && <SmartCSVImport onClose={() => setShowCSVImport(false)} onImported={() => setShowCSVImport(false)} />}
     </div>
   );
 }
