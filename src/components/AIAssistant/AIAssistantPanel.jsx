@@ -29,7 +29,7 @@ function AssistantBubble({ message }) {
   );
 }
 
-function ActionCard({ message, navigate }) {
+function ActionCard({ message, navigate, onClose }) {
   const action = message.action || {};
   const page = action.navigate?.page || action.page;
 
@@ -39,6 +39,7 @@ function ActionCard({ message, navigate }) {
     const query = Object.keys(params).length
       ? "?" + new URLSearchParams(params).toString()
       : "";
+    onClose();
     navigate(createPageUrl(page) + query);
   };
 
@@ -134,17 +135,18 @@ export default function AIAssistantPanel({
     }
   }, [open]);
 
-  // Execute pending navigation from AI actions
+  // Execute pending navigation from AI actions — close panel first
   useEffect(() => {
     if (pendingNavigate) {
       const { page, params = {} } = pendingNavigate;
       const query = Object.keys(params).length
         ? "?" + new URLSearchParams(params).toString()
         : "";
+      onClose();
       navigate(createPageUrl(page) + query);
       clearPendingNavigate();
     }
-  }, [pendingNavigate, navigate, clearPendingNavigate]);
+  }, [pendingNavigate, navigate, clearPendingNavigate, onClose]);
 
   const handleSend = () => {
     const text = input.trim();
@@ -237,7 +239,7 @@ export default function AIAssistantPanel({
               return <AssistantBubble key={msg.id} message={msg} />;
             if (msg.role === "action")
               return (
-                <ActionCard key={msg.id} message={msg} navigate={navigate} />
+                <ActionCard key={msg.id} message={msg} navigate={navigate} onClose={onClose} />
               );
             return null;
           })}
