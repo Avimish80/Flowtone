@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { X, Trash2, Send, Sparkles, ExternalLink } from "lucide-react";
-import MicButton from "@/components/MicButton";
+import { X, Trash2, Send, Sparkles, ExternalLink, Mic, MicOff } from "lucide-react";
+import { useSpeechInput } from "@/hooks/useSpeechInput";
 import { createPageUrl } from "@/utils";
 
 // ─── Message bubble ──────────────────────────────────────────────────────────
@@ -118,6 +118,7 @@ export default function AIAssistantPanel({
   const [input, setInput] = useState("");
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const { listening, start: startListening, stop: stopListening, supported: micSupported } = useSpeechInput();
 
   // Scroll to bottom on new messages or loading state change
   useEffect(() => {
@@ -134,6 +135,13 @@ export default function AIAssistantPanel({
       setTimeout(() => inputRef.current?.focus(), 150);
     }
   }, [open]);
+
+  // Stop recording when panel closes
+  useEffect(() => {
+    if (!open && listening) {
+      stopListening();
+    }
+  }, [open, listening, stopListening]);
 
   // Execute pending navigation from AI actions — close panel first
   useEffect(() => {
@@ -166,6 +174,14 @@ export default function AIAssistantPanel({
   const handleVoiceResult = (transcript) => {
     if (transcript.trim()) {
       sendMessage(transcript.trim());
+    }
+  };
+
+  const handleMicClick = () => {
+    if (listening) {
+      stopListening();
+    } else {
+      startListening(handleVoiceResult);
     }
   };
 
@@ -252,7 +268,21 @@ export default function AIAssistantPanel({
           className="flex-shrink-0 border-t border-gray-800 bg-gray-950 rounded-b-2xl"
           style={{ padding: "12px", paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}
         >
-          {/* Row: input + mic + send — all in one line, no overflow */}
+          {/* Big recording UI — shown while mic is active */}
+          {listening ? (
+            <div className="flex flex-col items-center gap-3 py-3">
+              <button
+                onClick={handleMicClick}
+                className="w-20 h-20 rounded-full bg-red-600 flex items-center justify-center shadow-2xl shadow-red-900/60"
+                style={{ animation: "pulse 1.2s ease-in-out infinite" }}
+                aria-label="Stop recording"
+              >
+                <Mic className="w-9 h-9 text-white" />
+              </button>
+              <p className="text-red-400 text-sm font-semibold tracking-wide">Listening… tap to stop</p>
+            </div>
+          ) : (
+          /* Normal row: input + mic + send */
           <div style={{ display: "flex", alignItems: "center", gap: "8px", width: "100%" }}>
             <input
               ref={inputRef}
@@ -270,11 +300,24 @@ export default function AIAssistantPanel({
                 borderRadius: "16px",
                 padding: "10px 14px",
                 color: "white",
-                fontSize: "16px", /* must be 16px+ to prevent iOS Safari zoom-on-focus */
+                fontSize: "16px",
                 outline: "none",
               }}
             />
-            <MicButton onResult={handleVoiceResult} />
+            {micSupported && (
+              <button
+                type="button"
+                onClick={handleMicClick}
+                aria-label="Start voice input"
+                style={{
+                  flexShrink: 0, width: "36px", height: "36px", borderRadius: "50%",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  background: "#1f2937", border: "1px solid #374151", color: "#9ca3af", cursor: "pointer",
+                }}
+              >
+                <Mic size={16} />
+              </button>
+            )}
             <button
               onClick={handleSend}
               disabled={loading || !input.trim()}
@@ -296,9 +339,12 @@ export default function AIAssistantPanel({
               <Send size={14} />
             </button>
           </div>
-          <p className="text-center text-[10px] text-gray-700 mt-1.5">
-            GigFlow AI · Local app data only
-          </p>
+          )}
+          {!listening && (
+            <p className="text-center text-[10px] text-gray-700 mt-1.5">
+              GigFlow AI · Local app data only
+            </p>
+          )}
         </div>
       </div>
     </>

@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 
 /**
  * Uses the browser's built-in Web Speech API (SpeechRecognition / webkitSpeechRecognition)
@@ -77,6 +77,16 @@ export function useSpeechInput() {
       recognitionRef.current = null;
     }
   }, [supported, SpeechRecognition]);
+
+  // Always abort recognition when the component using this hook unmounts
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.abort();
+        recognitionRef.current = null;
+      }
+    };
+  }, []);
 
   return { listening, transcript, start, stop, supported };
 }
