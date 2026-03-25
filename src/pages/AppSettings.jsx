@@ -27,6 +27,8 @@ export default function AppSettings() {
 
   // ── CSV Import state ──────────────────────────────────────────────
   const [showCSVImport, setShowCSVImport] = useState(false);
+  const [testImporting, setTestImporting] = useState(null);
+  const [testImported, setTestImported] = useState(null);
 
   useEffect(() => {
     Promise.all([
@@ -637,23 +639,77 @@ export default function AppSettings() {
                 Import CSV
               </button>
               <div className="border-t border-gray-700 pt-3 space-y-2">
-                <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Test Data</p>
-                <a
-                  href="/test-events.csv"
-                  download="test-events.csv"
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-teal-900/40 hover:bg-teal-900/60 text-teal-300 border border-teal-700/40 transition-colors"
+                <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Load Test Data</p>
+                <button
+                  onClick={async () => {
+                    setTestImporting("events");
+                    try {
+                      const res = await fetch("/test-events.csv");
+                      const text = await res.text();
+                      const lines = text.trim().split(/\r?\n/);
+                      const headers = lines[0].split(",");
+                      const rows = lines.slice(1).filter(l => l.trim()).map(line => {
+                        const vals = []; let cur = "", inQ = false;
+                        for (const ch of line) {
+                          if (ch === '"') inQ = !inQ;
+                          else if (ch === ',' && !inQ) { vals.push(cur.trim()); cur = ""; }
+                          else cur += ch;
+                        }
+                        vals.push(cur.trim());
+                        const obj = {}; headers.forEach((h, i) => { obj[h] = vals[i] || ""; }); return obj;
+                      });
+                      for (const r of rows) {
+                        await appClient.entities.WorkEvent.create({
+                          title: r.title, date: r.date, start_time: r.start_time || "",
+                          end_time: r.end_time || "", event_type: r.event_type || "gig",
+                          status: r.status || "confirmed", location_address: r.location_address || "",
+                          fee: parseFloat(r.fee) || 0, notes: r.notes || "",
+                        });
+                      }
+                      setTestImporting(null); setTestImported("events");
+                    } catch { setTestImporting(null); }
+                  }}
+                  disabled={testImporting === "events"}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-teal-900/40 hover:bg-teal-900/60 disabled:opacity-50 text-teal-300 border border-teal-700/40 transition-colors"
                 >
-                  <Download className="w-4 h-4" />
-                  Download Sample Events (47 gigs)
-                </a>
-                <a
-                  href="/test-invoices.csv"
-                  download="test-invoices.csv"
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-teal-900/40 hover:bg-teal-900/60 text-teal-300 border border-teal-700/40 transition-colors"
+                  {testImporting === "events" ? "Importing…" : testImported === "events" ? "✓ 47 Events Imported!" : "Load Sample Events (47 gigs)"}
+                </button>
+                <button
+                  onClick={async () => {
+                    setTestImporting("invoices");
+                    try {
+                      const res = await fetch("/test-invoices.csv");
+                      const text = await res.text();
+                      const lines = text.trim().split(/\r?\n/);
+                      const headers = lines[0].split(",");
+                      const rows = lines.slice(1).filter(l => l.trim()).map(line => {
+                        const vals = []; let cur = "", inQ = false;
+                        for (const ch of line) {
+                          if (ch === '"') inQ = !inQ;
+                          else if (ch === ',' && !inQ) { vals.push(cur.trim()); cur = ""; }
+                          else cur += ch;
+                        }
+                        vals.push(cur.trim());
+                        const obj = {}; headers.forEach((h, i) => { obj[h] = vals[i] || ""; }); return obj;
+                      });
+                      for (const r of rows) {
+                        const total = parseFloat(r.total) || 0;
+                        await appClient.entities.Document.create({
+                          document_type: "invoice", document_number: r.document_number || "",
+                          title: r.title, status: r.status || "draft",
+                          total, subtotal: total, due_date: r.due_date || "",
+                          notes: r.notes || "", currency: "GBP",
+                          line_items: [{ description: r.title, quantity: 1, unit_price: total, total }],
+                        });
+                      }
+                      setTestImporting(null); setTestImported("invoices");
+                    } catch { setTestImporting(null); }
+                  }}
+                  disabled={testImporting === "invoices"}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-teal-900/40 hover:bg-teal-900/60 disabled:opacity-50 text-teal-300 border border-teal-700/40 transition-colors"
                 >
-                  <Download className="w-4 h-4" />
-                  Download Sample Invoices (25)
-                </a>
+                  {testImporting === "invoices" ? "Importing…" : testImported === "invoices" ? "✓ 25 Invoices Imported!" : "Load Sample Invoices (25)"}
+                </button>
               </div>
               <div className="border-t border-gray-700 pt-3 space-y-2">
                 <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Export</p>
