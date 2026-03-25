@@ -637,6 +637,25 @@ export default function AppSettings() {
                 Import CSV
               </button>
               <div className="border-t border-gray-700 pt-3 space-y-2">
+                <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Test Data</p>
+                <a
+                  href="/test-events.csv"
+                  download="test-events.csv"
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-teal-900/40 hover:bg-teal-900/60 text-teal-300 border border-teal-700/40 transition-colors"
+                >
+                  <Download className="w-4 h-4" />
+                  Download Sample Events (47 gigs)
+                </a>
+                <a
+                  href="/test-invoices.csv"
+                  download="test-invoices.csv"
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-teal-900/40 hover:bg-teal-900/60 text-teal-300 border border-teal-700/40 transition-colors"
+                >
+                  <Download className="w-4 h-4" />
+                  Download Sample Invoices (25)
+                </a>
+              </div>
+              <div className="border-t border-gray-700 pt-3 space-y-2">
                 <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Export</p>
                 <button
                   onClick={async () => { const csv = await exportClients(appClient); downloadCSV("clients.csv", csv); }}
