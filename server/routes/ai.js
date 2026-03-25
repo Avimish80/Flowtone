@@ -53,7 +53,7 @@ CREATE_EVENT — schedule a new gig, lesson, session, rehearsal, etc.
     "start_time": "HH:MM (24h, optional)",
     "end_time": "HH:MM (24h, optional)",
     "status": "lead|confirmed|completed|cancelled (default: lead)",
-    "venue": "string (optional)",
+    "location_address": "full venue address or venue name (optional)",
     "base_price": number (optional),
     "currency": "GBP|USD|EUR (default: GBP)",
     "client_id": "string (optional, match from clients list)",
