@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { appClient } from "@/api/appClient";
 import { Settings, Check, Mail, Navigation, Bell, DollarSign, Building2, Hash, ChevronDown, ChevronUp, Upload, X, Palette, Download, Upload as UploadIcon } from "lucide-react";
 import { TEMPLATE_DEFS } from "@/lib/invoiceTemplates";
-import { registerPush, unregisterPush, isPushActive, schedulePushNotifications } from "@/lib/pushManager";
+import { registerPush, unregisterPush, isPushActive, schedulePushNotifications, sendTestPush } from "@/lib/pushManager";
 import { isGmailConnected, getGmailEmail, connectGmail, disconnectGmail } from "@/lib/gmailClient";
 import SmartCSVImport from "@/components/SmartCSVImport";
 import { exportClients, exportEvents, exportInvoices, downloadCSV } from "@/lib/csvExport";
@@ -581,8 +581,25 @@ export default function AppSettings() {
                   : pushActive ? "Disable Notifications" : "Enable Notifications"}
               </button>
 
+              {/* Test notification button — only shown when active */}
+              {pushActive && (
+                <button
+                  onClick={async () => {
+                    const result = await sendTestPush();
+                    if (result.success) {
+                      alert("✅ Test notification sent! You should receive it in about 5 seconds. If you don't see it, make sure the app is installed to your home screen.");
+                    } else {
+                      alert("❌ Failed to send test: " + (result.reason || "unknown error"));
+                    }
+                  }}
+                  className="w-full py-2 rounded-xl text-sm font-medium bg-teal-900/40 hover:bg-teal-900/60 text-teal-300 border border-teal-700/40 transition-colors"
+                >
+                  🔔 Send Test Notification
+                </button>
+              )}
+
               <p className="text-[10px] text-gray-600 leading-relaxed">
-                Push notifications work even when the app is closed. Your browser will ask for permission when you enable them.
+                Push notifications work even when the app is closed. Must be installed to your home screen on iPhone. Your browser will ask for permission when you enable them.
               </p>
             </div>
           )}

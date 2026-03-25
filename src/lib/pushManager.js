@@ -107,6 +107,34 @@ export async function unregisterPush() {
 }
 
 /**
+ * Send an immediate test push notification to verify the pipeline works.
+ */
+export async function sendTestPush() {
+  const sub = await getActiveSubscription();
+  if (!sub) return { success: false, reason: 'not_subscribed' };
+
+  // Schedule a push that fires in 5 seconds
+  const fireAt = new Date(Date.now() + 5000).toISOString();
+  try {
+    const res = await fetch(`${API_BASE}/api/push/schedule`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        endpoint: sub.endpoint,
+        fireAt,
+        title: '🎵 GigFlow Notifications Working!',
+        body: 'You will receive reminders for gigs, lessons and invoices.',
+        url: '/',
+        tag: `test-${Date.now()}`,
+      }),
+    });
+    return res.ok ? { success: true } : { success: false, reason: 'server_error' };
+  } catch {
+    return { success: false, reason: 'network_error' };
+  }
+}
+
+/**
  * Returns true if this device is currently subscribed to push notifications.
  */
 export async function isPushActive() {
@@ -115,8 +143,8 @@ export async function isPushActive() {
 }
 
 /**
- * Schedule server-side push notifications for all upcoming events (next 7 days).
- * Safe to call on every app load — the server should deduplicate by tag.
+ * Schedule server-side push notifications for all upcoming events (next 30 days).
+ * Safe to call on every app load — the server deduplicates by tag.
  *
  * @param {Array}  events            - WorkEvent records from appClient
  * @param {Array}  _clients          - Client records (reserved for future use)
@@ -132,7 +160,7 @@ export async function schedulePushNotifications(
 
   const endpoint = sub.endpoint;
   const now = Date.now();
-  const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+  const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
 
   const scheduled = [];
 
@@ -142,15 +170,16 @@ export async function schedulePushNotifications(
     const eventDate = parseLocalDateTime(event.date, null);
     if (!eventDate) continue;
 
-    // Only look at events starting today through +7 days
+    // Only look at events starting today through +30 days
     const eventMs = eventDate.getTime();
-    if (eventMs < now - 24 * 60 * 60 * 1000) continue; // already more than a day old
-    if (eventMs > now + sevenDaysMs) continue;
+    if (eventMs < now - 24 * 60 * 60 * 1000) continue;
+    if (eventMs > now + thirtyDaysMs) continue;
 
-    const venue = event.venue || event.location || '';
+    // Use location_address (the actual field name in WorkEvent)
+    const venue = event.location_address || event.venue || event.location || '';
 
-    // ── ALL LEVELS: "Leave now" alert ──────────────────────────────
-    if (venue && event.start_time) {
+    // ── ALL LEVELS: "Leave now" alert (fires 90 min before start) ──
+    if (event.start_time) {
       const startDt = parseLocalDateTime(event.date, event.start_time);
       if (startDt) {
         const leaveAt = new Date(startDt.getTime() - 90 * 60 * 1000);
