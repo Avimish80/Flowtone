@@ -2,7 +2,6 @@
 // Handles SW registration, subscription, and server-side scheduling.
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-const PUSH_SW = '/sw-push.js';
 const VAPID_PUBLIC_KEY =
   'BJWmGOrJ5Uhw71uHgDI8DvOLGwLUYuENkni_a76qZHKzwDMMns67wk6kwU2TCvTK-sXbzn7RwgfozaBtbyPBN8I';
 
@@ -15,12 +14,14 @@ function urlBase64ToUint8Array(base64String) {
   return Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
 }
 
-/** Returns the active PushSubscription, or null if not subscribed. */
+/**
+ * Returns the active PushSubscription via the main VitePWA service worker.
+ * No separate push SW needed — push handlers live in the main SW.
+ */
 async function getActiveSubscription() {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) return null;
   try {
-    const reg = await navigator.serviceWorker.getRegistration(PUSH_SW);
-    if (!reg) return null;
+    const reg = await navigator.serviceWorker.ready;
     return await reg.pushManager.getSubscription();
   } catch {
     return null;
@@ -53,11 +54,8 @@ export async function registerPush(notificationLevel = 'standard') {
     return { success: false, reason: 'not_supported' };
   }
 
-  // Register (or re-use) the push-specific SW
-  const reg = await navigator.serviceWorker.register(PUSH_SW, { scope: '/' });
-
-  // Wait until the SW is active
-  await navigator.serviceWorker.ready;
+  // Use the main VitePWA service worker — no separate push SW needed
+  const reg = await navigator.serviceWorker.ready;
 
   // Request permission
   const permission = await Notification.requestPermission();
@@ -65,7 +63,7 @@ export async function registerPush(notificationLevel = 'standard') {
     return { success: false, reason: 'denied' };
   }
 
-  // Subscribe
+  // Subscribe through the main SW registration
   const subscription = await reg.pushManager.subscribe({
     userVisibleOnly: true,
     applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
