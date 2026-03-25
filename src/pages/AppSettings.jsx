@@ -3,10 +3,12 @@ import { appClient } from "@/api/appClient";
 import { Settings, Check, Mail, Navigation, Bell, DollarSign, Building2, Hash, ChevronDown, ChevronUp, Upload, X, Palette, Download, Upload as UploadIcon } from "lucide-react";
 import { TEMPLATE_DEFS } from "@/lib/invoiceTemplates";
 import { registerPush, unregisterPush, isPushActive, schedulePushNotifications, sendTestPush } from "@/lib/pushManager";
+import { DEFAULT_PREFS } from "@/lib/notificationPrefs";
 import { isGmailConnected, getGmailEmail, connectGmail, disconnectGmail } from "@/lib/gmailClient";
 import SmartCSVImport from "@/components/SmartCSVImport";
 import { exportClients, exportEvents, exportInvoices, downloadCSV } from "@/lib/csvExport";
 import { eventsToIcal, downloadIcal } from "@/lib/icalExport";
+import NotificationPrefsEditor from "@/components/NotificationPrefsEditor";
 
 export default function AppSettings() {
   const [settings, setSettings] = useState(null);
@@ -85,14 +87,15 @@ export default function AppSettings() {
 
   // ── Push helpers ───────────────────────────────────────────────────
 
-  /** Load events + clients then reschedule all notifications. */
-  const reschedule = useCallback(async (level) => {
+  /** Load events, clients, documents then reschedule all notifications. */
+  const reschedule = useCallback(async (currentSettings) => {
     try {
-      const [events, clients] = await Promise.all([
+      const [events, clients, documents] = await Promise.all([
         appClient.entities.WorkEvent.list(),
         appClient.entities.Client.list(),
+        appClient.entities.Document.list().catch(() => []),
       ]);
-      await schedulePushNotifications(events, clients, level);
+      await schedulePushNotifications(events, clients, documents, currentSettings);
     } catch (err) {
       console.warn("Push reschedule failed:", err);
     }
@@ -106,7 +109,7 @@ export default function AppSettings() {
       const result = await registerPush(level);
       if (result.success) {
         setPushActive(true);
-        await reschedule(level);
+        await reschedule(settings);
       } else if (result.reason === "denied") {
         setPushError("Notification permission was denied. Please allow notifications in your browser settings.");
       } else {
@@ -133,9 +136,27 @@ export default function AppSettings() {
   };
 
   const handleLevelChange = async (level) => {
-    onChange("notification_level", level);
+    // When switching to full, seed notification_prefs from full defaults if not set
+    const updatedSettings = { ...settings, notification_level: level };
+    if (level === "full" && !settings?.notification_prefs) {
+      updatedSettings.notification_prefs = DEFAULT_PREFS.full;
+    }
+    setSettings(updatedSettings);
     if (pushActive) {
-      await reschedule(level);
+      await reschedule(updatedSettings);
+    }
+  };
+
+  const handlePrefChange = async (key, field, value) => {
+    const currentPrefs = settings?.notification_prefs || DEFAULT_PREFS.full;
+    const updatedPrefs = {
+      ...currentPrefs,
+      [key]: { ...(currentPrefs[key] || {}), [field]: value },
+    };
+    const updatedSettings = { ...settings, notification_prefs: updatedPrefs };
+    setSettings(updatedSettings);
+    if (pushActive) {
+      await reschedule(updatedSettings);
     }
   };
 
@@ -435,30 +456,6 @@ export default function AppSettings() {
           )}
         </section>
 
-        {/* Reminders */}
-        <section>
-          <SectionHeader icon={Bell} label="Reminders" sectionKey="reminders" />
-          {openSections.has("reminders") && (
-            <div className="bg-gray-800 rounded-xl p-4">
-              <label className={labelCls}>Reminder Channel</label>
-              <div className="flex gap-2">
-                {["in_app", "email"].map(ch => (
-                  <button
-                    key={ch}
-                    onClick={() => onChange("reminder_channel", ch)}
-                    className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors border ${
-                      settings.reminder_channel === ch
-                        ? "bg-indigo-600 border-indigo-500 text-white"
-                        : "bg-gray-900 border-gray-700 text-gray-400 hover:text-white"
-                    }`}
-                  >
-                    {ch === "in_app" ? "In-App" : "Email"}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </section>
 
         {/* Invoice Templates */}
         <section>
@@ -500,99 +497,91 @@ export default function AppSettings() {
           {openSections.has("notifications") && (
             <div className="bg-gray-800 rounded-xl p-4 space-y-4">
 
-              {/* Status badge */}
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-400 uppercase tracking-wide">Status</span>
-                {pushActive ? (
-                  <span className="flex items-center gap-1 text-xs font-semibold text-green-400 bg-green-900/40 px-2 py-0.5 rounded-full">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block" />
-                    Active
-                  </span>
-                ) : (
-                  <span className="flex items-center gap-1 text-xs font-semibold text-gray-500 bg-gray-700 px-2 py-0.5 rounded-full">
-                    <span className="w-1.5 h-1.5 rounded-full bg-gray-500 inline-block" />
-                    Off
-                  </span>
-                )}
+              {/* Status + Enable/Disable */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-400 uppercase tracking-wide">Status</span>
+                  {pushActive ? (
+                    <span className="flex items-center gap-1 text-xs font-semibold text-green-400 bg-green-900/40 px-2 py-0.5 rounded-full">
+                      <span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block" /> Active
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1 text-xs font-semibold text-gray-500 bg-gray-700 px-2 py-0.5 rounded-full">
+                      <span className="w-1.5 h-1.5 rounded-full bg-gray-500 inline-block" /> Off
+                    </span>
+                  )}
+                </div>
+                <button
+                  onClick={pushActive ? handleDisablePush : handleEnablePush}
+                  disabled={pushLoading}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors disabled:opacity-50 ${
+                    pushActive
+                      ? "bg-gray-700 hover:bg-gray-600 text-gray-200 border border-gray-600"
+                      : "bg-indigo-600 hover:bg-indigo-500 text-white"
+                  }`}
+                >
+                  <Bell className="w-3.5 h-3.5" />
+                  {pushLoading
+                    ? pushActive ? "Disabling…" : "Enabling…"
+                    : pushActive ? "Disable" : "Enable"}
+                </button>
               </div>
 
               {/* Mode selector */}
               <div>
-                <label className={labelCls}>Notification Level</label>
-                <div className="flex gap-2">
+                <label className={labelCls}>Intensity</label>
+                <div className="grid grid-cols-3 gap-2">
                   {[
-                    { key: "minimal", label: "Minimal" },
-                    { key: "standard", label: "Standard" },
-                    { key: "full", label: "Full" },
-                  ].map(({ key, label }) => (
-                    <button
-                      key={key}
-                      onClick={() => handleLevelChange(key)}
-                      className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors border ${
-                        (settings.notification_level || "standard") === key
-                          ? "bg-indigo-600 border-indigo-500 text-white"
-                          : "bg-gray-900 border-gray-700 text-gray-400 hover:text-white"
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
+                    { key: "minimal",  label: "Minimal",  desc: "Money + live gig alerts" },
+                    { key: "standard", label: "Standard", desc: "Money + day-before reminders" },
+                    { key: "full",     label: "Full",     desc: "Everything — fully customisable" },
+                  ].map(({ key, label, desc }) => {
+                    const active = (settings.notification_level || "standard") === key;
+                    return (
+                      <button
+                        key={key}
+                        onClick={() => handleLevelChange(key)}
+                        className={`flex flex-col items-start px-3 py-2.5 rounded-xl text-left transition-colors border ${
+                          active
+                            ? "bg-indigo-600/20 border-indigo-500 text-white"
+                            : "bg-gray-900 border-gray-700 text-gray-400 hover:text-white"
+                        }`}
+                      >
+                        <span className="text-sm font-semibold leading-tight">{label}</span>
+                        <span className={`text-[10px] mt-0.5 leading-snug ${active ? "text-indigo-300" : "text-gray-600"}`}>{desc}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
-              {/* Level descriptions */}
-              <div className="space-y-1.5">
-                {[
-                  { key: "minimal", desc: "Invoice reminders + Leave alerts" },
-                  { key: "standard", desc: "+ Day-before gig reminders" },
-                  { key: "full", desc: "All notifications" },
-                ].map(({ key, desc }) => (
-                  <div
-                    key={key}
-                    className={`flex items-start gap-2 text-xs transition-colors ${
-                      (settings.notification_level || "standard") === key
-                        ? "text-indigo-300"
-                        : "text-gray-500"
-                    }`}
-                  >
-                    <span className="mt-0.5 capitalize font-medium w-16 flex-shrink-0">{key}:</span>
-                    <span>{desc}</span>
-                  </div>
-                ))}
-              </div>
+              {/* Full mode: per-notification prefs editor */}
+              {(settings.notification_level || "standard") === "full" && (
+                <div>
+                  <p className="text-xs text-gray-400 mb-1">Customise exactly which notifications fire and when:</p>
+                  <NotificationPrefsEditor
+                    prefs={settings.notification_prefs || DEFAULT_PREFS.full}
+                    onChange={handlePrefChange}
+                  />
+                </div>
+              )}
 
-              {/* Error message */}
+              {/* Error */}
               {pushError && (
                 <p className="text-xs text-red-400 bg-red-900/30 rounded-lg px-3 py-2">{pushError}</p>
               )}
 
-              {/* Enable / Disable button */}
-              <button
-                onClick={pushActive ? handleDisablePush : handleEnablePush}
-                disabled={pushLoading}
-                className={`w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50 ${
-                  pushActive
-                    ? "bg-gray-700 hover:bg-gray-600 text-gray-200 border border-gray-600"
-                    : "bg-indigo-600 hover:bg-indigo-500 text-white"
-                }`}
-              >
-                <Bell className="w-4 h-4" />
-                {pushLoading
-                  ? pushActive ? "Disabling…" : "Enabling…"
-                  : pushActive ? "Disable Notifications" : "Enable Notifications"}
-              </button>
-
-              {/* Test notification button — only shown when active */}
+              {/* Test button */}
               {pushActive && (
                 <button
                   onClick={async () => {
                     const result = await sendTestPush();
                     if (result.success) {
-                      alert("✅ Test notification sent! You should receive it in about 5 seconds. If you don't see it, make sure the app is installed to your home screen.");
+                      alert("✅ Test notification sent! You should receive it in ~5 seconds.");
                     } else if (result.reason === "not_subscribed") {
-                      alert("❌ Not subscribed. Tap \"Disable\" then \"Enable\" again to re-subscribe.");
+                      alert("❌ Not subscribed. Tap Disable then Enable to re-subscribe.");
                     } else {
-                      alert("❌ Failed to send test: " + (result.reason || "unknown error"));
+                      alert("❌ Failed: " + (result.reason || "unknown error"));
                     }
                   }}
                   className="w-full py-2 rounded-xl text-sm font-medium bg-teal-900/40 hover:bg-teal-900/60 text-teal-300 border border-teal-700/40 transition-colors"
@@ -601,7 +590,7 @@ export default function AppSettings() {
                 </button>
               )}
 
-              <div className="text-[10px] text-gray-600 space-y-1 mt-2">
+              <div className="text-[10px] text-gray-600 space-y-1">
                 <p>🔧 Push API: {'PushManager' in window ? '✅ Available' : '❌ Not available (install as PWA)'}</p>
                 <p>🔔 Permission: {typeof Notification !== 'undefined' ? Notification.permission : 'unknown'}</p>
                 <p>📱 Standalone: {window.matchMedia('(display-mode: standalone)').matches ? '✅ Yes (PWA)' : '⚠️ No (browser)'}</p>

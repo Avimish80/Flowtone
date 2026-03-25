@@ -54,10 +54,10 @@ router.post('/subscribe', (req, res) => {
 });
 
 // ─── POST /api/push/schedule ─────────────────────────────────────────
-// Body: { endpoint, fireAt (ISO string), title, body, url?, tag?, icon?, actions? }
+// Body: { endpoint, fireAt (ISO string), title, body, url?, tag?, icon?, actions?, actionUrls? }
 router.post('/schedule', (req, res) => {
   try {
-    const { endpoint, fireAt, title, body, url, tag, icon, actions } = req.body;
+    const { endpoint, fireAt, title, body, url, tag, icon, actions, actionUrls } = req.body;
 
     if (!endpoint || !fireAt || !title || !body) {
       return res.status(400).json({ error: 'endpoint, fireAt, title, and body are required' });
@@ -84,6 +84,7 @@ router.post('/schedule', (req, res) => {
       url: url ?? null,
       icon: icon ?? null,
       actions: actions ? JSON.stringify(actions) : null,
+      action_urls: actionUrls ? JSON.stringify(actionUrls) : null,
       tag: tag ?? null,
     });
 

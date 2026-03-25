@@ -9,7 +9,7 @@ clientsClaim()
 precacheAndRoute(self.__WB_MANIFEST)
 cleanupOutdatedCaches()
 
-// ─── Push Notification Handler ───────────────────────────────────────
+// ─── Push Notification Handler ───────────────────────────────────────────────
 self.addEventListener('push', (event) => {
   const data = event.data?.json() ?? {}
   const {
@@ -19,6 +19,7 @@ self.addEventListener('push', (event) => {
     icon = '/icon-192x192.svg',
     tag = 'gigflow',
     actions = [],
+    actionUrls = {},
   } = data
 
   event.waitUntil(
@@ -27,29 +28,38 @@ self.addEventListener('push', (event) => {
       icon,
       badge: '/icon-192x192.svg',
       tag,
-      data: { url },
+      // Store both the default url and per-action urls in notification data
+      data: { url, actionUrls },
       actions,
       renotify: true,
     })
   )
 })
 
-// ─── Notification Click Handler ──────────────────────────────────────
+// ─── Notification Click Handler ──────────────────────────────────────────────
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
-  const url = event.notification.data?.url || '/'
+
+  const data = event.notification.data || {}
+
+  // Resolve URL: action button → actionUrls[action], otherwise default url
+  let target = data.url || '/'
+  if (event.action && data.actionUrls && data.actionUrls[event.action]) {
+    target = data.actionUrls[event.action]
+  }
 
   event.waitUntil(
     clients
       .matchAll({ type: 'window', includeUncontrolled: true })
-      .then((list) => {
-        for (const client of list) {
+      .then((windowClients) => {
+        // Try to reuse an existing window
+        for (const client of windowClients) {
           if ('focus' in client) {
-            client.navigate(url)
+            client.navigate(target)
             return client.focus()
           }
         }
-        return clients.openWindow(url)
+        return clients.openWindow(target)
       })
   )
 })

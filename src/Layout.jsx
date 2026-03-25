@@ -87,10 +87,14 @@ export default function Layout({ children, currentPageName }) {
         appClient.entities.Client.list().catch(() => []),
         appClient.entities.AppSettings.list().catch(() => []),
       ]).then(([events, clients, settingsList]) => {
-        const level = settingsList[0]?.notification_level || 'standard';
+        const appSettings = settingsList[0] || {};
+        const level = appSettings.notification_level || 'standard';
         // Re-register subscription with server (fixes Railway restarts wiping store.json)
         reRegisterSubscription(level).catch(() => {});
-        schedulePushNotifications(events, clients, level).catch(() => {});
+        // Load documents for finance-layer notifications
+        appClient.entities.Document.list().catch(() => []).then(documents => {
+          schedulePushNotifications(events, clients, documents, appSettings).catch(() => {});
+        });
       });
     });
   }, []);

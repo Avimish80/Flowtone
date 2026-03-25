@@ -34,6 +34,7 @@ async function sendScheduledPush(push) {
     icon: push.icon ?? null,
     tag: push.tag ?? null,
     actions: push.actions ? JSON.parse(push.actions) : null,
+    actionUrls: push.action_urls ? JSON.parse(push.action_urls) : null,
   });
 
   try {
