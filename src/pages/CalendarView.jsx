@@ -12,13 +12,13 @@ import {
 
 // ── Status colours ──────────────────────────────────────────────────
 const STATUS_COLORS = {
-  lead:      { bg: "bg-yellow-500",  bar: "bg-yellow-500",  pill: "bg-yellow-500/15 text-yellow-600 dark:text-yellow-300 border-yellow-500/30" },
-  confirmed: { bg: "bg-blue-500",    bar: "bg-blue-500",    pill: "bg-blue-500/15 text-blue-600 dark:text-blue-300 border-blue-500/30" },
-  completed: { bg: "bg-green-500",   bar: "bg-green-500",   pill: "bg-green-500/15 text-green-600 dark:text-green-300 border-green-500/30" },
-  cancelled: { bg: "bg-gray-400",    bar: "bg-gray-400",    pill: "bg-gray-400/15 text-gray-500 border-gray-400/30" },
+  lead:      { bg: "bg-yellow-500",  bar: "bg-yellow-500",  pill: "bg-yellow-500/15 text-yellow-600 dark:text-yellow-300 border-yellow-500/30", dot: "bg-yellow-400" },
+  confirmed: { bg: "bg-blue-500",    bar: "bg-blue-500",    pill: "bg-blue-500/15 text-blue-600 dark:text-blue-300 border-blue-500/30", dot: "bg-blue-400" },
+  completed: { bg: "bg-green-500",   bar: "bg-green-500",   pill: "bg-green-500/15 text-green-600 dark:text-green-300 border-green-500/30", dot: "bg-green-400" },
+  cancelled: { bg: "bg-gray-400",    bar: "bg-gray-400",    pill: "bg-gray-400/15 text-gray-500 border-gray-400/30", dot: "bg-gray-500" },
 };
 // Practice events always render in teal regardless of status
-const PRACTICE_COLOR = { bg: "bg-teal-500", bar: "bg-teal-500", pill: "bg-teal-500/15 text-teal-600 dark:text-teal-300 border-teal-500/30" };
+const PRACTICE_COLOR = { bg: "bg-teal-500", bar: "bg-teal-500", pill: "bg-teal-500/15 text-teal-600 dark:text-teal-300 border-teal-500/30", dot: "bg-teal-400" };
 const getEventColors = (event) => event.event_type === "Practice" ? PRACTICE_COLOR : (STATUS_COLORS[event.status] || STATUS_COLORS.lead);
 
 const STATUS_LABELS = { lead: "Tentative", confirmed: "Confirmed", completed: "Completed", cancelled: "Cancelled" };
@@ -79,23 +79,6 @@ function eventTimeLabel(event) {
   return null;
 }
 
-/** Compact pill for month + week header */
-function EventPill({ event, onClick, compact = false }) {
-  const c = getEventColors(event);
-  const timeLabel = eventTimeLabel(event);
-  return (
-    <div
-      onClick={onClick}
-      className={`flex items-center gap-1 rounded-md px-1.5 cursor-pointer hover:opacity-80 transition-opacity
-        ${compact ? "py-px text-[10px]" : "py-0.5 text-xs"} ${c.bg} bg-opacity-20`}
-    >
-      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${c.bar}`} />
-      <span className="truncate font-medium text-white dark:text-white" style={{ color: "inherit" }}>{event.title}</span>
-      {timeLabel && !compact && <span className="flex-shrink-0 opacity-70">{timeLabel}</span>}
-    </div>
-  );
-}
-
 /** Positioned event block for week / day time grid */
 function EventBlock({ event, clientName, top, height, onClick, slim = false }) {
   const c = getEventColors(event);
@@ -103,8 +86,8 @@ function EventBlock({ event, clientName, top, height, onClick, slim = false }) {
   return (
     <div
       onClick={onClick}
-      className={`absolute left-0.5 right-0.5 rounded-lg cursor-pointer hover:brightness-110 transition-all overflow-hidden
-        ${c.bar} bg-opacity-20 border-l-4 ${c.bar.replace("bg-", "border-")}`}
+      className={`absolute left-1 right-1 rounded-lg cursor-pointer hover:brightness-110 transition-all overflow-hidden
+        ${c.bar} bg-opacity-20 border-l-[3px] ${c.bar.replace("bg-", "border-")}`}
       style={{ top, height: Math.max(height, 24), zIndex: 10 }}
     >
       <div className="px-2 py-1 h-full">
@@ -190,47 +173,47 @@ export default function CalendarView() {
   const MonthView = () => {
     const days = monthDays();
     return (
-      <div className="flex-1 overflow-auto px-2 pb-4">
+      <div className="flex-1 overflow-auto px-2 pb-2">
         {/* Day-of-week headers */}
-        <div className="grid grid-cols-7 mb-1 sticky top-0 bg-gray-950 dark:bg-gray-950 z-10 pt-1">
+        <div className="grid grid-cols-7 sticky top-0 bg-gray-950 dark:bg-gray-950 z-10 pt-1 pb-1">
           {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(d => (
-            <div key={d} className="text-center text-xs font-semibold text-gray-400 py-2">{d}</div>
+            <div key={d} className="text-center text-[10px] font-semibold text-gray-500 uppercase tracking-wider py-1">{d}</div>
           ))}
         </div>
         {/* Cells */}
-        <div className="grid grid-cols-7 border-t border-gray-800">
+        <div className="grid grid-cols-7">
           {days.map(day => {
             const inMonth = isSameMonth(day, current);
             const today   = isToday(day);
             const dayEvts = eventsOnDay(day);
             const isSelected = selectedDay && isSameDay(day, selectedDay);
+            const dots = dayEvts.slice(0, 3).map(ev => getEventColors(ev).dot);
+            const extraCount = dayEvts.length > 3 ? dayEvts.length - 3 : 0;
             return (
               <div
                 key={day.toISOString()}
                 onClick={() => { setSelectedDay(isSameDay(day, selectedDay) ? null : day); }}
-                className={`border-b border-r border-gray-800 min-h-[80px] p-1.5 cursor-pointer transition-colors
-                  ${!inMonth ? "opacity-30" : ""}
-                  ${isSelected ? "bg-indigo-950/40" : "hover:bg-gray-900/60"}`}
+                className={`flex flex-col items-center justify-start py-1.5 cursor-pointer transition-colors h-12
+                  ${!inMonth ? "opacity-20" : ""}`}
               >
                 {/* Date number */}
-                <div className={`w-6 h-6 flex items-center justify-center rounded-full text-xs font-semibold mb-1
-                  ${today ? "bg-indigo-600 text-white" : "text-gray-300"}`}>
+                <div className={`w-7 h-7 flex items-center justify-center rounded-full text-xs font-semibold transition-all
+                  ${today ? "bg-indigo-600 text-white" : ""}
+                  ${isSelected && !today ? "ring-2 ring-indigo-400 text-white" : ""}
+                  ${!today && !isSelected ? "text-gray-300" : ""}`}>
                   {format(day, "d")}
                 </div>
-                {/* Event pills */}
-                <div className="space-y-0.5">
-                  {dayEvts.slice(0, 3).map(ev => (
-                    <EventPill
-                      key={ev.id}
-                      event={ev}
-                      compact
-                      onClick={(e) => { e.stopPropagation(); navigate(createPageUrl(`WorkEventDetail?id=${ev.id}`)); }}
-                    />
-                  ))}
-                  {dayEvts.length > 3 && (
-                    <p className="text-[9px] text-gray-500 pl-1">+{dayEvts.length - 3} more</p>
-                  )}
-                </div>
+                {/* Event dots */}
+                {dayEvts.length > 0 && (
+                  <div className="flex items-center justify-center gap-1 mt-1">
+                    {dots.map((dotColor, i) => (
+                      <span key={i} className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
+                    ))}
+                    {extraCount > 0 && (
+                      <span className="text-[8px] text-gray-500 leading-none">+{extraCount}</span>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}
@@ -254,12 +237,12 @@ export default function CalendarView() {
     return (
       <div className="flex-1 overflow-auto" ref={timeGridRef}>
         {/* Day header row */}
-        <div className="flex sticky top-0 z-20 bg-gray-950 border-b border-gray-800">
+        <div className="flex sticky top-0 z-20 bg-gray-950 border-b border-gray-800/50">
           <div className="w-12 flex-shrink-0" />
           {days.map(day => {
             const today = isToday(day);
             return (
-              <div key={day.toISOString()} className="flex-1 text-center py-2 border-l border-gray-800">
+              <div key={day.toISOString()} className="flex-1 text-center py-2 border-l border-gray-800/40">
                 <p className="text-[10px] font-medium text-gray-500 uppercase">{format(day, "EEE")}</p>
                 <div className={`w-7 h-7 mx-auto flex items-center justify-center rounded-full text-sm font-bold mt-0.5
                   ${today ? "bg-indigo-600 text-white" : "text-gray-200"}`}>
@@ -271,19 +254,28 @@ export default function CalendarView() {
         </div>
 
         {/* All-day events row */}
-        {days.some(d => eventsOnDay(d).some(e => !e.time)) && (
-          <div className="flex border-b border-gray-800 bg-gray-900/40 min-h-[28px]">
+        {days.some(d => eventsOnDay(d).some(e => !e.start_time && !e.time)) && (
+          <div className="flex border-b border-gray-800/50 bg-gray-900/30 min-h-[28px]">
             <div className="w-12 flex-shrink-0 flex items-center justify-center">
               <span className="text-[9px] text-gray-600 uppercase">All day</span>
             </div>
             {days.map(day => {
-              const allDay = eventsOnDay(day).filter(e => !e.time);
+              const allDay = eventsOnDay(day).filter(e => !e.start_time && !e.time);
               return (
-                <div key={day.toISOString()} className="flex-1 border-l border-gray-800 py-0.5 px-0.5 space-y-0.5">
-                  {allDay.map(ev => (
-                    <EventPill key={ev.id} event={ev} compact
-                      onClick={() => navigate(createPageUrl(`WorkEventDetail?id=${ev.id}`))} />
-                  ))}
+                <div key={day.toISOString()} className="flex-1 border-l border-gray-800/40 py-0.5 px-0.5 space-y-0.5">
+                  {allDay.map(ev => {
+                    const c = getEventColors(ev);
+                    return (
+                      <div
+                        key={ev.id}
+                        onClick={() => navigate(createPageUrl(`WorkEventDetail?id=${ev.id}`))}
+                        className={`flex items-center gap-1 rounded-md px-1.5 py-px text-[10px] cursor-pointer hover:opacity-80 transition-opacity ${c.bg} bg-opacity-20`}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${c.bar}`} />
+                        <span className="truncate font-medium text-white">{ev.title}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               );
             })}
@@ -308,15 +300,15 @@ export default function CalendarView() {
             const timedEvts = eventsOnDay(day).filter(e => e.start_time || e.time);
             return (
               <div key={day.toISOString()}
-                className={`flex-1 border-l border-gray-800 relative ${today ? "bg-indigo-950/10" : ""}`}>
+                className={`flex-1 border-l border-gray-800/40 relative ${today ? "bg-indigo-950/10" : ""}`}>
                 {/* Hour lines */}
                 {HOURS.map(h => (
-                  <div key={h} className="border-t border-gray-800/60 absolute left-0 right-0"
+                  <div key={h} className="border-t border-gray-800/40 absolute left-0 right-0"
                     style={{ top: (h - DAY_START) * HOUR_HEIGHT }} />
                 ))}
                 {/* Half-hour lines */}
                 {HOURS.map(h => (
-                  <div key={`${h}h`} className="border-t border-gray-800/30 border-dashed absolute left-0 right-0"
+                  <div key={`${h}h`} className="border-t border-gray-800/20 border-dashed absolute left-0 right-0"
                     style={{ top: (h - DAY_START) * HOUR_HEIGHT + HOUR_HEIGHT / 2 }} />
                 ))}
                 {/* Current time indicator */}
@@ -367,7 +359,7 @@ export default function CalendarView() {
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* All-day strip */}
         {allDay.length > 0 && (
-          <div className="flex-shrink-0 px-4 py-2 border-b border-gray-800 bg-gray-900/40">
+          <div className="flex-shrink-0 px-4 py-2 border-b border-gray-800/50 bg-gray-900/30">
             <p className="text-[10px] text-gray-500 uppercase mb-1">All day</p>
             <div className="space-y-1">
               {allDay.map(ev => (
@@ -393,13 +385,13 @@ export default function CalendarView() {
             </div>
 
             {/* Single day column */}
-            <div className="flex-1 border-l border-gray-800 relative">
+            <div className="flex-1 border-l border-gray-800/40 relative">
               {HOURS.map(h => (
-                <div key={h} className="border-t border-gray-800/60 absolute left-0 right-0"
+                <div key={h} className="border-t border-gray-800/40 absolute left-0 right-0"
                   style={{ top: (h - DAY_START) * HOUR_HEIGHT }} />
               ))}
               {HOURS.map(h => (
-                <div key={`${h}h`} className="border-t border-gray-800/30 border-dashed absolute left-0 right-0"
+                <div key={`${h}h`} className="border-t border-gray-800/20 border-dashed absolute left-0 right-0"
                   style={{ top: (h - DAY_START) * HOUR_HEIGHT + HOUR_HEIGHT / 2 }} />
               ))}
               {nowTop !== null && nowTop >= 0 && (
@@ -419,7 +411,7 @@ export default function CalendarView() {
                   <div
                     key={ev.id}
                     onClick={() => navigate(createPageUrl(`WorkEventDetail?id=${ev.id}`))}
-                    className={`absolute left-1 right-1 rounded-xl cursor-pointer hover:brightness-110 transition-all overflow-hidden border-l-4 ${c.bar.replace("bg-","border-")} ${c.bar} bg-opacity-15`}
+                    className={`absolute left-1 right-1 rounded-xl cursor-pointer hover:brightness-110 transition-all overflow-hidden border-l-[3px] ${c.bar.replace("bg-","border-")} ${c.bar} bg-opacity-15`}
                     style={{ top, height: Math.max(height, 48), zIndex: 10 }}
                   >
                     <div className="p-2 h-full flex flex-col gap-0.5">
@@ -472,7 +464,7 @@ export default function CalendarView() {
 
   // ── Day detail panel (shown below month grid when day clicked) ───
   const DayDetailPanel = ({ day, onClose }) => {
-    const dayEvts = eventsOnDay(day).sort((a, b) => (a.time || "").localeCompare(b.time || ""));
+    const dayEvts = eventsOnDay(day).sort((a, b) => (a.start_time || a.time || "").localeCompare(b.start_time || b.time || ""));
     return (
       <div className="mt-3 bg-gray-900 rounded-2xl overflow-hidden border border-gray-800">
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
@@ -534,7 +526,7 @@ export default function CalendarView() {
     }
     return (
       <Link to={createPageUrl(`WorkEventDetail?id=${event.id}`)} className="block">
-        <div className={`bg-gray-800 rounded-xl p-3 border-l-4 ${c.bar.replace("bg-","border-")}`}>
+        <div className={`bg-gray-800 rounded-xl p-3 border-l-[3px] ${c.bar.replace("bg-","border-")}`}>
           <div className="flex items-center gap-2 mb-1">
             <p className="font-semibold text-white text-sm">{event.title}</p>
             <span className={`text-[9px] px-1.5 py-0.5 rounded-full border font-medium ${c.pill}`}>
@@ -578,8 +570,21 @@ export default function CalendarView() {
     <div className="flex flex-col h-[calc(100vh-4rem)] bg-gray-950">
       {/* ── Top Controls ─────────────────────────────────── */}
       <div className="flex-shrink-0 px-4 pt-3 pb-2 border-b border-gray-800 bg-gray-950">
-        {/* View tabs + nav */}
-        <div className="flex items-center gap-2 mb-3">
+        {/* Month/period navigator */}
+        <div className="flex items-center justify-between mb-3">
+          <button onClick={() => navigate_cal(-1)} className="p-2 text-gray-400 hover:text-white transition-colors">
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          <button onClick={goToday} className="text-base font-bold text-white hover:text-indigo-400 transition-colors">
+            {headerLabel()}
+          </button>
+          <button onClick={() => navigate_cal(1)} className="p-2 text-gray-400 hover:text-white transition-colors">
+            <ChevronRight className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* View tabs + actions */}
+        <div className="flex items-center gap-2">
           {/* View switcher */}
           <div className="flex gap-1 bg-gray-800 rounded-lg p-1 flex-1">
             {["month","week","day"].map(v => (
@@ -591,9 +596,6 @@ export default function CalendarView() {
             ))}
           </div>
 
-          <button onClick={() => setView("day") || setCurrent(new Date())}
-            className="hidden" />
-
           {/* Actions */}
           <button onClick={() => { sessionStorage.setItem("mos_events_preferCalendar","false"); navigate(createPageUrl("WorkEvents")); }}
             className="p-2 rounded-lg bg-gray-800 text-gray-400 hover:text-white transition-colors" title="List view">
@@ -603,19 +605,6 @@ export default function CalendarView() {
             className="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-2 rounded-lg flex items-center gap-1 text-xs font-semibold transition-colors">
             <Plus className="w-4 h-4" />
           </Link>
-        </div>
-
-        {/* Month/period navigator */}
-        <div className="flex items-center justify-between">
-          <button onClick={() => navigate_cal(-1)} className="p-2 text-gray-400 hover:text-white transition-colors">
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-          <button onClick={goToday} className="text-base font-bold text-white hover:text-indigo-400 transition-colors">
-            {headerLabel()}
-          </button>
-          <button onClick={() => navigate_cal(1)} className="p-2 text-gray-400 hover:text-white transition-colors">
-            <ChevronRight className="w-5 h-5" />
-          </button>
         </div>
       </div>
 

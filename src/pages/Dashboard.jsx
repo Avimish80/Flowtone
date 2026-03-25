@@ -68,7 +68,12 @@ export default function Dashboard() {
   const now = new Date();
   const upcoming = events
     .filter(e => e.status !== "cancelled" && e.date && !isPast(startOfDay(parseISO(e.date))))
-    .sort((a, b) => parseISO(a.date) - parseISO(b.date));
+    .sort((a, b) => {
+      const da = parseISO(a.date).getTime();
+      const db = parseISO(b.date).getTime();
+      if (da !== db) return da - db;
+      return (a.start_time || "").localeCompare(b.start_time || "");
+    });
 
   const nextGig = upcoming[0] || null;
   const weekEvents = upcoming.filter(e => {
@@ -102,7 +107,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-semibold uppercase tracking-wider text-indigo-300">Next Up</span>
             <span className="text-xs bg-indigo-600/40 text-indigo-200 px-2.5 py-0.5 rounded-full font-medium">
-              {getCountdown(nextGig.date, nextGig.time)}
+              {getCountdown(nextGig.date, nextGig.start_time)}
             </span>
           </div>
 
@@ -113,10 +118,10 @@ export default function Dashboard() {
                 <CalendarDays className="w-3.5 h-3.5 text-indigo-400" />
                 {getDayLabel(nextGig.date)}
               </span>
-              {nextGig.time && (
+              {nextGig.start_time && (
                 <span className="flex items-center gap-1">
                   <Clock className="w-3.5 h-3.5 text-indigo-400" />
-                  {nextGig.time}
+                  {nextGig.start_time}{nextGig.end_time ? "–" + nextGig.end_time : ""}
                 </span>
               )}
               {clientMap[nextGig.client_id] && (
@@ -231,7 +236,7 @@ export default function Dashboard() {
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-white truncate text-sm">{event.title}</p>
                       <p className="text-xs text-gray-400 truncate">
-                        {event.time || ""}{event.time && clientName ? " · " : ""}{clientName || ""}
+                        {event.start_time ? event.start_time + (event.end_time ? "–" + event.end_time : "") : ""}{event.start_time && clientName ? " · " : ""}{clientName || ""}
                         {event.location_address ? ` · ${event.location_address}` : ""}
                       </p>
                     </div>

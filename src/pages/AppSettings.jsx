@@ -588,6 +588,8 @@ export default function AppSettings() {
                     const result = await sendTestPush();
                     if (result.success) {
                       alert("✅ Test notification sent! You should receive it in about 5 seconds. If you don't see it, make sure the app is installed to your home screen.");
+                    } else if (result.reason === "not_subscribed") {
+                      alert("❌ Not subscribed. Tap \"Disable\" then \"Enable\" again to re-subscribe.");
                     } else {
                       alert("❌ Failed to send test: " + (result.reason || "unknown error"));
                     }
@@ -598,9 +600,11 @@ export default function AppSettings() {
                 </button>
               )}
 
-              <p className="text-[10px] text-gray-600 leading-relaxed">
-                Push notifications work even when the app is closed. Must be installed to your home screen on iPhone. Your browser will ask for permission when you enable them.
-              </p>
+              <div className="text-[10px] text-gray-600 space-y-1 mt-2">
+                <p>🔧 Push API: {'PushManager' in window ? '✅ Available' : '❌ Not available (install as PWA)'}</p>
+                <p>🔔 Permission: {typeof Notification !== 'undefined' ? Notification.permission : 'unknown'}</p>
+                <p>📱 Standalone: {window.matchMedia('(display-mode: standalone)').matches ? '✅ Yes (PWA)' : '⚠️ No (browser)'}</p>
+              </div>
             </div>
           )}
         </section>

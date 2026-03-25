@@ -14,10 +14,10 @@ import { isPushActive, schedulePushNotifications } from "@/lib/pushManager";
 import { appClient } from "@/api/appClient";
 
 const primaryNav = [
-  { icon: LayoutDashboard, label: "Home",    page: "Dashboard" },
-  { icon: CalendarDays,    label: "Events",  page: "WorkEvents" },
-  { icon: Users,           label: "Clients", page: "Clients" },
-  { icon: Receipt,         label: "Finance", page: "Finance" },
+  { icon: LayoutDashboard, label: "Home",     page: "Dashboard" },
+  { icon: CalendarDays,    label: "Calendar",  page: "CalendarView" },
+  { icon: Users,           label: "Clients",   page: "Clients" },
+  { icon: Receipt,         label: "Finance",   page: "Finance" },
 ];
 
 const moreItems = [
@@ -31,9 +31,9 @@ const moreItems = [
 // Map sub-pages to their parent nav group
 const NAV_GROUP = {
   Dashboard: "Dashboard",
-  WorkEvents: "WorkEvents",
-  WorkEventDetail: "WorkEvents",
-  CalendarView: "WorkEvents",
+  CalendarView: "CalendarView",
+  WorkEvents: "CalendarView",
+  WorkEventDetail: "CalendarView",
   Clients: "Clients",
   ClientDetail: "Clients",
   Finance: "Finance",
@@ -54,9 +54,9 @@ const NAV_GROUP = {
 // Map page names to user-friendly section labels
 const SECTION_LABELS = {
   Dashboard: null,
+  CalendarView: "Calendar",
   WorkEvents: "Events",
   WorkEventDetail: "Event",
-  CalendarView: "Calendar",
   Clients: "Clients",
   ClientDetail: "Client",
   Finance: "Finance",
