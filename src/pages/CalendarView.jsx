@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { appClient } from "@/api/appClient";
 import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl, currencySymbol } from "@/utils";
-import { ChevronLeft, ChevronRight, Plus, List, MapPin, Clock, Users, Car, Navigation, Bus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, SlidersHorizontal, MapPin, Clock, Users, Car, Navigation, Bus } from "lucide-react";
 import { usePageState } from "@/hooks/usePageState";
 import {
   format, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
@@ -110,12 +110,14 @@ export default function CalendarView() {
   const setCurrent = (d) => setCurrentStr(d instanceof Date ? d.toISOString() : d);
   const [selectedDay, setSelectedDay] = useState(null); // for month click → day detail
   const [settings, setSettings] = useState(null);
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [filterType, setFilterType]   = useState("all");
   const timeGridRef = useRef(null);
 
   const clientMap = useMemo(() => Object.fromEntries(clients.map(c => [c.id, c])), [clients]);
 
   useEffect(() => {
-    sessionStorage.setItem("mos_events_preferCalendar", "true");
     Promise.all([
       appClient.entities.WorkEvent.list("-date", 500),
       appClient.entities.Client.list("name", 200),
@@ -165,7 +167,15 @@ export default function CalendarView() {
     return eachDayOfInterval({ start: s, end: e });
   };
 
-  const eventsOnDay = (day) => events.filter(e => isSameDay(parseISO(e.date), day));
+  const filteredEvents = useMemo(() => events.filter(e => {
+    if (filterStatus !== "all" && e.status !== filterStatus) return false;
+    if (filterType   !== "all" && e.event_type !== filterType) return false;
+    return true;
+  }), [events, filterStatus, filterType]);
+
+  const filtersActive = filterStatus !== "all" || filterType !== "all";
+
+  const eventsOnDay = (day) => filteredEvents.filter(e => isSameDay(parseISO(e.date), day));
 
   const navApp = settings?.default_nav_app || "google_maps";
 
@@ -192,7 +202,15 @@ export default function CalendarView() {
             return (
               <div
                 key={day.toISOString()}
-                onClick={() => { setSelectedDay(isSameDay(day, selectedDay) ? null : day); }}
+                onClick={() => {
+                  if (!inMonth) return;
+                  const dayEvts = eventsOnDay(day);
+                  if (dayEvts.length === 1) {
+                    navigate(createPageUrl(`WorkEventDetail?id=${dayEvts[0].id}`));
+                  } else {
+                    setSelectedDay(isSameDay(day, selectedDay) ? null : day);
+                  }
+                }}
                 className={`flex flex-col items-center justify-start py-1.5 cursor-pointer transition-colors h-12
                   ${!inMonth ? "opacity-20" : ""}`}
               >
@@ -597,15 +615,59 @@ export default function CalendarView() {
           </div>
 
           {/* Actions */}
-          <button onClick={() => { sessionStorage.setItem("mos_events_preferCalendar","false"); navigate(createPageUrl("WorkEvents")); }}
-            className="p-2 rounded-lg bg-gray-800 text-gray-400 hover:text-white transition-colors" title="List view">
-            <List className="w-4 h-4" />
+          <button
+            onClick={() => setShowFilters(v => !v)}
+            className={`relative p-2 rounded-lg transition-colors ${showFilters || filtersActive ? "bg-indigo-600 text-white" : "bg-gray-800 text-gray-400 hover:text-white"}`}
+            title="Filter events"
+          >
+            <SlidersHorizontal className="w-4 h-4" />
+            {filtersActive && !showFilters && (
+              <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-indigo-300 rounded-full" />
+            )}
           </button>
           <Link to={createPageUrl(`WorkEventDetail?date=${format(selectedDay ?? current, "yyyy-MM-dd")}`)}
             className="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-2 rounded-lg flex items-center gap-1 text-xs font-semibold transition-colors">
             <Plus className="w-4 h-4" />
           </Link>
         </div>
+
+        {/* ── Inline filter panel ── */}
+        {showFilters && (
+          <div className="mt-3 space-y-2 pb-1">
+            {/* Status chips */}
+            <div className="flex flex-wrap gap-1.5">
+              {["all","lead","confirmed","completed","cancelled"].map(s => (
+                <button key={s} onClick={() => setFilterStatus(s)}
+                  className={`text-xs px-3 py-1 rounded-full border font-medium transition-colors ${
+                    filterStatus === s
+                      ? "bg-indigo-600 text-white border-indigo-600"
+                      : "text-gray-400 border-gray-700 hover:border-gray-500 hover:text-white"
+                  }`}>
+                  {s === "all" ? "All statuses" : s === "lead" ? "Tentative" : s.charAt(0).toUpperCase() + s.slice(1)}
+                </button>
+              ))}
+            </div>
+            {/* Type chips */}
+            <div className="flex flex-wrap gap-1.5">
+              {["all","Gig","Lesson","Session","Rehearsal","Tour Day","Practice"].map(t => (
+                <button key={t} onClick={() => setFilterType(t)}
+                  className={`text-xs px-3 py-1 rounded-full border font-medium transition-colors ${
+                    filterType === t
+                      ? "bg-indigo-600 text-white border-indigo-600"
+                      : "text-gray-400 border-gray-700 hover:border-gray-500 hover:text-white"
+                  }`}>
+                  {t === "all" ? "All types" : t}
+                </button>
+              ))}
+            </div>
+            {filtersActive && (
+              <button onClick={() => { setFilterStatus("all"); setFilterType("all"); }}
+                className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors">
+                Clear filters
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ── Content ──────────────────────────────────────── */}

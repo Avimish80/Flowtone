@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { appClient } from "@/api/appClient";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { createPageUrl, currencySymbol } from "@/utils";
 import { Plus, ChevronRight, AlertCircle, CheckSquare, Square, Trash2, CheckCircle2, Upload, Lock, CalendarDays, ChevronDown, ChevronUp, ArrowRightLeft } from "lucide-react";
 import { format, parseISO, isPast } from "date-fns";
@@ -56,6 +56,7 @@ const getTaxYear = (dateStr, startMonth) => {
 };
 
 export default function Invoices() {
+  const location = useLocation();
   const [tab, setTab] = usePageState("finance_tab", "invoices");
   const [filterStatus, setFilterStatus] = usePageState("finance_filterStatus", "all");
   const [filterYear, setFilterYear] = usePageState("finance_filterYear", "all");
@@ -91,6 +92,13 @@ export default function Invoices() {
   };
 
   useEffect(() => { loadData(); }, []);
+
+  // Pre-apply filter from URL param e.g. /Finance?filter=overdue
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const f = params.get("filter");
+    if (f) setFilterStatus(f);
+  }, [location.search]);
 
   const switchTab = (t) => {
     setTab(t);

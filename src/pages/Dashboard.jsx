@@ -213,7 +213,7 @@ export default function Dashboard() {
         <Link
           to={overdueCount === 1
             ? createPageUrl(`DocumentDetail?id=${overdueInvoices[0].id}`)
-            : createPageUrl("Finance")}
+            : createPageUrl("Finance?filter=overdue")}
           className="flex items-center gap-3 bg-red-950/40 border border-red-800/30 rounded-xl px-4 py-3 transition-colors hover:bg-red-950/60"
         >
           <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
