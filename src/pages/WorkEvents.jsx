@@ -42,14 +42,6 @@ export default function WorkEvents() {
   const [selected, setSelected] = useState(new Set());
   const [deleting, setDeleting] = useState(false);
 
-  useEffect(() => {
-    try {
-      const pref = sessionStorage.getItem("mos_events_preferCalendar");
-      if (pref === "true") {
-        navigate(createPageUrl("CalendarView"), { replace: true });
-      }
-    } catch { /* ignore */ }
-  }, []);
 
   const clientMap = useMemo(() => Object.fromEntries(clients.map(c => [c.id, c])), [clients]);
 
@@ -112,10 +104,7 @@ export default function WorkEvents() {
 
       <div className="flex items-center justify-end mb-4">
         <div className="flex items-center gap-2">
-          <button onClick={() => {
-            sessionStorage.setItem("mos_events_preferCalendar", "true");
-            navigate(createPageUrl("CalendarView"));
-          }} className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-2 rounded-lg flex items-center gap-1 text-sm font-medium transition-colors" title="Calendar view">
+          <button onClick={() => navigate(createPageUrl("CalendarView"))} className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-2 rounded-lg flex items-center gap-1 text-sm font-medium transition-colors" title="Switch to calendar view">
             <CalendarRange className="w-4 h-4" />
           </button>
           <SortDropdown options={SORT_OPTIONS} activeSort={sort} onSortChange={setSort} />

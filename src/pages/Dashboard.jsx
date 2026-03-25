@@ -18,9 +18,14 @@ function buildUberUrl(address) {
   return `https://m.uber.com/ul/?action=setPickup&pickup=my_location&dropoff[formatted_address]=${encodeURIComponent(address)}`;
 }
 
+/** Parse a YYYY-MM-DD string as LOCAL midnight (avoids UTC-shift in BST) */
+function parseLocalDate(dateStr) {
+  return new Date(dateStr + "T00:00:00");
+}
+
 function getCountdown(dateStr, timeStr) {
   const now = new Date();
-  let target = parseISO(dateStr);
+  let target = parseLocalDate(dateStr);
   if (timeStr) {
     const [h, m] = timeStr.split(":").map(Number);
     target.setHours(h || 0, m || 0, 0, 0);
@@ -35,7 +40,7 @@ function getCountdown(dateStr, timeStr) {
 }
 
 function getDayLabel(dateStr) {
-  const d = parseISO(dateStr);
+  const d = parseLocalDate(dateStr);
   if (isToday(d)) return "Today";
   if (isTomorrow(d)) return "Tomorrow";
   return format(d, "EEE d MMM");
@@ -68,24 +73,25 @@ export default function Dashboard() {
   const now = new Date();
   const todayStart = startOfDay(now);
   const upcoming = events
-    .filter(e => e.status !== "cancelled" && e.date && startOfDay(parseISO(e.date)) >= todayStart)
+    .filter(e => e.status !== "cancelled" && e.date && startOfDay(parseLocalDate(e.date)) >= todayStart)
     .sort((a, b) => {
-      const da = parseISO(a.date).getTime();
-      const db = parseISO(b.date).getTime();
+      const da = parseLocalDate(a.date).getTime();
+      const db = parseLocalDate(b.date).getTime();
       if (da !== db) return da - db;
       return (a.start_time || "").localeCompare(b.start_time || "");
     });
 
   const nextGig = upcoming[0] || null;
   const weekEvents = upcoming.filter(e => {
-    const d = parseISO(e.date);
+    const d = parseLocalDate(e.date);
     return d <= addDays(now, 7);
   });
 
   const invoices = documents.filter(d => d.document_type === "invoice");
-  const overdueCount = invoices.filter(i =>
+  const overdueInvoices = invoices.filter(i =>
     i.status === "sent" && i.due_date && isPast(parseISO(i.due_date))
-  ).length;
+  );
+  const overdueCount = overdueInvoices.length;
   const unpaidCount = invoices.filter(i => i.status === "sent").length;
 
   const navApp = settings?.default_nav_app || "google_maps";
@@ -202,13 +208,23 @@ export default function Dashboard() {
         </Link>
       </div>
 
-      {/* ── Overdue Alert (subtle, not dominating) ── */}
+      {/* ── Overdue Alert ── */}
       {overdueCount > 0 && (
-        <Link to={createPageUrl("Finance")} className="flex items-center gap-3 bg-red-950/40 border border-red-800/30 rounded-xl px-4 py-3 transition-colors hover:bg-red-950/60">
+        <Link
+          to={overdueCount === 1
+            ? createPageUrl(`DocumentDetail?id=${overdueInvoices[0].id}`)
+            : createPageUrl("Finance")}
+          className="flex items-center gap-3 bg-red-950/40 border border-red-800/30 rounded-xl px-4 py-3 transition-colors hover:bg-red-950/60"
+        >
           <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
-          <span className="text-sm text-red-300 flex-1">
-            {overdueCount} overdue invoice{overdueCount > 1 ? "s" : ""}
-          </span>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm text-red-300 font-medium">
+              {overdueCount} overdue invoice{overdueCount > 1 ? "s" : ""}
+            </p>
+            {overdueCount === 1 && overdueInvoices[0].client_name && (
+              <p className="text-xs text-red-400/70 truncate">{overdueInvoices[0].client_name}</p>
+            )}
+          </div>
           <ChevronRight className="w-4 h-4 text-red-500" />
         </Link>
       )}
@@ -231,8 +247,8 @@ export default function Dashboard() {
                 <Link key={event.id} to={createPageUrl(`WorkEventDetail?id=${event.id}`)} className="block">
                   <div className="bg-gray-800 rounded-xl px-4 py-3 flex items-center gap-3 active:bg-gray-700 transition-colors">
                     <div className="flex-shrink-0 w-10 text-center">
-                      <p className="text-xs text-gray-500">{format(parseISO(event.date), "EEE")}</p>
-                      <p className="text-lg font-bold text-white leading-tight">{format(parseISO(event.date), "d")}</p>
+                      <p className="text-xs text-gray-500">{format(parseLocalDate(event.date), "EEE")}</p>
+                      <p className="text-lg font-bold text-white leading-tight">{format(parseLocalDate(event.date), "d")}</p>
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-white truncate text-sm">{event.title}</p>
