@@ -3,24 +3,25 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { useTheme } from "@/lib/ThemeContext";
 import {
-  Music2, CalendarDays, Users, Receipt,
+  Music2, CalendarDays, CalendarRange, Users, Receipt,
   Package, Mail, Car, Settings, LayoutDashboard, MoreHorizontal, X, Sun, Moon,
   Music, Dumbbell
 } from "lucide-react";
 import AIAssistantButton from "@/components/AIAssistant/AIAssistantButton";
 import AIAssistantPanel from "@/components/AIAssistant/AIAssistantPanel";
 import { useAIAssistant } from "@/components/AIAssistant/useAIAssistant";
-import { isPushActive, schedulePushNotifications } from "@/lib/pushManager";
+import { isPushActive, schedulePushNotifications, reRegisterSubscription } from "@/lib/pushManager";
 import { appClient } from "@/api/appClient";
 
 const primaryNav = [
   { icon: LayoutDashboard, label: "Home",     page: "Dashboard" },
-  { icon: CalendarDays,    label: "Calendar",  page: "CalendarView" },
-  { icon: Users,           label: "Clients",   page: "Clients" },
-  { icon: Receipt,         label: "Finance",   page: "Finance" },
+  { icon: CalendarDays,    label: "Calendar", page: "CalendarView" },
+  { icon: CalendarRange,   label: "Events",   page: "WorkEvents" },
+  { icon: Receipt,         label: "Finance",  page: "Finance" },
 ];
 
 const moreItems = [
+  { icon: Users,    label: "Clients",    page: "Clients" },
   { icon: Music,    label: "Library",    page: "Charts" },
   { icon: Dumbbell, label: "Practice",   page: "Practice" },
   { icon: Package,  label: "Gear",       page: "Equipment" },
@@ -32,8 +33,8 @@ const moreItems = [
 const NAV_GROUP = {
   Dashboard: "Dashboard",
   CalendarView: "CalendarView",
-  WorkEvents: "CalendarView",
-  WorkEventDetail: "CalendarView",
+  WorkEvents: "WorkEvents",
+  WorkEventDetail: "WorkEvents",
   Clients: "Clients",
   ClientDetail: "Clients",
   Finance: "Finance",
@@ -87,6 +88,8 @@ export default function Layout({ children, currentPageName }) {
         appClient.entities.AppSettings.list().catch(() => []),
       ]).then(([events, clients, settingsList]) => {
         const level = settingsList[0]?.notification_level || 'standard';
+        // Re-register subscription with server (fixes Railway restarts wiping store.json)
+        reRegisterSubscription(level).catch(() => {});
         schedulePushNotifications(events, clients, level).catch(() => {});
       });
     });

@@ -66,8 +66,9 @@ export default function Dashboard() {
   }, []);
 
   const now = new Date();
+  const todayStart = startOfDay(now);
   const upcoming = events
-    .filter(e => e.status !== "cancelled" && e.date && !isPast(startOfDay(parseISO(e.date))))
+    .filter(e => e.status !== "cancelled" && e.date && startOfDay(parseISO(e.date)) >= todayStart)
     .sort((a, b) => {
       const da = parseISO(a.date).getTime();
       const db = parseISO(b.date).getTime();

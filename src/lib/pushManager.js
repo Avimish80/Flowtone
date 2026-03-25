@@ -105,6 +105,29 @@ export async function unregisterPush() {
 }
 
 /**
+ * Re-register the current subscription with the server.
+ * Call on every app open — ensures the server has the subscription
+ * even after Railway restarts (which wipe the store.json).
+ */
+export async function reRegisterSubscription(notificationLevel = 'standard') {
+  const sub = await getActiveSubscription();
+  if (!sub) return;
+  try {
+    await fetch(`${API_BASE}/api/push/subscribe`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        subscription: sub,
+        userAgent: navigator.userAgent,
+        notificationLevel,
+      }),
+    });
+  } catch {
+    // silent — best effort
+  }
+}
+
+/**
  * Send an immediate test push notification to verify the pipeline works.
  */
 export async function sendTestPush() {
@@ -173,23 +196,38 @@ export async function schedulePushNotifications(
     if (eventMs < now - 24 * 60 * 60 * 1000) continue;
     if (eventMs > now + thirtyDaysMs) continue;
 
-    // Use location_address (the actual field name in WorkEvent)
     const venue = event.location_address || event.venue || event.location || '';
+    const isLesson = (event.event_type || '').toLowerCase().includes('lesson') || (event.event_type || '').toLowerCase().includes('teaching');
 
-    // ── ALL LEVELS: "Leave now" alert (fires 90 min before start) ──
     if (event.start_time) {
       const startDt = parseLocalDateTime(event.date, event.start_time);
       if (startDt) {
-        const leaveAt = new Date(startDt.getTime() - 90 * 60 * 1000);
-        if (leaveAt.getTime() > now) {
+        // ── ALL LEVELS: "Starting soon" alert (30 min before ANY event) ──
+        const soonAt = new Date(startDt.getTime() - 30 * 60 * 1000);
+        if (soonAt.getTime() > now) {
           scheduled.push({
             endpoint,
-            fireAt: leaveAt.toISOString(),
-            tag: `leave-${event.id}`,
-            title: `Leave soon for ${event.title}`,
-            body: `Head to ${venue} to arrive on time`,
+            fireAt: soonAt.toISOString(),
+            tag: `soon-${event.id}`,
+            title: `Starting in 30 min: ${event.title}`,
+            body: venue ? `📍 ${venue}` : `${event.event_type || 'Event'} at ${event.start_time}`,
             url: `/?page=WorkEventDetail&id=${event.id}`,
           });
+        }
+
+        // ── ALL LEVELS: "Leave now" alert (90 min before) — only for events with a venue ──
+        if (venue && !isLesson) {
+          const leaveAt = new Date(startDt.getTime() - 90 * 60 * 1000);
+          if (leaveAt.getTime() > now) {
+            scheduled.push({
+              endpoint,
+              fireAt: leaveAt.toISOString(),
+              tag: `leave-${event.id}`,
+              title: `🚗 Leave soon for ${event.title}`,
+              body: `Head to ${venue} now to arrive on time`,
+              url: `/?page=WorkEventDetail&id=${event.id}`,
+            });
+          }
         }
       }
     }
@@ -199,12 +237,13 @@ export async function schedulePushNotifications(
       const dayBefore = new Date(eventDate.getTime() - 24 * 60 * 60 * 1000);
       dayBefore.setHours(9, 0, 0, 0);
       if (dayBefore.getTime() > now) {
+        const eventTypeLabel = isLesson ? 'Lesson' : 'Gig';
         scheduled.push({
           endpoint,
           fireAt: dayBefore.toISOString(),
           tag: `tomorrow-${event.id}`,
-          title: `Gig tomorrow: ${event.title}`,
-          body: `${event.start_time || 'Check time'} at ${venue || 'venue TBC'}`,
+          title: `${eventTypeLabel} tomorrow: ${event.title}`,
+          body: `${event.start_time || 'Check time'}${venue ? ` · ${venue}` : ''}`,
           url: `/?page=WorkEventDetail&id=${event.id}`,
         });
       }
