@@ -270,16 +270,19 @@ export default function AIAssistantPanel({
         >
           {/* Big recording UI — shown while mic is active */}
           {listening ? (
-            <div className="flex flex-col items-center gap-3 py-3">
-              <button
-                onClick={handleMicClick}
-                className="w-20 h-20 rounded-full bg-red-600 flex items-center justify-center shadow-2xl shadow-red-900/60"
-                style={{ animation: "pulse 1.2s ease-in-out infinite" }}
-                aria-label="Stop recording"
-              >
-                <Mic className="w-9 h-9 text-white" />
-              </button>
-              <p className="text-red-400 text-sm font-semibold tracking-wide">Listening… tap to stop</p>
+            <div className="flex flex-col items-center gap-3 py-4">
+              <div className="relative flex items-center justify-center">
+                <span className="absolute w-24 h-24 rounded-full bg-red-500/20 animate-ping" />
+                <span className="absolute w-20 h-20 rounded-full bg-red-500/30 animate-pulse" />
+                <button
+                  onClick={handleMicClick}
+                  className="relative w-16 h-16 rounded-full bg-red-600 hover:bg-red-500 flex items-center justify-center shadow-2xl shadow-red-900/60 transition-colors z-10"
+                  aria-label="Stop recording"
+                >
+                  <Mic className="w-7 h-7 text-white" />
+                </button>
+              </div>
+              <p className="text-red-400 text-sm font-semibold tracking-wide animate-pulse">● Listening — tap to stop</p>
             </div>
           ) : (
           /* Normal row: input + mic + send */
