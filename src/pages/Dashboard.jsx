@@ -57,7 +57,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     Promise.all([
-      appClient.entities.WorkEvent.list("-date", 200),
+      appClient.entities.WorkEvent.list("date"),
       appClient.entities.Document.list("-created_at"),
       appClient.entities.Client.list(),
       appClient.entities.AppSettings.list(),

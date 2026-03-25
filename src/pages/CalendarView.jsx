@@ -119,8 +119,8 @@ export default function CalendarView() {
 
   useEffect(() => {
     Promise.all([
-      appClient.entities.WorkEvent.list("-date", 500),
-      appClient.entities.Client.list("name", 200),
+      appClient.entities.WorkEvent.list("-date"),
+      appClient.entities.Client.list("name"),
       appClient.entities.AppSettings.list(),
     ]).then(([evs, cls, settingsArr]) => {
       setEvents(evs.filter(e => e.date));
@@ -631,44 +631,59 @@ export default function CalendarView() {
           </Link>
         </div>
 
-        {/* ── Inline filter panel ── */}
-        {showFilters && (
-          <div className="mt-3 space-y-2 pb-1">
-            {/* Status chips */}
-            <div className="flex flex-wrap gap-1.5">
+      </div>
+
+      {/* ── Filter bottom-sheet overlay ── */}
+      {showFilters && (
+        <>
+          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setShowFilters(false)} />
+          <div className="fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-700 z-50 rounded-t-2xl shadow-2xl px-5 pt-4 pb-8"
+               style={{ paddingBottom: "max(2rem, env(safe-area-inset-bottom))" }}>
+            {/* Handle */}
+            <div className="w-10 h-1 bg-gray-600 rounded-full mx-auto mb-4" />
+
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-bold text-white uppercase tracking-wider">Filter Events</h3>
+              {filtersActive && (
+                <button onClick={() => { setFilterStatus("all"); setFilterType("all"); }}
+                  className="text-xs text-indigo-400 hover:text-indigo-300 font-medium transition-colors">
+                  Clear all
+                </button>
+              )}
+            </div>
+
+            {/* Status */}
+            <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-2 font-semibold">Status</p>
+            <div className="flex flex-wrap gap-2 mb-4">
               {["all","lead","confirmed","completed","cancelled"].map(s => (
                 <button key={s} onClick={() => setFilterStatus(s)}
-                  className={`text-xs px-3 py-1 rounded-full border font-medium transition-colors ${
+                  className={`text-xs px-4 py-1.5 rounded-full border font-medium transition-colors ${
                     filterStatus === s
                       ? "bg-indigo-600 text-white border-indigo-600"
-                      : "text-gray-400 border-gray-700 hover:border-gray-500 hover:text-white"
+                      : "text-gray-300 border-gray-600 hover:border-gray-400"
                   }`}>
-                  {s === "all" ? "All statuses" : s === "lead" ? "Tentative" : s.charAt(0).toUpperCase() + s.slice(1)}
+                  {s === "all" ? "All" : s === "lead" ? "Tentative" : s.charAt(0).toUpperCase() + s.slice(1)}
                 </button>
               ))}
             </div>
-            {/* Type chips */}
-            <div className="flex flex-wrap gap-1.5">
+
+            {/* Type */}
+            <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-2 font-semibold">Type</p>
+            <div className="flex flex-wrap gap-2">
               {["all","Gig","Lesson","Session","Rehearsal","Tour Day","Practice"].map(t => (
                 <button key={t} onClick={() => setFilterType(t)}
-                  className={`text-xs px-3 py-1 rounded-full border font-medium transition-colors ${
+                  className={`text-xs px-4 py-1.5 rounded-full border font-medium transition-colors ${
                     filterType === t
                       ? "bg-indigo-600 text-white border-indigo-600"
-                      : "text-gray-400 border-gray-700 hover:border-gray-500 hover:text-white"
+                      : "text-gray-300 border-gray-600 hover:border-gray-400"
                   }`}>
-                  {t === "all" ? "All types" : t}
+                  {t === "all" ? "All" : t}
                 </button>
               ))}
             </div>
-            {filtersActive && (
-              <button onClick={() => { setFilterStatus("all"); setFilterType("all"); }}
-                className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors">
-                Clear filters
-              </button>
-            )}
           </div>
-        )}
-      </div>
+        </>
+      )}
 
       {/* ── Content ──────────────────────────────────────── */}
       {loading ? (

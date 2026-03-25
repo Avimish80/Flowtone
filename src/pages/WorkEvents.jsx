@@ -3,7 +3,7 @@ import { appClient } from "@/api/appClient";
 import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Plus, ChevronRight, Upload, Trash2, CheckSquare, Square, CalendarRange, MapPin, Clock } from "lucide-react";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, startOfDay } from "date-fns";
 import CSVImportModal from "../components/workevent/CSVImportModal";
 import { usePageState } from "@/hooks/usePageState";
 import { useScrollRestore } from "@/hooks/useScrollRestore";
@@ -29,9 +29,9 @@ const SORT_OPTIONS = [
 
 export default function WorkEvents() {
   const navigate = useNavigate();
-  const [filterStatus, setFilterStatus] = usePageState("events_filterStatus", "all");
-  const [filterType, setFilterType] = usePageState("events_filterType", "all");
-  const [sort, setSort] = usePageState("events_sort", { key: "date", direction: "desc" });
+  const [filterStatus, setFilterStatus] = usePageState("events_filterStatus_v2", "upcoming");
+  const [filterType, setFilterType] = usePageState("events_filterType_v2", "all");
+  const [sort, setSort] = usePageState("events_sort_v2", { key: "date", direction: "asc" });
 
   useScrollRestore("work_events");
   const [events, setEvents] = useState([]);
@@ -47,7 +47,7 @@ export default function WorkEvents() {
 
   const loadEvents = () => {
     Promise.all([
-      appClient.entities.WorkEvent.list("-date", 200),
+      appClient.entities.WorkEvent.list("-date"),
       appClient.entities.Client.list(),
     ]).then(([evts, cls]) => {
       setEvents(evts);
@@ -58,8 +58,21 @@ export default function WorkEvents() {
 
   useEffect(() => { loadEvents(); }, []);
 
+  const todayStr = useMemo(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }, []);
+
   const filtered = events.filter(e => {
-    if (filterStatus !== "all" && e.status !== filterStatus) return false;
+    // Time-based filters
+    if (filterStatus === "upcoming") {
+      if (e.status === "cancelled") return false;
+      if (!e.date || e.date < todayStr) return false;
+    } else if (filterStatus === "past") {
+      if (!e.date || e.date >= todayStr) return false;
+    } else if (filterStatus !== "all" && e.status !== filterStatus) {
+      return false;
+    }
     if (filterType !== "all" && e.event_type !== filterType) return false;
     return true;
   });
@@ -142,7 +155,9 @@ export default function WorkEvents() {
           onChange={e => setFilterStatus(e.target.value)}
           className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
         >
-          <option value="all">All Statuses</option>
+          <option value="upcoming">Upcoming</option>
+          <option value="past">Past</option>
+          <option value="all">All</option>
           {STATUSES.map(s => (
             <option key={s} value={s}>{STATUS_LABELS[s]}</option>
           ))}
