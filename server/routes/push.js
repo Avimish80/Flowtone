@@ -1,10 +1,14 @@
 import { Router } from 'express';
 import { randomUUID } from 'crypto';
+import webpush from 'web-push';
 import {
   upsertSubscription,
+  getSubscription,
   deleteSubscription,
   insertScheduledPush,
   deleteUnsentByTagAndEndpoint,
+  getDuePushes,
+  markPushSent,
 } from '../db.js';
 
 const router = Router();
@@ -12,6 +16,12 @@ const router = Router();
 const VAPID_PUBLIC_KEY =
   process.env.VAPID_PUBLIC_KEY ||
   'BJWmGOrJ5Uhw71uHgDI8DvOLGwLUYuENkni_a76qZHKzwDMMns67wk6kwU2TCvTK-sXbzn7RwgfozaBtbyPBN8I';
+const VAPID_PRIVATE_KEY =
+  process.env.VAPID_PRIVATE_KEY || 'MqrH8bD91pH_pYsgW0yfMZAqcw7VTpY9JiuWeZXBfRo';
+const VAPID_SUBJECT =
+  process.env.VAPID_SUBJECT || 'mailto:support@flowtone.app';
+
+webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 
 // ─── GET /api/push/vapid-public-key ─────────────────────────────────
 router.get('/vapid-public-key', (_req, res) => {
@@ -104,6 +114,52 @@ router.delete('/subscription', (req, res) => {
   } catch (err) {
     console.error('[push/delete subscription error]', err);
     res.status(500).json({ error: 'Failed to remove subscription' });
+  }
+});
+
+// ─── POST /api/push/send-now ─────────────────────────────────────────
+// Immediately sends a push to an endpoint — bypasses the queue entirely.
+// Body: { endpoint, title, body, url?, tag? }
+router.post('/send-now', async (req, res) => {
+  try {
+    const { endpoint, title, body, url, tag } = req.body;
+    if (!endpoint || !title || !body) {
+      return res.status(400).json({ error: 'endpoint, title, and body are required' });
+    }
+
+    const sub = getSubscription(endpoint);
+    if (!sub) {
+      return res.status(404).json({ error: 'Subscription not found. Please re-enable notifications in Settings.' });
+    }
+
+    const pushSubscription = { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } };
+    const payload = JSON.stringify({ title, body, url: url ?? '/', tag: tag ?? 'test', icon: '/icon-192x192.svg' });
+
+    await webpush.sendNotification(pushSubscription, payload);
+    res.json({ ok: true, message: 'Push sent immediately' });
+  } catch (err) {
+    console.error('[push/send-now error]', err);
+    res.status(500).json({ error: err.message || 'Failed to send push', statusCode: err.statusCode });
+  }
+});
+
+// ─── GET /api/push/debug ─────────────────────────────────────────────
+// Returns current state of subscriptions and pending pushes (safe for dev use).
+router.get('/debug', (_req, res) => {
+  try {
+    const nowTs = Math.floor(Date.now() / 1000);
+    const duePushes = getDuePushes(nowTs);
+    const { store } = require('../db.js');
+    const subCount = Object.keys(store?.subscriptions ?? {}).length;
+    const pendingCount = Object.values(store?.scheduledPushes ?? {}).filter(p => p.sent === 0).length;
+    res.json({
+      subscriptions: subCount,
+      pendingPushes: pendingCount,
+      duePushes: duePushes.length,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 

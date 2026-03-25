@@ -113,22 +113,22 @@ export async function sendTestPush() {
   const sub = await getActiveSubscription();
   if (!sub) return { success: false, reason: 'not_subscribed' };
 
-  // Schedule a push that fires in 5 seconds
-  const fireAt = new Date(Date.now() + 5000).toISOString();
+  // Send immediately — bypasses the queue entirely
   try {
-    const res = await fetch(`${API_BASE}/api/push/schedule`, {
+    const res = await fetch(`${API_BASE}/api/push/send-now`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         endpoint: sub.endpoint,
-        fireAt,
         title: '🎵 GigFlow Notifications Working!',
         body: 'You will receive reminders for gigs, lessons and invoices.',
         url: '/',
         tag: `test-${Date.now()}`,
       }),
     });
-    return res.ok ? { success: true } : { success: false, reason: 'server_error' };
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) return { success: true };
+    return { success: false, reason: data.error || 'server_error' };
   } catch {
     return { success: false, reason: 'network_error' };
   }
