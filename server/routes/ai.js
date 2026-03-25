@@ -120,6 +120,25 @@ CREATE_INVOICE — create a new draft invoice for a client
   }
 }
 
+CREATE_RECURRING_EVENTS — create a repeating series of events (weekly lessons, monthly residency, etc.)
+{
+  "type": "CREATE_RECURRING_EVENTS",
+  "data": {
+    "title": "string (required)",
+    "event_type": "Lesson|Gig|Session|Rehearsal|Practice",
+    "start_date": "YYYY-MM-DD (first occurrence)",
+    "end_date": "YYYY-MM-DD (last possible date, required)",
+    "frequency": "weekly|biweekly|monthly",
+    "start_time": "HH:MM (24h, optional)",
+    "end_time": "HH:MM (24h, optional)",
+    "status": "confirmed|lead (default: confirmed)",
+    "location_address": "string (optional)",
+    "fee": number (optional),
+    "client_id": "string (optional)",
+    "notes": "string (optional)"
+  }
+}
+
 NAVIGATE — open a specific page in the app
 {
   "type": "NAVIGATE",
@@ -156,6 +175,7 @@ RULES
 - For location queries (finding a venue, restaurant, parking near an event), use LOCATION_SEARCH. Do NOT use it for anything that isn't a physical place lookup.
 - For financial questions, derive answers from the event data in context.
 - When a user asks to create an invoice, use CREATE_INVOICE — never refuse this request.
+- When a user mentions recurring, weekly, every week, regular lessons, monthly residency, or any repeating schedule — use CREATE_RECURRING_EVENTS. Never say recurring events are not supported.
 - Never say you can't do something that IS supported — just do it.
 - Always return raw JSON. Never wrap output in markdown code fences.
 

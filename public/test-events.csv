@@ -1,0 +1,47 @@
+title,date,start_time,end_time,event_type,status,location_address,fee,notes
+New Year's Hangover Brunch Gig,2026-01-03,12:00,15:00,gig,completed,The Ivy Chelsea Garden, 197 King's Road London,400,Easy crowd post NYE
+Corporate Dinner - Deloitte,2026-01-08,19:00,22:00,corporate,completed,Guildhall London EC2V 7HH,750,Smart dress. 3-piece setlist requested
+Wedding Reception - Johnson,2026-01-17,18:00,23:00,wedding,completed,The Dorchester Hotel Park Lane London,1200,First dance: Can't Help Falling in Love. Ceremony at 15:00
+Jazz Night at Ronnie Scott's,2026-01-22,20:00,23:00,gig,completed,Ronnie Scott's 47 Frith Street London W1D 4HT,350,Regular Thursday slot
+Teaching - Emily Chen,2026-01-27,15:00,16:00,teaching,completed,Studio A 12 Denmark Street London WC2H 8LS,60,Grade 5 piano. Working on scales
+Teaching - Jake Morrison,2026-01-27,16:00,17:00,teaching,completed,Studio A 12 Denmark Street London WC2H 8LS,60,Beginner guitar. Chords practice
+Corporate Awards Night - KPMG,2026-01-30,19:30,23:00,corporate,completed,The Shard 32 London Bridge Street SE1 9SG,900,Background jazz then 30 min spotlight set
+Wedding Reception - Garcia,2026-02-07,17:00,23:00,wedding,completed,Claridge's Hotel Brook Street London W1K 4HR,1400,Big band request. Dinner at 18:30
+Valentine's Jazz Night,2026-02-14,19:00,23:00,gig,completed,100 Wardour St London W1F 0TN,500,Sold out. Duo setup with Sarah on vocals
+Teaching Full Day - Morning Block,2026-02-19,09:00,10:00,teaching,completed,Studio A 12 Denmark Street London WC2H 8LS,60,Emily Chen - Grade 5 exam prep
+Teaching Full Day - Block 2,2026-02-19,10:00,11:00,teaching,completed,Studio A 12 Denmark Street London WC2H 8LS,60,Jake Morrison - beginner guitar
+Teaching Full Day - Block 3,2026-02-19,11:00,12:00,teaching,completed,Studio A 12 Denmark Street London WC2H 8LS,60,Liam Patel - jazz theory
+Teaching Full Day - Block 4,2026-02-19,13:00,14:00,teaching,completed,Studio A 12 Denmark Street London WC2H 8LS,60,Sophie Turner - Grade 3 violin
+Teaching Full Day - Block 5,2026-02-19,14:00,15:00,teaching,completed,Studio A 12 Denmark Street London WC2H 8LS,60,Noah Williams - beginner piano
+Teaching Full Day - Block 6,2026-02-19,15:00,16:00,teaching,completed,Studio A 12 Denmark Street London WC2H 8LS,60,Ava Robinson - Grade 6 piano
+Teaching Full Day - Block 7,2026-02-19,16:00,17:00,teaching,completed,Studio A 12 Denmark Street London WC2H 8LS,60,Mia Thompson - music theory GCSE
+Teaching Full Day - Block 8,2026-02-19,17:00,18:00,teaching,completed,Studio A 12 Denmark Street London WC2H 8LS,60,Oscar Davies - drums beginner
+Corporate Launch Party - Spotify,2026-02-26,20:00,23:00,corporate,completed,Fabric 77a Charterhouse Street London EC1M 6HJ,1100,Playlist handed over. Live set 21:00-22:00
+Wedding Reception - Okafor,2026-03-07,16:00,23:00,wedding,confirmed,The Savoy Strand London WC2R 0EU,1500,Nigerian music first. Then Western. Brief at 14:00
+Spring Concert - Barbican,2026-03-14,19:30,22:00,gig,confirmed,Barbican Centre Silk Street London EC2Y 8DS,600,Soundcheck 17:00. Own PA needed
+Teaching - Weekly Session,2026-03-17,15:00,16:00,teaching,confirmed,Studio A 12 Denmark Street London WC2H 8LS,60,Emily Chen - performance prep
+Corporate Dinner - Goldman Sachs,2026-03-20,19:00,22:30,corporate,confirmed,The Langham Portland Place London W1B 1JA,950,Black tie. Jazz standards only
+Wedding Reception - Bennett,2026-03-28,17:30,23:00,wedding,confirmed,Hampton Court Palace East Molesey KT8 9AU,1800,Outdoor ceremony - check weather. Generator needed
+Private Party - 50th Birthday,2026-04-04,20:00,00:00,gig,confirmed,Private Residence Kensington London W8,700,Pop and jazz mix. No amp provided
+Teaching Full Day - Morning Block,2026-04-09,09:00,10:00,teaching,confirmed,Studio A 12 Denmark Street London WC2H 8LS,60,Emily Chen
+Teaching Full Day - Block 2,2026-04-09,10:00,11:00,teaching,confirmed,Studio A 12 Denmark Street London WC2H 8LS,60,Jake Morrison
+Teaching Full Day - Block 3,2026-04-09,11:00,12:00,teaching,confirmed,Studio A 12 Denmark Street London WC2H 8LS,60,Liam Patel
+Teaching Full Day - Block 4,2026-04-09,13:00,14:00,teaching,confirmed,Studio A 12 Denmark Street London WC2H 8LS,60,Sophie Turner
+Teaching Full Day - Block 5,2026-04-09,14:00,15:00,teaching,confirmed,Studio A 12 Denmark Street London WC2H 8LS,60,Noah Williams
+Teaching Full Day - Block 6,2026-04-09,15:00,16:00,teaching,confirmed,Studio A 12 Denmark Street London WC2H 8LS,60,Ava Robinson
+Teaching Full Day - Block 7,2026-04-09,16:00,17:00,teaching,confirmed,Studio A 12 Denmark Street London WC2H 8LS,60,Mia Thompson - mock exam this month
+Teaching Full Day - Block 8,2026-04-09,17:00,18:00,teaching,confirmed,Studio A 12 Denmark Street London WC2H 8LS,60,Oscar Davies
+Jazz Festival Set,2026-04-18,15:00,16:30,gig,confirmed,Southbank Centre Belvedere Road London SE1 8XX,800,Festival stage 3. Soundcheck 13:30
+Corporate Event - Barclays,2026-04-24,18:30,22:00,corporate,confirmed,Canary Wharf Tower London E14 5AB,1000,Client entertainment night. Cocktail hour background
+Wedding Reception - Kaur,2026-05-02,17:00,23:00,wedding,confirmed,Mandarin Oriental Hyde Park London SW1X 7LA,1600,Bhangra opening then jazz. Rehearsal May 1st
+Concert - Jazz in the Park,2026-05-09,14:00,16:00,gig,confirmed,Regent's Park London NW1 4NR,500,Free outdoor event. Own PA. Rain backup plan needed
+Corporate Dinner - Accenture,2026-05-15,19:00,22:30,corporate,lead,The Gherkin 30 St Mary Axe London EC3A 8BF,850,Awaiting final confirmation from events team
+Private Dinner Party,2026-05-23,20:00,23:00,gig,lead,Private Residence Notting Hill London W11,600,Intimate setting. Acoustic only
+Wedding Reception - Walsh,2026-06-06,16:00,23:00,wedding,confirmed,Kew Gardens Richmond London TW9 3AE,2000,Outdoor summer wedding. Stunning venue
+Corporate Summer Party - Meta,2026-06-13,18:00,23:00,corporate,confirmed,Rooftop Shoreditch London EC2A 3AY,1200,Tech crowd. Mix of jazz and light pop
+Concert - Midsummer Night,2026-06-20,20:00,23:00,gig,confirmed,Jazz Cafe 5 Parkway London NW1 7PG,700,Headline slot. Full band
+Private Birthday Party,2026-06-27,21:00,01:00,gig,lead,Venue TBC Central London,800,Client: James Harrington. Quote sent
+Wedding Reception - Nguyen,2026-07-04,17:00,23:30,wedding,confirmed,The Ritz London 150 Piccadilly W1J 9BR,2500,Premier venue. Full PA hired. Formal attire
+Summer Jazz Festival,2026-07-11,13:00,15:00,gig,confirmed,Hyde Park London W2 2UH,900,Main stage slot. Festival contract signed
+Corporate Event - JP Morgan,2026-07-17,19:30,22:30,corporate,lead,Grosvenor House Park Lane London W1K 7TN,1100,Pending budget approval
+Jazz Night - Monthly Residency,2026-07-24,20:00,23:00,gig,confirmed,Ronnie Scott's 47 Frith Street London W1D 4HT,400,Regular monthly slot confirmed through December

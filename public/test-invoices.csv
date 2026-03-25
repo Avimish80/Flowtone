@@ -1,0 +1,26 @@
+document_number,title,status,total,due_date,notes
+INV-001,New Year's Brunch Gig - Jan 3,paid,400,2026-01-10,Paid by bank transfer
+INV-002,Corporate Dinner - Deloitte Jan 8,paid,750,2026-01-15,Paid on time
+INV-003,Wedding Reception - Johnson Jan 17,paid,1200,2026-01-24,50% deposit received Jan 1. Balance paid Jan 20
+INV-004,Jazz Night Ronnie Scott's Jan 22,paid,350,2026-01-29,Cash on night
+INV-005,Teaching January - Emily Chen,paid,240,2026-02-01,4 sessions x £60
+INV-006,Corporate Awards Night - KPMG Jan 30,paid,900,2026-02-06,Paid via BACS
+INV-007,Wedding Reception - Garcia Feb 7,paid,1400,2026-02-14,Deposit £700 received Dec 2025. Balance paid Feb 9
+INV-008,Valentine's Jazz Night Feb 14,paid,500,2026-02-21,Venue paid same week
+INV-009,Teaching Full Day Feb 19,paid,480,2026-02-26,8 sessions x £60
+INV-010,Corporate Launch Party - Spotify Feb 26,paid,1100,2026-03-05,Paid promptly - great client
+INV-011,Teaching March - Weekly Sessions,paid,180,2026-03-31,3 sessions x £60
+INV-012,Wedding Reception - Okafor Mar 7,sent,1500,2026-03-21,Deposit £750 paid. Balance due after event
+INV-013,Spring Concert - Barbican Mar 14,paid,600,2026-03-21,Direct bank transfer received
+INV-014,Corporate Dinner - Goldman Sachs Mar 20,sent,950,2026-04-03,30 day payment terms. Chased once
+INV-015,Wedding Reception - Bennett Mar 28,sent,1800,2026-04-11,Deposit received. Balance outstanding
+INV-016,Private Party 50th Birthday Apr 4,sent,700,2026-04-18,Client: Williams family. Awaiting payment
+INV-017,Teaching Full Day Apr 9,draft,480,2026-04-16,8 sessions x £60 - to be sent
+INV-018,Jazz Festival Set Apr 18,draft,800,2026-05-02,Awaiting festival contract countersigned
+INV-019,Corporate Event - Barclays Apr 24,draft,1000,2026-05-08,Event not yet confirmed - draft only
+INV-020,Wedding Reception - Kaur May 2,draft,1600,2026-05-16,Send after event. Deposit £800 already invoiced separately
+INV-021,Concert - Jazz in the Park May 9,draft,500,2026-05-23,Draft ready to send
+INV-022,Wedding Reception - Walsh Jun 6,draft,2000,2026-06-20,Premium booking. 50% deposit due 1 month before
+INV-023,Corporate Summer Party - Meta Jun 13,draft,1200,2026-06-27,Net 30 days
+INV-024,Concert - Midsummer Night Jun 20,draft,700,2026-07-04,Jazz Cafe - 7 day payment
+INV-025,Wedding Reception - Nguyen Jul 4,draft,2500,2026-07-18,The Ritz - biggest booking of the year

@@ -108,6 +108,45 @@ async function executeAction(action) {
       };
     }
 
+    case "CREATE_RECURRING_EVENTS": {
+      const { start_date, end_date, frequency = "weekly", title, event_type, start_time, end_time, status, location_address, fee, client_id, notes } = data;
+      if (!start_date || !end_date) return { success: false, type, label: "Need a start and end date for recurring events." };
+
+      // Build list of dates
+      const dates = [];
+      const cur = new Date(start_date + "T12:00:00");
+      const end = new Date(end_date + "T12:00:00");
+      const step = frequency === "monthly" ? null : frequency === "biweekly" ? 14 : 7;
+      while (cur <= end) {
+        dates.push(cur.toISOString().slice(0, 10));
+        if (frequency === "monthly") {
+          cur.setMonth(cur.getMonth() + 1);
+        } else {
+          cur.setDate(cur.getDate() + step);
+        }
+      }
+
+      // Create all events
+      const seriesId = Math.random().toString(36).slice(2);
+      for (const date of dates) {
+        await appClient.entities.WorkEvent.create({
+          title, event_type: event_type || "Lesson", date,
+          start_time: start_time || "", end_time: end_time || "",
+          status: status || "confirmed",
+          location_address: location_address || "",
+          fee: fee || 0, client_id: client_id || "", notes: notes || "",
+          is_recurring: true, recurring_series_id: seriesId,
+        });
+      }
+
+      return {
+        success: true,
+        type,
+        label: `Created ${dates.length} recurring events: ${title} (${frequency}, ${dates[0]} → ${dates[dates.length - 1]})`,
+        page: "WorkEvents",
+      };
+    }
+
     case "CREATE_GOAL": {
       const created = await appClient.entities.PracticeGoal.create(data);
       return {
