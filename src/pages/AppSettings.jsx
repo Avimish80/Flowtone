@@ -604,6 +604,91 @@ export default function AppSettings() {
               </button>
               <div className="border-t border-gray-700 pt-3 space-y-2">
                 <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Load Test Data</p>
+
+                {/* ── Connected demo data (clients + events + invoices linked) ── */}
+                <button
+                  onClick={async () => {
+                    setTestImporting("connected");
+                    try {
+                      const today = new Date();
+                      const d = (offset) => {
+                        const dt = new Date(today);
+                        dt.setDate(dt.getDate() + offset);
+                        return dt.toISOString().slice(0, 10);
+                      };
+
+                      // 1. Create clients
+                      const [venue, agent, student1, student2, band] = await Promise.all([
+                        appClient.entities.Client.create({ name: "The Blue Note", client_type: "venue", emails: ["booker@bluenote.co.uk"], phone: "020 7946 0123", city: "London" }),
+                        appClient.entities.Client.create({ name: "Premier Events Agency", client_type: "agent", emails: ["info@premierevents.co.uk"], phone: "020 7123 4567", city: "London" }),
+                        appClient.entities.Client.create({ name: "Sophie Williams", client_type: "student", emails: ["sophie@gmail.com"], phone: "07700 900111", city: "London" }),
+                        appClient.entities.Client.create({ name: "James Chen", client_type: "student", emails: ["jchen@outlook.com"], phone: "07700 900222", city: "London" }),
+                        appClient.entities.Client.create({ name: "The Groove Collective", client_type: "band", emails: ["band@groove.co.uk"], phone: "07700 900333", city: "Manchester" }),
+                      ]);
+
+                      // 2. Create events
+                      const events = await Promise.all([
+                        appClient.entities.WorkEvent.create({ title: "Jazz Night @ Blue Note", event_type: "Gig", status: "confirmed", date: d(3), start_time: "20:00", end_time: "23:00", client_id: venue.id, location_address: "131 W 3rd St, London", fee: 350 }),
+                        appClient.entities.WorkEvent.create({ title: "Corporate Summer Party", event_type: "Gig", status: "confirmed", date: d(8), start_time: "19:30", end_time: "22:30", client_id: agent.id, location_address: "Canary Wharf, London", fee: 800 }),
+                        appClient.entities.WorkEvent.create({ title: "Wedding Reception – Kaur", event_type: "Gig", status: "lead", date: d(18), start_time: "18:00", end_time: "23:00", client_id: agent.id, location_address: "Grand Hotel, Birmingham", fee: 1200 }),
+                        appClient.entities.WorkEvent.create({ title: "Sophie Williams – Piano", event_type: "Lesson", status: "confirmed", date: d(1), start_time: "10:00", end_time: "11:00", client_id: student1.id, fee: 60 }),
+                        appClient.entities.WorkEvent.create({ title: "Sophie Williams – Piano", event_type: "Lesson", status: "confirmed", date: d(8), start_time: "10:00", end_time: "11:00", client_id: student1.id, fee: 60 }),
+                        appClient.entities.WorkEvent.create({ title: "James Chen – Guitar", event_type: "Lesson", status: "confirmed", date: d(2), start_time: "14:00", end_time: "15:00", client_id: student2.id, fee: 55 }),
+                        appClient.entities.WorkEvent.create({ title: "James Chen – Guitar", event_type: "Lesson", status: "completed", date: d(-7), start_time: "14:00", end_time: "15:00", client_id: student2.id, fee: 55 }),
+                        appClient.entities.WorkEvent.create({ title: "Groove Collective – Rehearsal", event_type: "Rehearsal", status: "confirmed", date: d(5), start_time: "15:00", end_time: "18:00", client_id: band.id, fee: 0 }),
+                        appClient.entities.WorkEvent.create({ title: "Private 50th Birthday Party", event_type: "Gig", status: "completed", date: d(-10), start_time: "20:00", end_time: "23:00", client_id: venue.id, location_address: "Shoreditch, London", fee: 500 }),
+                        appClient.entities.WorkEvent.create({ title: "School Assembly Performance", event_type: "Session", status: "completed", date: d(-14), start_time: "09:30", end_time: "10:30", client_id: agent.id, location_address: "St Mary's School, London", fee: 250 }),
+                      ]);
+
+                      // 3. Create invoices linked to events + clients
+                      const makeInv = (num, title, clientId, eventId, total, status, dueOffset) => ({
+                        document_type: "invoice",
+                        document_number: `INV-${String(num).padStart(4, "0")}`,
+                        title,
+                        client_id: clientId,
+                        client_name: "",
+                        work_event_id: eventId,
+                        status,
+                        total,
+                        subtotal: total,
+                        currency: "GBP",
+                        due_date: d(dueOffset),
+                        line_items: [{ description: title, quantity: 1, unit_price: total, total }],
+                      });
+
+                      await Promise.all([
+                        // Paid (old gig)
+                        appClient.entities.Document.create({ ...makeInv(1, "Private 50th Birthday Party", venue.id, events[8].id, 500, "paid", -3), paid_date: d(-3) }),
+                        // Paid (old session)
+                        appClient.entities.Document.create({ ...makeInv(2, "School Assembly Performance", agent.id, events[9].id, 250, "paid", -7), paid_date: d(-7) }),
+                        // Overdue (past lesson, not paid)
+                        appClient.entities.Document.create(makeInv(3, "Guitar Lesson – James Chen", student2.id, events[6].id, 55, "sent", -2)),
+                        // Sent (upcoming gig)
+                        appClient.entities.Document.create(makeInv(4, "Jazz Night @ Blue Note", venue.id, events[0].id, 350, "sent", 30)),
+                        // Draft (upcoming corporate)
+                        appClient.entities.Document.create(makeInv(5, "Corporate Summer Party", agent.id, events[1].id, 800, "draft", 38)),
+                        // Draft (upcoming wedding)
+                        appClient.entities.Document.create(makeInv(6, "Wedding Reception – Kaur", agent.id, events[2].id, 1200, "draft", 48)),
+                        // Draft (lesson invoice)
+                        appClient.entities.Document.create(makeInv(7, "Piano Lessons – Sophie Williams (April)", student1.id, events[3].id, 120, "draft", 14)),
+                      ]);
+
+                      setTestImporting(null);
+                      setTestImported("connected");
+                    } catch (err) {
+                      console.error("Demo data error:", err);
+                      setTestImporting(null);
+                    }
+                  }}
+                  disabled={testImporting === "connected"}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white transition-colors"
+                >
+                  {testImporting === "connected" ? "Creating…" : testImported === "connected" ? "✓ Demo Data Loaded!" : "✨ Load Connected Demo Data"}
+                </button>
+                {testImported === "connected" && (
+                  <p className="text-[11px] text-gray-500 text-center">5 clients · 10 events · 7 invoices · all linked</p>
+                )}
+
                 <button
                   onClick={async () => {
                     setTestImporting("events");

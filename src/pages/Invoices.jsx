@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { appClient } from "@/api/appClient";
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl, currencySymbol } from "@/utils";
-import { Plus, ChevronRight, CheckSquare, Square, Trash2, CheckCircle2, Lock, CalendarDays, ChevronDown, TrendingUp, AlertTriangle, FileText } from "lucide-react";
+import { Plus, ChevronRight, CheckSquare, Square, Trash2, CheckCircle2, Lock, CalendarDays, ChevronDown, TrendingUp, AlertTriangle, FileText, Send, XCircle } from "lucide-react";
 import { format, parseISO, isPast } from "date-fns";
 import { usePageState } from "@/hooks/usePageState";
 import SortDropdown from "@/components/SortDropdown";
@@ -121,8 +121,6 @@ export default function Invoices() {
     });
   }, [invoices, filterYear, taxYearStartMonth]);
 
-  const filters = ["all", "draft", "sent", "paid", "overdue", "cancelled"];
-
   const filtered = yearFiltered.filter(item => {
     if (filterStatus === "all") return true;
     if (filterStatus === "overdue") {
@@ -157,11 +155,12 @@ export default function Invoices() {
       if (n >= 10000) return cs + (n / 1000).toFixed(1).replace(/\.0$/, "") + "k";
       return cs + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
     };
-    const overdue = invoices.filter(i => i.status === "sent" && i.due_date && isPast(parseISO(i.due_date)));
-    const sent    = invoices.filter(i => i.status === "sent");
-    const paid    = invoices.filter(i => i.status === "paid");
-    const drafts  = invoices.filter(i => i.status === "draft");
-    return { overdue, sent, paid, drafts, sum, fmt };
+    const overdue    = invoices.filter(i => i.status === "sent" && i.due_date && isPast(parseISO(i.due_date)));
+    const sent       = invoices.filter(i => i.status === "sent");
+    const paid       = invoices.filter(i => i.status === "paid");
+    const drafts     = invoices.filter(i => i.status === "draft");
+    const cancelled  = invoices.filter(i => i.status === "cancelled");
+    return { overdue, sent, paid, drafts, cancelled, sum, fmt };
   }, [invoices]);
 
   return (
@@ -223,48 +222,85 @@ export default function Invoices() {
         </div>
       </div>
 
-      {/* ── 3 stat tiles ── */}
-      <div className="grid grid-cols-3 gap-2 mb-5">
-        {/* Overdue */}
-        <button onClick={() => setFilterStatus("overdue")}
-          className={`rounded-xl p-3 text-left transition-colors border ${
-            overview.overdue.length > 0
-              ? "bg-red-950/50 border-red-800/40 hover:bg-red-950/70"
-              : "bg-gray-800/60 border-gray-700/40 hover:bg-gray-800"
-          }`}>
-          <div className="flex items-center gap-1 mb-2">
-            <AlertTriangle className={`w-3 h-3 ${overview.overdue.length > 0 ? "text-red-400" : "text-gray-500"}`} />
-            <p className={`text-[10px] font-bold uppercase tracking-wider ${overview.overdue.length > 0 ? "text-red-400" : "text-gray-500"}`}>Overdue</p>
-          </div>
-          <p className={`text-lg font-bold leading-tight ${overview.overdue.length > 0 ? "text-red-300" : "text-gray-400"}`}>
-            {overview.overdue.length > 0 ? overview.fmt(overview.sum(overview.overdue)) : "None"}
-          </p>
-          <p className={`text-[10px] mt-0.5 ${overview.overdue.length > 0 ? "text-red-400/70" : "text-gray-600"}`}>
-            {overview.overdue.length} invoice{overview.overdue.length !== 1 ? "s" : ""}
-          </p>
-        </button>
-
-        {/* Paid */}
-        <button onClick={() => setFilterStatus("paid")}
-          className="bg-green-950/30 border border-green-800/20 rounded-xl p-3 text-left transition-colors hover:bg-green-950/50">
-          <div className="flex items-center gap-1 mb-2">
-            <TrendingUp className="w-3 h-3 text-green-400" />
-            <p className="text-[10px] text-green-400 font-bold uppercase tracking-wider">Paid</p>
-          </div>
-          <p className="text-lg font-bold text-green-300 leading-tight">{overview.fmt(overview.sum(overview.paid))}</p>
-          <p className="text-[10px] text-green-400/60 mt-0.5">{overview.paid.length} invoice{overview.paid.length !== 1 ? "s" : ""}</p>
-        </button>
-
-        {/* Drafts */}
-        <button onClick={() => setFilterStatus("draft")}
-          className="bg-gray-800/60 border border-gray-700/40 rounded-xl p-3 text-left transition-colors hover:bg-gray-800">
-          <div className="flex items-center gap-1 mb-2">
-            <FileText className="w-3 h-3 text-gray-400" />
-            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Drafts</p>
-          </div>
-          <p className="text-lg font-bold text-white leading-tight">{overview.drafts.length}</p>
-          <p className="text-[10px] text-gray-500 mt-0.5">in progress</p>
-        </button>
+      {/* ── Swipeable stat tiles ── */}
+      <div className="flex gap-2 overflow-x-auto pb-1 mb-5 -mx-4 px-4 snap-x snap-mandatory scrollbar-none">
+        {[
+          {
+            key: "overdue",
+            label: "Overdue",
+            icon: AlertTriangle,
+            value: overview.overdue.length > 0 ? overview.fmt(overview.sum(overview.overdue)) : "None",
+            sub: `${overview.overdue.length} invoice${overview.overdue.length !== 1 ? "s" : ""}`,
+            active: overview.overdue.length > 0,
+            colors: overview.overdue.length > 0
+              ? "bg-red-950/60 border-red-800/40 text-red-300"
+              : "bg-gray-800/60 border-gray-700/40 text-gray-400",
+            iconColor: overview.overdue.length > 0 ? "text-red-400" : "text-gray-500",
+            labelColor: overview.overdue.length > 0 ? "text-red-400" : "text-gray-500",
+            subColor: overview.overdue.length > 0 ? "text-red-400/60" : "text-gray-600",
+          },
+          {
+            key: "paid",
+            label: "Paid",
+            icon: TrendingUp,
+            value: overview.fmt(overview.sum(overview.paid)),
+            sub: `${overview.paid.length} invoice${overview.paid.length !== 1 ? "s" : ""}`,
+            colors: "bg-green-950/30 border-green-800/20 text-green-300",
+            iconColor: "text-green-400",
+            labelColor: "text-green-400",
+            subColor: "text-green-400/60",
+          },
+          {
+            key: "draft",
+            label: "Drafts",
+            icon: FileText,
+            value: String(overview.drafts.length),
+            sub: "in progress",
+            colors: "bg-gray-800/60 border-gray-700/40 text-white",
+            iconColor: "text-gray-400",
+            labelColor: "text-gray-400",
+            subColor: "text-gray-500",
+          },
+          {
+            key: "sent",
+            label: "Sent",
+            icon: Send,
+            value: String(overview.sent.length),
+            sub: `${overview.fmt(overview.sum(overview.sent))} outstanding`,
+            colors: "bg-blue-950/30 border-blue-800/20 text-blue-300",
+            iconColor: "text-blue-400",
+            labelColor: "text-blue-400",
+            subColor: "text-blue-400/60",
+          },
+          {
+            key: "cancelled",
+            label: "Cancelled",
+            icon: XCircle,
+            value: String(overview.cancelled.length),
+            sub: "voided",
+            colors: "bg-gray-800/40 border-gray-700/30 text-gray-500",
+            iconColor: "text-gray-600",
+            labelColor: "text-gray-600",
+            subColor: "text-gray-700",
+          },
+        ].map(tile => {
+          const Icon = tile.icon;
+          const isActive = filterStatus === tile.key;
+          return (
+            <button
+              key={tile.key}
+              onClick={() => setFilterStatus(isActive ? "all" : tile.key)}
+              className={`flex-shrink-0 w-32 snap-start rounded-xl p-3 text-left transition-all border ${tile.colors} ${isActive ? "ring-2 ring-indigo-500 scale-[1.02]" : ""}`}
+            >
+              <div className="flex items-center gap-1 mb-2">
+                <Icon className={`w-3 h-3 ${tile.iconColor}`} />
+                <p className={`text-[10px] font-bold uppercase tracking-wider ${tile.labelColor}`}>{tile.label}</p>
+              </div>
+              <p className="text-lg font-bold leading-tight truncate">{tile.value}</p>
+              <p className={`text-[10px] mt-0.5 truncate ${tile.subColor}`}>{tile.sub}</p>
+            </button>
+          );
+        })}
       </div>
 
       {/* Bulk select bar */}
@@ -285,19 +321,17 @@ export default function Invoices() {
         </div>
       )}
 
-      {/* ── Filter pills ── */}
-      <div className="flex gap-2 mb-4 overflow-x-auto pb-1 -mx-1 px-1">
-        {filters.map(s => (
-          <button key={s} onClick={() => setFilterStatus(s)}
-            className={`px-3 py-1.5 rounded-full text-xs font-semibold flex-shrink-0 transition-colors whitespace-nowrap ${
-              filterStatus === s
-                ? "bg-indigo-600 text-white"
-                : "bg-gray-800 text-gray-400 hover:text-white hover:bg-gray-700"
-            }`}>
-            {s === "all" ? "All" : s.charAt(0).toUpperCase() + s.slice(1)}
+      {/* ── Active filter indicator + clear ── */}
+      {filterStatus !== "all" && (
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-xs text-gray-400">
+            Showing: <span className="text-white font-medium capitalize">{filterStatus}</span>
+          </p>
+          <button onClick={() => setFilterStatus("all")} className="text-xs text-indigo-400 hover:text-indigo-300">
+            Show all
           </button>
-        ))}
-      </div>
+        </div>
+      )}
 
       {/* ── List ── */}
       {loading ? (

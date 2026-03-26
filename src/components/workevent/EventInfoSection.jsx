@@ -60,7 +60,7 @@ export default function EventInfoSection({ event, onChange, clients }) {
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <div>
         <label className="text-xs text-gray-400 mb-1 block">Title</label>
         <div className="flex items-center gap-2">
@@ -122,16 +122,17 @@ export default function EventInfoSection({ event, onChange, clients }) {
       </div>
 
       <div>
-        <div className="flex items-center justify-between mb-1">
+        <div className="flex items-center justify-between mb-2">
           <label className="text-xs text-gray-400 flex items-center gap-1"><Clock className="w-3 h-3" /> Time</label>
           {durationLabel(event.start_time, event.end_time) && (
-            <span className="text-xs text-indigo-400 font-medium">
+            <span className="text-xs text-indigo-400 font-medium bg-indigo-900/30 px-2 py-0.5 rounded-full">
               {durationLabel(event.start_time, event.end_time)}
             </span>
           )}
         </div>
-        <div className="grid grid-cols-2 gap-2">
-          <div className="relative">
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <p className="text-[11px] text-gray-500 mb-1 ml-0.5">Start</p>
             <input
               type="time"
               className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
@@ -139,16 +140,14 @@ export default function EventInfoSection({ event, onChange, clients }) {
               onChange={e => {
                 const start = e.target.value;
                 onChange("start_time", start);
-                // keep legacy time field in sync
                 onChange("time", start);
                 const dh = toDurationHours(start, event.end_time);
                 if (dh) onChange("duration_hours", dh);
               }}
             />
-            <span className="absolute left-3 -top-0 pointer-events-none" />
-            <p className="text-[10px] text-gray-500 mt-0.5 ml-1">Start</p>
           </div>
-          <div className="relative">
+          <div>
+            <p className="text-[11px] text-gray-500 mb-1 ml-0.5">End</p>
             <input
               type="time"
               className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
@@ -160,7 +159,6 @@ export default function EventInfoSection({ event, onChange, clients }) {
                 if (dh) onChange("duration_hours", dh);
               }}
             />
-            <p className="text-[10px] text-gray-500 mt-0.5 ml-1">End</p>
           </div>
         </div>
       </div>

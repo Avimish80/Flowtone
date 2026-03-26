@@ -189,10 +189,11 @@ export default function AIAssistantPanel({
 
   return (
     <>
-      {/* Backdrop */}
+      {/* Backdrop — touch-none prevents scroll passthrough to page */}
       <div
-        className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+        className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm touch-none"
         onClick={onClose}
+        onWheel={e => e.stopPropagation()}
       />
 
       {/* Panel */}
@@ -247,7 +248,7 @@ export default function AIAssistantPanel({
         </div>
 
         {/* ── Messages ── */}
-        <div className="flex-1 overflow-y-auto px-4 py-4">
+        <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-4">
           {messages.map((msg) => {
             if (msg.role === "user")
               return <UserBubble key={msg.id} message={msg} />;
