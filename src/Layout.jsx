@@ -5,7 +5,7 @@ import { useTheme } from "@/lib/ThemeContext";
 import {
   Music2, CalendarDays, CalendarRange, Users, Receipt,
   Package, Mail, Car, Settings, LayoutDashboard, MoreHorizontal, X, Sun, Moon,
-  Music, Dumbbell
+  Music, Dumbbell, FileText
 } from "lucide-react";
 import AIAssistantButton from "@/components/AIAssistant/AIAssistantButton";
 import AIAssistantPanel from "@/components/AIAssistant/AIAssistantPanel";
@@ -61,15 +61,34 @@ const SECTION_LABELS = {
   Clients: "Clients",
   ClientDetail: "Client",
   Finance: "Finance",
-  Invoices: "Invoices",
-  Estimates: "Estimates",
-  Charts: "Music Library",
-  ChartDetail: "Music Library",
+  Invoices: "Finance",
+  Estimates: "Finance",
+  Charts: "Library",
+  ChartDetail: "Library",
   Practice: "Practice",
   Equipment: "Gear",
   EmailInbox: "Inbox",
   DrivingMode: "Drive",
   AppSettings: "Settings",
+};
+
+// Icon shown alongside the section label in the header
+const SECTION_ICONS = {
+  CalendarView: CalendarDays,
+  WorkEvents: CalendarRange,
+  WorkEventDetail: CalendarRange,
+  Clients: Users,
+  ClientDetail: Users,
+  Finance: Receipt,
+  Invoices: Receipt,
+  Charts: Music,
+  ChartDetail: Music,
+  Practice: Dumbbell,
+  Equipment: Package,
+  EmailInbox: Mail,
+  DrivingMode: Car,
+  AppSettings: Settings,
+  DocumentDetail: FileText,
 };
 
 export default function Layout({ children, currentPageName }) {
@@ -115,8 +134,9 @@ export default function Layout({ children, currentPageName }) {
   if (currentPageName === "DocumentDetail") {
     const params = new URLSearchParams(location.search);
     const type = params.get("type");
-    sectionLabel = type === "estimate" ? "Estimate" : "Invoice";
+    sectionLabel = type === "estimate" ? "Quote" : "Invoice";
   }
+  const SectionIcon = SECTION_ICONS[currentPageName] || null;
 
   const activeGroup = NAV_GROUP[currentPageName] || currentPageName;
   const isMoreActive = ["Charts", "ChartDetail", "Practice", "Equipment", "EmailInbox", "DrivingMode", "AppSettings"].includes(activeGroup);
@@ -131,7 +151,10 @@ export default function Layout({ children, currentPageName }) {
           {sectionLabel && (
             <>
               <span className="text-gray-600 text-sm">/</span>
-              <span className="text-xs font-medium text-indigo-300 bg-indigo-500/15 px-2 py-0.5 rounded-md">{sectionLabel}</span>
+              <span className="text-xs font-medium text-indigo-300 bg-indigo-500/15 px-2 py-0.5 rounded-md flex items-center gap-1">
+                {SectionIcon && <SectionIcon className="w-3 h-3" />}
+                {sectionLabel}
+              </span>
             </>
           )}
         </div>

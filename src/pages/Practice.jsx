@@ -416,11 +416,7 @@ export default function Practice() {
   return (
     <div className="max-w-xl mx-auto px-4 pt-4 pb-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-5">
-        <div className="flex items-center gap-2">
-          <Dumbbell className="w-5 h-5 text-indigo-400" />
-          <h1 className="text-xl font-bold text-white">Practice</h1>
-        </div>
+      <div className="flex items-center justify-end mb-5">
         <div className="flex gap-2">
           <button onClick={() => { setGoalForm(emptyGoal); setView("goal"); }}
             className="flex items-center gap-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 px-3 py-1.5 rounded-xl text-sm font-medium transition-colors">

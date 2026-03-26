@@ -219,10 +219,7 @@ export default function AppSettings() {
 
   return (
     <div className="p-4 max-w-xl mx-auto">
-      <div className="flex items-center gap-2 mb-6">
-        <Settings className="w-5 h-5 text-indigo-400" />
-        <h1 className="text-xl font-bold text-white">Settings</h1>
-      </div>
+      <div className="mb-6"></div>
 
       <div className="space-y-6">
         {/* Business Profile */}

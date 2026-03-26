@@ -63,11 +63,7 @@ export default function Charts() {
   return (
     <div className="max-w-xl mx-auto px-4 pt-4 pb-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-5">
-        <div className="flex items-center gap-2">
-          <Music className="w-5 h-5 text-indigo-400" />
-          <h1 className="text-xl font-bold text-white">Music Library</h1>
-        </div>
+      <div className="flex items-center justify-end mb-5">
         <Link
           to={createPageUrl("ChartDetail")}
           className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-xl text-sm font-medium transition-colors"

@@ -41,10 +41,6 @@ export default function DrivingMode() {
 
   return (
     <div className="p-4 max-w-xl mx-auto">
-      <div className="flex items-center gap-2 mb-6">
-        <Car className="w-5 h-5 text-indigo-400" />
-        <h1 className="text-xl font-bold text-white">Driving Mode</h1>
-      </div>
 
       {loading ? (
         <div className="space-y-4">{[1,2].map(i => <div key={i} className="bg-gray-800 rounded-2xl h-36 animate-pulse" />)}</div>

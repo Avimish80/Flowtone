@@ -99,8 +99,7 @@ export default function Equipment() {
 
   return (
     <div className="p-4 max-w-xl mx-auto">
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-xl font-bold text-white">Gear Library</h1>
+      <div className="flex items-center justify-end mb-4">
         <div className="flex gap-2">
           <SortDropdown options={SORT_OPTIONS} activeSort={sort} onSortChange={setSort} />
           <button
