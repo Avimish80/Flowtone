@@ -220,7 +220,7 @@ export async function schedulePushNotifications(
       }
 
       const actions = [{ action: 'open_gig', title: 'Open Gig' }];
-      const actionUrls = { open_gig: `/?page=WorkEventDetail&id=${event.id}` };
+      const actionUrls = { open_gig: `/WorkEventDetail?id=${event.id}` };
       if (venue) {
         actions.push({ action: 'navigate', title: '🗺️ Route' });
         actionUrls.navigate = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(venue)}&travelmode=driving`;
@@ -235,7 +235,7 @@ export async function schedulePushNotifications(
         tag: `day-before-${event.id}`,
         title: `${event.event_type || 'Gig'} tomorrow: ${event.title}`,
         body: `${event.start_time ? fmtTime(event.start_time) + ' · ' : ''}${venue || 'Check details'}`,
-        url: `/?page=WorkEventDetail&id=${event.id}`,
+        url: `/WorkEventDetail?id=${event.id}`,
         actions,
         actionUrls,
       }));
@@ -266,9 +266,9 @@ export async function schedulePushNotifications(
         tag: `day-summary-${dateStr}`,
         title: `Today's schedule`,
         body,
-        url: '/?page=CalendarView',
+        url: '/CalendarView',
         actions: [{ action: 'open_cal', title: 'Open Calendar' }],
-        actionUrls: { open_cal: '/?page=CalendarView' },
+        actionUrls: { open_cal: '/CalendarView' },
       }));
     }
   }
@@ -287,9 +287,9 @@ export async function schedulePushNotifications(
         tag: `load-in-${event.id}`,
         title: `Call time in ${mins >= 60 ? `${mins / 60}h` : `${mins} min`}: ${event.title}`,
         body: venue ? `📍 ${venue}` : 'Check parking and venue notes',
-        url: `/?page=WorkEventDetail&id=${event.id}`,
+        url: `/WorkEventDetail?id=${event.id}`,
         actions: [{ action: 'open_gig', title: 'Open Gig' }],
-        actionUrls: { open_gig: `/?page=WorkEventDetail&id=${event.id}` },
+        actionUrls: { open_gig: `/WorkEventDetail?id=${event.id}` },
       }));
     }
   }
@@ -311,14 +311,14 @@ export async function schedulePushNotifications(
         tag: `leave-${event.id}`,
         title: `🚗 Leave soon for ${event.title}`,
         body: `Head to ${venue} now to arrive by ${fmtTime(event.start_time)}`,
-        url: `/?page=WorkEventDetail&id=${event.id}`,
+        url: `/WorkEventDetail?id=${event.id}`,
         actions: [
           { action: 'navigate', title: '🗺️ Navigate' },
           { action: 'open_gig', title: 'Open Gig' },
         ],
         actionUrls: {
           navigate: `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(venue)}&travelmode=driving`,
-          open_gig: `/?page=WorkEventDetail&id=${event.id}`,
+          open_gig: `/WorkEventDetail?id=${event.id}`,
         },
       }));
     }
@@ -338,9 +338,9 @@ export async function schedulePushNotifications(
         tag: `soon-${event.id}`,
         title: `Starting in ${mins} min: ${event.title}`,
         body: venue ? `📍 ${venue}` : `${event.event_type || 'Event'} at ${fmtTime(event.start_time)}`,
-        url: `/?page=WorkEventDetail&id=${event.id}`,
+        url: `/WorkEventDetail?id=${event.id}`,
         actions: [{ action: 'open_gig', title: 'Open' }],
-        actionUrls: { open_gig: `/?page=WorkEventDetail&id=${event.id}` },
+        actionUrls: { open_gig: `/WorkEventDetail?id=${event.id}` },
       }));
     }
   }
@@ -349,22 +349,35 @@ export async function schedulePushNotifications(
 
   // ── L2a: Invoice not sent (day after event) ─────────────────────────────
   if (prefs.invoice_not_sent?.enabled) {
+    // Build map of event_id → draft invoice (auto-created from estimate)
+    const draftInvoiceByEvent = {};
+    for (const doc of documents) {
+      if (doc.document_type === 'invoice' && doc.work_event_id && doc.status === 'draft') {
+        draftInvoiceByEvent[doc.work_event_id] = doc;
+      }
+    }
     for (const event of nonPracticeGigs) {
       if (sentInvoiceByEvent[event.id]) continue; // already sent
       const eventDt = parseLocal(event.date);
       if (!eventDt || eventDt.getTime() > now) continue; // future events — wait until after
       const fireAt = new Date(eventDt.getTime() + 24 * 60 * 60 * 1000);
       fireAt.setHours(9, 0, 0, 0);
+      const draftInv = draftInvoiceByEvent[event.id];
+      const url = draftInv
+        ? `/DocumentDetail?id=${draftInv.id}`
+        : `/WorkEventDetail?id=${event.id}`;
       tasks.push(push({
         fireAt: fireAt.toISOString(),
         tag: `invoice-due-${event.id}`,
         title: `Send invoice for ${event.title}?`,
-        body: `You played yesterday — don't forget to invoice your client`,
-        url: '/?page=Finance',
+        body: draftInv
+          ? `Invoice ready — tap to review and send`
+          : `You played yesterday — create and send the invoice`,
+        url,
         actions: [
-          { action: 'open_finance', title: 'Open Finance' },
+          { action: 'open_invoice', title: draftInv ? 'Review Invoice' : 'Create Invoice' },
         ],
-        actionUrls: { open_finance: '/?page=Finance' },
+        actionUrls: { open_invoice: url },
       }));
     }
   }
@@ -384,9 +397,9 @@ export async function schedulePushNotifications(
         tag: `inv-due-soon-${inv.id}`,
         title: `Invoice due ${daysLabel}`,
         body: `${inv.title || inv.document_number || 'Invoice'} · ${fmt(inv.total, currency)}`,
-        url: `/?page=DocumentDetail&id=${inv.id}`,
+        url: `/DocumentDetail?id=${inv.id}`,
         actions: [{ action: 'open_invoice', title: 'Open Invoice' }],
-        actionUrls: { open_invoice: `/?page=DocumentDetail&id=${inv.id}` },
+        actionUrls: { open_invoice: `/DocumentDetail?id=${inv.id}` },
       }));
     }
   }
@@ -409,9 +422,9 @@ export async function schedulePushNotifications(
         tag: `inv-overdue-${inv.id}`,
         title: `Overdue invoice: ${inv.title || inv.document_number}`,
         body: `Overdue by ${daysOver} day${daysOver !== 1 ? 's' : ''} · ${fmt(inv.total, currency)}`,
-        url: `/?page=DocumentDetail&id=${inv.id}`,
+        url: `/DocumentDetail?id=${inv.id}`,
         actions: [{ action: 'open_invoice', title: 'Open Invoice' }],
-        actionUrls: { open_invoice: `/?page=DocumentDetail&id=${inv.id}` },
+        actionUrls: { open_invoice: `/DocumentDetail?id=${inv.id}` },
       }));
     }
   }
@@ -427,14 +440,17 @@ export async function schedulePushNotifications(
       const daysToMon = day === 0 ? 1 : 8 - day;
       nextMon.setDate(nextMon.getDate() + daysToMon);
       nextMon.setHours(8, 0, 0, 0);
+      const unpaidUrl = unpaid.length === 1
+        ? `/DocumentDetail?id=${unpaid[0].id}`
+        : '/Finance?filter=sent';
       tasks.push(push({
         fireAt: nextMon.toISOString(),
         tag: `weekly-unpaid-${nextMon.toISOString().slice(0, 10)}`,
         title: `${fmt(totalUnpaid, currency)} unpaid`,
         body: `${unpaid.length} invoice${unpaid.length !== 1 ? 's' : ''} waiting to be paid`,
-        url: '/?page=Finance',
+        url: unpaidUrl,
         actions: [{ action: 'open_finance', title: 'Open Finance' }],
-        actionUrls: { open_finance: '/?page=Finance' },
+        actionUrls: { open_finance: unpaidUrl },
       }));
     }
   }
@@ -456,9 +472,9 @@ export async function schedulePushNotifications(
         tag: `missing-venue-${event.id}`,
         title: `Missing venue: ${event.title}`,
         body: `This gig is in ${daysUntil} day${daysUntil !== 1 ? 's' : ''} — no address saved yet`,
-        url: `/?page=WorkEventDetail&id=${event.id}`,
+        url: `/WorkEventDetail?id=${event.id}`,
         actions: [{ action: 'open_gig', title: 'Add Address' }],
-        actionUrls: { open_gig: `/?page=WorkEventDetail&id=${event.id}` },
+        actionUrls: { open_gig: `/WorkEventDetail?id=${event.id}` },
       }));
     }
   }
@@ -479,9 +495,9 @@ export async function schedulePushNotifications(
         tag: `unconfirmed-${event.id}`,
         title: `Still tentative: ${event.title}`,
         body: `${daysUntil} days away — is this confirmed yet?`,
-        url: `/?page=WorkEventDetail&id=${event.id}`,
+        url: `/WorkEventDetail?id=${event.id}`,
         actions: [{ action: 'open_gig', title: 'Review' }],
-        actionUrls: { open_gig: `/?page=WorkEventDetail&id=${event.id}` },
+        actionUrls: { open_gig: `/WorkEventDetail?id=${event.id}` },
       }));
     }
   }
@@ -509,9 +525,9 @@ export async function schedulePushNotifications(
         tag: `risk-${event.id}`,
         title: `⚠️ ${event.title} — action needed`,
         body: `${daysUntil} days away: ${issues.join(', ')}`,
-        url: `/?page=WorkEventDetail&id=${event.id}`,
+        url: `/WorkEventDetail?id=${event.id}`,
         actions: [{ action: 'open_gig', title: 'Open Gig' }],
-        actionUrls: { open_gig: `/?page=WorkEventDetail&id=${event.id}` },
+        actionUrls: { open_gig: `/WorkEventDetail?id=${event.id}` },
       }));
     }
   }
@@ -531,9 +547,9 @@ export async function schedulePushNotifications(
         tag: `practice-soon-${event.id}`,
         title: `Practice session in ${mins} min`,
         body: event.practice_plan || event.title || 'Time to practice',
-        url: '/?page=Practice',
+        url: '/Practice',
         actions: [{ action: 'open_practice', title: 'Open Practice' }],
-        actionUrls: { open_practice: '/?page=Practice' },
+        actionUrls: { open_practice: '/Practice' },
       }));
     }
   }
@@ -567,9 +583,9 @@ export async function schedulePushNotifications(
         tag: `daily-brief-${tomorrowStr}`,
         title: `Tomorrow: ${first.title}`,
         body,
-        url: '/?page=Dashboard',
+        url: '/Dashboard',
         actions: [{ action: 'open_dash', title: 'Open Dashboard' }],
-        actionUrls: { open_dash: '/?page=Dashboard' },
+        actionUrls: { open_dash: '/Dashboard' },
       }));
     }
   }
@@ -614,14 +630,14 @@ export async function schedulePushNotifications(
         tag: `weekly-digest-${nextMon.toISOString().slice(0, 10)}`,
         title: `Weekly digest`,
         body: parts.join(' · ') || 'Review your week',
-        url: '/?page=Dashboard',
+        url: '/Dashboard',
         actions: [
           { action: 'open_finance', title: 'Finance' },
           { action: 'open_dash', title: 'Dashboard' },
         ],
         actionUrls: {
-          open_finance: '/?page=Finance',
-          open_dash: '/?page=Dashboard',
+          open_finance: '/Finance',
+          open_dash: '/Dashboard',
         },
       }));
     }

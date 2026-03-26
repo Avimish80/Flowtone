@@ -70,6 +70,8 @@ export default function DocumentDetail() {
   const [saveError, setSaveError] = useState("");
   const [showUnlockDialog, setShowUnlockDialog] = useState(false);
   const [unlockReason, setUnlockReason] = useState("");
+  const [quickSending, setQuickSending] = useState(false);
+  const [quickSent, setQuickSent] = useState(false);
 
   // Available events for new invoice
   const [availableEvents, setAvailableEvents] = useState([]);
@@ -653,6 +655,34 @@ export default function DocumentDetail() {
     setSendingEmail(false);
   };
 
+  // Quick-send: one-tap send for draft invoices with a client email
+  const quickSendEmail = useMemo(() => {
+    const cid = linkedEvent?.client_id || doc.client_id;
+    const client = cid ? clientMap[cid] : null;
+    return client?.emails?.[0] || doc.client_email || "";
+  }, [doc.client_id, doc.client_email, linkedEvent, clientMap]);
+
+  const handleQuickSend = async () => {
+    if (!quickSendEmail || !gmailConnected) return;
+    setQuickSending(true);
+    setSaveError("");
+    try {
+      // Save first if unsaved
+      if (id) {
+        const profile = bizProfile || {};
+        const subject = `Invoice #${doc.document_number || ''} from ${profile?.business_name || 'us'}`;
+        const htmlBody = buildInvoiceHtml(doc, profile, appSettings);
+        await sendGmailEmail({ to: quickSendEmail, subject, htmlBody });
+        await appClient.entities.Document.update(id, { status: 'sent', client_email: quickSendEmail });
+        setDoc(prev => ({ ...prev, status: 'sent', client_email: quickSendEmail }));
+        setQuickSent(true);
+      }
+    } catch (err) {
+      setSaveError(`Failed to send: ${err.message}`);
+    }
+    setQuickSending(false);
+  };
+
   const sym = currencySymbol(doc.currency);
   // Enrich doc with client_name for templates
   const docForPrint = useMemo(() => ({
@@ -753,6 +783,51 @@ export default function DocumentDetail() {
             >
               <Unlock className="w-3.5 h-3.5" /> Unlock
             </button>
+          </div>
+        )}
+
+        {/* Quick Send Banner — for draft invoices ready to send */}
+        {id && isInvoice && doc.status === "draft" && quickSendEmail && !quickSent && doc.total > 0 && (
+          <div className="bg-indigo-950/50 border border-indigo-700/40 rounded-xl px-4 py-3 flex items-center gap-3">
+            <Send className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-indigo-200">
+                Ready to send · {sym}{(doc.total || 0).toFixed(2)}
+              </p>
+              <p className="text-xs text-indigo-400/70 truncate">
+                {gmailConnected ? `via Gmail to ${quickSendEmail}` : `to ${quickSendEmail}`}
+              </p>
+            </div>
+            {gmailConnected ? (
+              <button
+                onClick={handleQuickSend}
+                disabled={quickSending}
+                className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-1.5 transition-colors"
+              >
+                {quickSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                {quickSending ? "Sending…" : "Send Now"}
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  setEmailTo(quickSendEmail);
+                  setShowEmailDialog(true);
+                }}
+                className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-1.5 transition-colors"
+              >
+                <Mail className="w-4 h-4" /> Send
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Quick Sent Success */}
+        {quickSent && (
+          <div className="bg-green-950/50 border border-green-700/40 rounded-xl px-4 py-3 flex items-center gap-3">
+            <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" />
+            <p className="text-sm font-medium text-green-300">
+              Invoice sent to {quickSendEmail}
+            </p>
           </div>
         )}
 

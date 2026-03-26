@@ -49,8 +49,6 @@ export default function AppSettings() {
         tax_year_start_month: 4,
         invoice_number_prefix: "INV-",
         invoice_number_next: 1,
-        estimate_number_prefix: "EST-",
-        estimate_number_next: 1,
         default_tax_rate: 0,
       });
       setProfile(profileData[0] || {
@@ -229,7 +227,7 @@ export default function AppSettings() {
           <SectionHeader icon={Building2} label="Business Profile" sectionKey="profile" />
           {openSections.has("profile") && profile && (
             <div className="bg-gray-800 rounded-xl p-4 space-y-3">
-              <p className="text-xs text-gray-500 mb-2">Your details — appears on invoices and estimates.</p>
+              <p className="text-xs text-gray-500 mb-2">Your details — appears on invoices.</p>
 
               {/* Logo upload */}
               <div>
@@ -371,7 +369,7 @@ export default function AppSettings() {
           <SectionHeader icon={Hash} label="Document Numbering" sectionKey="numbering" />
           {openSections.has("numbering") && (
             <div className="bg-gray-800 rounded-xl p-4 space-y-4">
-              <p className="text-xs text-gray-500">Configure auto-numbering for invoices and estimates.</p>
+              <p className="text-xs text-gray-500">Configure auto-numbering for invoices.</p>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={labelCls}>Invoice Prefix</label>
@@ -380,14 +378,6 @@ export default function AppSettings() {
                 <div>
                   <label className={labelCls}>Next Invoice #</label>
                   <input type="number" min="1" className={inputCls} value={settings.invoice_number_next || 1} onChange={e => onChange("invoice_number_next", parseInt(e.target.value) || 1)} />
-                </div>
-                <div>
-                  <label className={labelCls}>Estimate Prefix</label>
-                  <input className={inputCls} value={settings.estimate_number_prefix || "EST-"} onChange={e => onChange("estimate_number_prefix", e.target.value)} />
-                </div>
-                <div>
-                  <label className={labelCls}>Next Estimate #</label>
-                  <input type="number" min="1" className={inputCls} value={settings.estimate_number_next || 1} onChange={e => onChange("estimate_number_next", parseInt(e.target.value) || 1)} />
                 </div>
               </div>
               <p className="text-xs text-gray-600">Preview: {settings.invoice_number_prefix || "INV-"}{String(settings.invoice_number_next || 1).padStart(4, "0")}</p>
@@ -420,48 +410,12 @@ export default function AppSettings() {
           )}
         </section>
 
-        {/* Email / Gmail */}
-        <section>
-          <SectionHeader icon={Mail} label="Email" sectionKey="email" />
-          {openSections.has("email") && (
-            <div className="bg-gray-800 rounded-xl p-4 space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="flex-1">
-                  <p className="text-sm text-gray-200">Gmail Connected</p>
-                  <p className="text-xs text-gray-500">Connect your Gmail to sync relevant emails</p>
-                </div>
-                <button
-                  onClick={() => onChange("gmail_connected", !settings.gmail_connected)}
-                  className={`w-10 h-6 rounded-full transition-colors flex-shrink-0 ${settings.gmail_connected ? "bg-indigo-600" : "bg-gray-700"}`}
-                >
-                  <span className={`block w-4 h-4 bg-white rounded-full transition-transform mx-1 ${settings.gmail_connected ? "translate-x-4" : "translate-x-0"}`} />
-                </button>
-              </div>
-              {settings.gmail_connected && (
-                <div>
-                  <label className={labelCls}>Gmail Account</label>
-                  <input className={inputCls} placeholder="your@gmail.com" value={settings.gmail_account || ""} onChange={e => onChange("gmail_account", e.target.value)} />
-                </div>
-              )}
-              <div>
-                <label className={labelCls}>Email Auto Action</label>
-                <select className={inputCls} value={settings.email_auto_action || "suggest_only"} onChange={e => onChange("email_auto_action", e.target.value)}>
-                  <option value="suggest_only">Suggest only</option>
-                  <option value="auto_draft">Auto draft</option>
-                  <option value="ignore">Ignore</option>
-                </select>
-              </div>
-            </div>
-          )}
-        </section>
-
-
         {/* Invoice Templates */}
         <section>
           <SectionHeader icon={Palette} label="Invoice Templates" sectionKey="templates" />
           {openSections.has("templates") && (
             <div className="bg-gray-800 rounded-xl p-4 space-y-3">
-              <p className="text-xs text-gray-500">Choose the design used when printing or emailing invoices & estimates.</p>
+              <p className="text-xs text-gray-500">Choose the design used when printing or emailing invoices.</p>
               <div className="grid grid-cols-1 gap-2">
                 {TEMPLATE_DEFS.map(t => (
                   <button
