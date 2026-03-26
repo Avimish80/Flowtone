@@ -1,8 +1,6 @@
 import { useState, useEffect } from "react";
 import { appClient } from "@/api/appClient";
-import { Link } from "react-router-dom";
-import { createPageUrl } from "@/utils";
-import { Mail, MailOpen, Link2, EyeOff, Inbox } from "lucide-react";
+import { MailOpen, Link2, EyeOff, Inbox } from "lucide-react";
 import { format } from "date-fns";
 
 const statusColors = {

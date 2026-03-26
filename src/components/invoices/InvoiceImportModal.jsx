@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { appClient } from "@/api/appClient";
-import { X, Upload, CheckCircle2, AlertCircle, Loader2, FileText, Users, CalendarDays } from "lucide-react";
+import { X, Upload, CheckCircle2, AlertCircle, Loader2, Users } from "lucide-react";
 
 // Status badge colors
 const STATUS_COLORS = {

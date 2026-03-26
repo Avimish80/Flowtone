@@ -1,4 +1,4 @@
-import { MapPin, Clock, Calendar, User, Tag, RefreshCw, Loader2, CheckCircle2, ArrowRight } from "lucide-react";
+import { MapPin, Clock, Calendar, User, Tag, RefreshCw, Loader2, CheckCircle2 } from "lucide-react";
 import { useState } from "react";
 import { appClient } from "@/api/appClient";
 import MicButton from "@/components/MicButton";

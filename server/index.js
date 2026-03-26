@@ -27,17 +27,27 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // ─── CORS ──────────────────────────────────────────────────────────
+// ALLOWED_ORIGINS env var can be a comma-separated list of production origins.
+// Falls back to allowing any https:// if not set (safe default for personal apps).
+const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map(s => s.trim())
+  : null;
+
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (e.g. curl, mobile apps, same-origin)
+      // Allow requests with no origin (e.g. native apps, same-origin PWA)
       if (!origin) return callback(null, true);
-      // Allow any localhost port (dev server can be on 3000, 5173, etc.)
-      if (/^http:\/\/localhost(:\d+)?$/.test(origin)) return callback(null, true);
-      // Allow local network IPs (phone on same WiFi)
+      // Always allow localhost for development
+      if (/^https?:\/\/localhost(:\d+)?$/.test(origin)) return callback(null, true);
+      // Allow local network IPs (phone on same WiFi during dev)
       if (/^http:\/\/192\.168\.\d+\.\d+(:\d+)?$/.test(origin)) return callback(null, true);
       if (/^http:\/\/10\.\d+\.\d+\.\d+(:\d+)?$/.test(origin)) return callback(null, true);
-      // Allow any https domain (production deployments)
+      // If ALLOWED_ORIGINS is set, enforce whitelist; otherwise allow any https://
+      if (ALLOWED_ORIGINS) {
+        if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+        return callback(new Error(`CORS: origin not allowed — ${origin}`));
+      }
       if (origin.startsWith('https://')) return callback(null, true);
       callback(new Error(`CORS: origin not allowed — ${origin}`));
     },

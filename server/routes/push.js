@@ -13,15 +13,15 @@ import {
 
 const router = Router();
 
-const VAPID_PUBLIC_KEY =
-  process.env.VAPID_PUBLIC_KEY ||
-  'BJWmGOrJ5Uhw71uHgDI8DvOLGwLUYuENkni_a76qZHKzwDMMns67wk6kwU2TCvTK-sXbzn7RwgfozaBtbyPBN8I';
-const VAPID_PRIVATE_KEY =
-  process.env.VAPID_PRIVATE_KEY || 'MqrH8bD91pH_pYsgW0yfMZAqcw7VTpY9JiuWeZXBfRo';
-const VAPID_SUBJECT =
-  process.env.VAPID_SUBJECT || 'mailto:support@flowtone.app';
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY;
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY;
+const VAPID_SUBJECT = process.env.VAPID_SUBJECT || 'mailto:support@flowtone.app';
 
-webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
+  console.error('[push] VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY must be set as environment variables');
+} else {
+  webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+}
 
 // ─── GET /api/push/vapid-public-key ─────────────────────────────────
 router.get('/vapid-public-key', (_req, res) => {
@@ -95,9 +95,9 @@ router.post('/schedule', (req, res) => {
   }
 });
 
-// ─── DELETE /api/push/subscription ──────────────────────────────────
+// ─── DELETE /api/push/subscription  (or POST /api/push/unsubscribe) ─
 // Body: { endpoint }
-router.delete('/subscription', (req, res) => {
+function handleUnsubscribe(req, res) {
   try {
     const { endpoint } = req.body;
 
@@ -105,18 +105,16 @@ router.delete('/subscription', (req, res) => {
       return res.status(400).json({ error: 'endpoint is required' });
     }
 
-    const existed = deleteSubscription(endpoint);
-
-    if (!existed) {
-      return res.status(404).json({ error: 'Subscription not found' });
-    }
-
+    deleteSubscription(endpoint);
     res.json({ ok: true });
   } catch (err) {
-    console.error('[push/delete subscription error]', err);
+    console.error('[push/unsubscribe error]', err);
     res.status(500).json({ error: 'Failed to remove subscription' });
   }
-});
+}
+
+router.delete('/subscription', handleUnsubscribe);
+router.post('/unsubscribe', handleUnsubscribe);
 
 // ─── POST /api/push/send-now ─────────────────────────────────────────
 // Immediately sends a push to an endpoint — bypasses the queue entirely.
@@ -145,17 +143,20 @@ router.post('/send-now', async (req, res) => {
 });
 
 // ─── GET /api/push/debug ─────────────────────────────────────────────
-// Returns current state of subscriptions and pending pushes (safe for dev use).
-router.get('/debug', (_req, res) => {
+// Dev-only: returns counts of subscriptions and pending pushes.
+// Disabled in production unless DEBUG_TOKEN env var is set.
+router.get('/debug', (req, res) => {
+  const debugToken = process.env.DEBUG_TOKEN;
+  if (process.env.NODE_ENV === 'production' && !debugToken) {
+    return res.status(404).json({ error: 'Not found' });
+  }
+  if (debugToken && req.headers['x-debug-token'] !== debugToken) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
   try {
     const nowTs = Math.floor(Date.now() / 1000);
     const duePushes = getDuePushes(nowTs);
-    const { store } = require('../db.js');
-    const subCount = Object.keys(store?.subscriptions ?? {}).length;
-    const pendingCount = Object.values(store?.scheduledPushes ?? {}).filter(p => p.sent === 0).length;
     res.json({
-      subscriptions: subCount,
-      pendingPushes: pendingCount,
       duePushes: duePushes.length,
       timestamp: new Date().toISOString(),
     });

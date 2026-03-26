@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { appClient } from "@/api/appClient";
-import { X, Upload, CheckCircle2, AlertCircle, Loader2, ChevronDown } from "lucide-react";
+import { X, Upload, CheckCircle2, Loader2, ChevronDown } from "lucide-react";
 
 // ─── Smart column mapping ────────────────────────────────────────────────────
 

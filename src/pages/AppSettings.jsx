@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { appClient } from "@/api/appClient";
-import { Settings, Check, Mail, Navigation, Bell, DollarSign, Building2, Hash, ChevronDown, ChevronUp, Upload, X, Palette, Download, Upload as UploadIcon } from "lucide-react";
+import { Check, Mail, Navigation, Bell, DollarSign, Building2, Hash, ChevronDown, ChevronUp, Upload, X, Palette, Download, Upload as UploadIcon } from "lucide-react";
 import { TEMPLATE_DEFS } from "@/lib/invoiceTemplates";
 import { registerPush, unregisterPush, isPushActive, schedulePushNotifications, sendTestPush } from "@/lib/pushManager";
 import { DEFAULT_PREFS } from "@/lib/notificationPrefs";
@@ -195,6 +195,10 @@ export default function AppSettings() {
       }
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
+      // Re-schedule notifications with latest settings (if push is active)
+      if (pushActive) {
+        reschedule(settings).catch(() => {});
+      }
     } catch (err) {
       console.error("Save error:", err);
     }

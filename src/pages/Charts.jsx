@@ -4,8 +4,7 @@ import { appClient } from "@/api/appClient";
 import { createPageUrl } from "@/utils";
 import { useScrollRestore } from "@/hooks/useScrollRestore";
 import {
-  Music, Plus, Search, FileText, Mic2, StickyNote,
-  Tag, ChevronRight, Filter, X
+  Music, Plus, Search, Mic2, StickyNote, ChevronRight, X
 } from "lucide-react";
 
 const TYPE_CONFIG = {

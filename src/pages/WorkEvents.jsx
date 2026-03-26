@@ -3,7 +3,7 @@ import { appClient } from "@/api/appClient";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Plus, ChevronRight, Upload, Trash2, CheckSquare, Square, CalendarRange, MapPin, Clock } from "lucide-react";
-import { format, parseISO, startOfDay } from "date-fns";
+import { format, parseISO } from "date-fns";
 import CSVImportModal from "../components/workevent/CSVImportModal";
 import { usePageState } from "@/hooks/usePageState";
 import { useScrollRestore } from "@/hooks/useScrollRestore";

@@ -2,15 +2,15 @@ import cron from 'node-cron';
 import webpush from 'web-push';
 import { getDuePushes, markPushSent, getSubscription, deleteSubscription } from './db.js';
 
-const VAPID_PUBLIC_KEY =
-  process.env.VAPID_PUBLIC_KEY ||
-  'BJWmGOrJ5Uhw71uHgDI8DvOLGwLUYuENkni_a76qZHKzwDMMns67wk6kwU2TCvTK-sXbzn7RwgfozaBtbyPBN8I';
-const VAPID_PRIVATE_KEY =
-  process.env.VAPID_PRIVATE_KEY || 'MqrH8bD91pH_pYsgW0yfMZAqcw7VTpY9JiuWeZXBfRo';
-const VAPID_SUBJECT =
-  process.env.VAPID_SUBJECT || 'mailto:support@flowtone.app';
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY;
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY;
+const VAPID_SUBJECT = process.env.VAPID_SUBJECT || 'mailto:support@flowtone.app';
 
-webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
+  webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+} else {
+  console.error('[scheduler] VAPID keys not set — push delivery will be disabled');
+}
 
 // ─── Send a single scheduled push ───────────────────────────────────
 async function sendScheduledPush(push) {

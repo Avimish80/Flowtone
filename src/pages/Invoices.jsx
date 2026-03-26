@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { appClient } from "@/api/appClient";
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl, currencySymbol } from "@/utils";
-import { Plus, ChevronRight, CheckSquare, Square, Trash2, CheckCircle2, Lock, CalendarDays, ChevronDown, ArrowRightLeft, TrendingUp, AlertTriangle, FileText } from "lucide-react";
+import { Plus, ChevronRight, CheckSquare, Square, Trash2, CheckCircle2, Lock, CalendarDays, ChevronDown, TrendingUp, AlertTriangle, FileText } from "lucide-react";
 import { format, parseISO, isPast } from "date-fns";
 import { usePageState } from "@/hooks/usePageState";
 import SortDropdown from "@/components/SortDropdown";

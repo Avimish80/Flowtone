@@ -7,7 +7,7 @@ import { usePageState } from "@/hooks/usePageState";
 import {
   format, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
   addMonths, subMonths, addWeeks, subWeeks, addDays, subDays,
-  isSameMonth, isSameDay, isToday, parseISO, eachDayOfInterval, getHours, getMinutes
+  isSameMonth, isSameDay, isToday, parseISO, eachDayOfInterval
 } from "date-fns";
 
 // ── Status colours ──────────────────────────────────────────────────

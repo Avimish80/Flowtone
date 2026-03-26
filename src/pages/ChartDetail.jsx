@@ -5,7 +5,7 @@ import { createPageUrl } from "@/utils";
 import { useGoBack } from "@/hooks/useGoBack";
 import {
   ArrowLeft, Save, Trash2, Music, Mic2, StickyNote, Upload,
-  Link2, X, Plus, Tag, ExternalLink, FileText, Check
+  Link2, X, Plus, ExternalLink, FileText, Check
 } from "lucide-react";
 
 const CHART_TYPES = [

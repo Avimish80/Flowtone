@@ -1,10 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
 import { appClient } from "@/api/appClient";
 import { Link } from "react-router-dom";
-import { createPageUrl, currencySymbol } from "@/utils";
+import { createPageUrl } from "@/utils";
 import {
-  CalendarDays, ChevronRight, MapPin, Clock, Navigation, Car, Bus,
-  Music2, AlertCircle, Plus, Mic2, Users, Receipt
+  CalendarDays, ChevronRight, MapPin, Clock, Navigation, Car, Bus, AlertCircle, Plus, Mic2, Users
 } from "lucide-react";
 import { format, isToday, isTomorrow, parseISO, isPast, startOfDay, addDays, differenceInDays, differenceInHours, differenceInMinutes } from "date-fns";
 

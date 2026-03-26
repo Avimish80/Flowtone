@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { X, Trash2, Send, Sparkles, ExternalLink, Mic, MicOff } from "lucide-react";
+import { X, Trash2, Send, Sparkles, ExternalLink, Mic } from "lucide-react";
 import { useSpeechInput } from "@/hooks/useSpeechInput";
 import { createPageUrl } from "@/utils";
 
