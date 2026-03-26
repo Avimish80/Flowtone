@@ -219,8 +219,6 @@ export default function AppSettings() {
 
   return (
     <div className="p-4 max-w-xl mx-auto">
-      <div className="mb-6"></div>
-
       <div className="space-y-6">
         {/* Business Profile */}
         <section>

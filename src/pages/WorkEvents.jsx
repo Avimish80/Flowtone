@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { appClient } from "@/api/appClient";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Plus, ChevronRight, Upload, Trash2, CheckSquare, Square, CalendarRange, MapPin, Clock } from "lucide-react";
 import { format, parseISO, startOfDay } from "date-fns";
@@ -29,6 +29,7 @@ const SORT_OPTIONS = [
 
 export default function WorkEvents() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [filterStatus, setFilterStatus] = usePageState("events_filterStatus_v2", "upcoming");
   const [filterType, setFilterType] = usePageState("events_filterType_v2", "all");
   const [sort, setSort] = usePageState("events_sort_v2", { key: "date", direction: "asc" });
@@ -57,6 +58,13 @@ export default function WorkEvents() {
   };
 
   useEffect(() => { loadEvents(); }, []);
+
+  // Pre-apply filter from URL param e.g. /WorkEvents?filter=confirmed
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const f = params.get("filter");
+    if (f) setFilterStatus(f);
+  }, [location.search]);
 
   const todayStr = useMemo(() => {
     const d = new Date();

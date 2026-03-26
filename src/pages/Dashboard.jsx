@@ -274,15 +274,15 @@ export default function Dashboard() {
 
       {/* ── At a Glance (compact, not dominating) ── */}
       <div className="grid grid-cols-3 gap-3">
-        <div className="bg-gray-800/50 rounded-xl p-3 text-center">
+        <Link to={createPageUrl("WorkEvents?filter=confirmed")} className="bg-gray-800/50 hover:bg-gray-700/50 rounded-xl p-3 text-center transition-colors">
           <p className="text-xl font-bold text-white">{events.filter(e => e.status === "confirmed").length}</p>
           <p className="text-[10px] text-gray-500 uppercase tracking-wider mt-0.5">Confirmed</p>
-        </div>
-        <div className="bg-gray-800/50 rounded-xl p-3 text-center">
+        </Link>
+        <Link to={createPageUrl("WorkEvents?filter=lead")} className="bg-gray-800/50 hover:bg-gray-700/50 rounded-xl p-3 text-center transition-colors">
           <p className="text-xl font-bold text-white">{events.filter(e => e.status === "lead").length}</p>
           <p className="text-[10px] text-gray-500 uppercase tracking-wider mt-0.5">Tentative</p>
-        </div>
-        <Link to={createPageUrl("Finance")} className="bg-gray-800/50 hover:bg-gray-700/50 rounded-xl p-3 text-center transition-colors">
+        </Link>
+        <Link to={createPageUrl("Finance?filter=sent")} className="bg-gray-800/50 hover:bg-gray-700/50 rounded-xl p-3 text-center transition-colors">
           <p className={`text-xl font-bold ${unpaidCount > 0 ? "text-yellow-400" : "text-green-400"}`}>{unpaidCount}</p>
           <p className="text-[10px] text-gray-500 uppercase tracking-wider mt-0.5">Unpaid</p>
         </Link>
