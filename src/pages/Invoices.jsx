@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { appClient } from "@/api/appClient";
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl, currencySymbol } from "@/utils";
-import { Plus, ChevronRight, AlertCircle, CheckSquare, Square, Trash2, CheckCircle2, Upload, Lock, CalendarDays, ChevronDown, ChevronUp, ArrowRightLeft } from "lucide-react";
+import { Plus, ChevronRight, CheckSquare, Square, Trash2, CheckCircle2, Upload, Lock, CalendarDays, ChevronDown, ArrowRightLeft, TrendingUp, AlertTriangle, FileText, FileCheck } from "lucide-react";
 import { format, parseISO, isPast } from "date-fns";
 import InvoiceImportModal from "../components/invoices/InvoiceImportModal";
 import { usePageState } from "@/hooks/usePageState";
@@ -297,37 +297,50 @@ export default function Invoices() {
 
   const isInvoiceTab = tab === "invoices";
 
+  // ── Always-visible overview (all docs, ignores year/status filter) ──
+  const overview = useMemo(() => {
+    const invs = documents.filter(d => d.document_type === "invoice");
+    const quotes = documents.filter(d => d.document_type === "estimate");
+    const sum = (arr) => arr.reduce((s, i) => s + (i.total ?? i.subtotal ?? 0), 0);
+    const cs = currencySymbol();
+    const fmt = (n) => {
+      if (n >= 10000) return cs + (n / 1000).toFixed(1).replace(/\.0$/, "") + "k";
+      return cs + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    };
+    const overdue = invs.filter(i => i.status === "sent" && i.due_date && isPast(parseISO(i.due_date)));
+    const sent    = invs.filter(i => i.status === "sent");
+    const paid    = invs.filter(i => i.status === "paid");
+    const drafts  = invs.filter(i => i.status === "draft");
+    const activeQuotes = quotes.filter(q => ["draft","sent"].includes(q.status));
+    return { overdue, sent, paid, drafts, activeQuotes, sum, fmt };
+  }, [documents]);
+
   return (
     <div className="p-4 max-w-xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-end gap-2 mb-4">
+
+      {/* ── Top toolbar ── */}
+      <div className="flex items-center justify-between mb-5">
+        <h1 className="text-lg font-bold text-white">Finance</h1>
         <div className="flex items-center gap-2">
-          <SortDropdown options={isInvoiceTab ? INV_SORT_OPTIONS : EST_SORT_OPTIONS} activeSort={sort} onSortChange={setSort} />
+          {/* Year filter */}
           <div className="relative">
-            <button
-              onClick={() => setShowYearDropdown(v => !v)}
-              className="bg-gray-700 hover:bg-gray-600 text-gray-200 px-3 py-2 rounded-lg flex items-center gap-1.5 text-sm font-medium transition-colors"
-            >
-              <CalendarDays className="w-4 h-4" />
-              <span className="max-w-[3rem] truncate">{filterYear === "all" ? "All" : filterYear}</span>
-              <ChevronDown className="w-3 h-3 text-gray-400" />
+            <button onClick={() => setShowYearDropdown(v => !v)}
+              className="bg-gray-800 hover:bg-gray-700 text-gray-300 px-2.5 py-1.5 rounded-lg flex items-center gap-1 text-xs font-medium transition-colors">
+              <CalendarDays className="w-3.5 h-3.5" />
+              {filterYear === "all" ? "All" : filterYear}
+              <ChevronDown className="w-3 h-3 text-gray-500" />
             </button>
             {showYearDropdown && (
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setShowYearDropdown(false)} />
                 <div className="absolute right-0 top-full mt-1 z-20 bg-gray-800 border border-gray-700 rounded-lg shadow-xl py-1 min-w-[8rem] max-h-60 overflow-y-auto">
-                  <button
-                    onClick={() => { setFilterYear("all"); setShowYearDropdown(false); }}
-                    className={`w-full text-left px-3 py-2 text-sm transition-colors ${filterYear === "all" ? "bg-indigo-600 text-white" : "text-gray-300 hover:bg-gray-700"}`}
-                  >
+                  <button onClick={() => { setFilterYear("all"); setShowYearDropdown(false); }}
+                    className={`w-full text-left px-3 py-2 text-sm transition-colors ${filterYear === "all" ? "bg-indigo-600 text-white" : "text-gray-300 hover:bg-gray-700"}`}>
                     All Years
                   </button>
                   {availableYears.map(yr => (
-                    <button
-                      key={yr}
-                      onClick={() => { setFilterYear(yr); setShowYearDropdown(false); }}
-                      className={`w-full text-left px-3 py-2 text-sm transition-colors ${filterYear === yr ? "bg-indigo-600 text-white" : "text-gray-300 hover:bg-gray-700"}`}
-                    >
+                    <button key={yr} onClick={() => { setFilterYear(yr); setShowYearDropdown(false); }}
+                      className={`w-full text-left px-3 py-2 text-sm transition-colors ${filterYear === yr ? "bg-indigo-600 text-white" : "text-gray-300 hover:bg-gray-700"}`}>
                       {yr}
                     </button>
                   ))}
@@ -335,50 +348,119 @@ export default function Invoices() {
               </>
             )}
           </div>
-          <button
-            onClick={() => { setSelectMode(v => !v); setSelected(new Set()); }}
-            className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${selectMode ? "bg-red-700 text-white" : "bg-gray-700 text-gray-200 hover:bg-gray-600"}`}
-          >
+          <SortDropdown options={isInvoiceTab ? INV_SORT_OPTIONS : EST_SORT_OPTIONS} activeSort={sort} onSortChange={setSort} />
+          <button onClick={() => { setSelectMode(v => !v); setSelected(new Set()); }}
+            className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${selectMode ? "bg-red-700 text-white" : "bg-gray-800 text-gray-300 hover:bg-gray-700"}`}>
             {selectMode ? "Cancel" : "Select"}
           </button>
           {isInvoiceTab && (
-            <button onClick={() => setShowImport(true)} className="bg-gray-700 hover:bg-gray-600 text-gray-200 px-3 py-2 rounded-lg flex items-center gap-1 text-sm font-medium transition-colors" title="Import CSV">
+            <button onClick={() => setShowImport(true)}
+              className="bg-gray-800 hover:bg-gray-700 text-gray-300 p-1.5 rounded-lg transition-colors" title="Import CSV">
               <Upload className="w-4 h-4" />
             </button>
           )}
-          <Link
-            to={createPageUrl(isInvoiceTab ? "DocumentDetail?type=invoice" : "DocumentDetail?type=estimate")}
-            className="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-2 rounded-lg flex items-center gap-1 text-sm font-medium transition-colors"
-          >
-            <Plus className="w-4 h-4" /> New
+          <Link to={createPageUrl(isInvoiceTab ? "DocumentDetail?type=invoice" : "DocumentDetail?type=estimate")}
+            className="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg flex items-center gap-1 text-xs font-semibold transition-colors">
+            <Plus className="w-3.5 h-3.5" /> New
           </Link>
         </div>
       </div>
 
-      {/* Invoices / Estimates Tabs */}
-      <div className="flex gap-1 bg-gray-800 rounded-lg p-1 mb-4">
+      {/* ── Hero: Outstanding ── */}
+      <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-5 mb-3 border border-gray-700/50">
+        <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-widest mb-1">Outstanding</p>
+        <p className={`text-3xl font-bold mb-1 ${overview.overdue.length > 0 ? "text-yellow-300" : "text-white"}`}>
+          {overview.fmt(overview.sum(overview.sent))}
+        </p>
+        <div className="flex items-center gap-3 text-xs">
+          <span className="text-gray-400">{overview.sent.length} sent</span>
+          {overview.overdue.length > 0 && (
+            <span className="text-red-400 flex items-center gap-1">
+              <AlertTriangle className="w-3 h-3" />
+              {overview.overdue.length} overdue
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* ── 4 stat tiles ── */}
+      <div className="grid grid-cols-2 gap-3 mb-5">
+        {/* Overdue */}
+        <button onClick={() => { setTab("invoices"); setFilterStatus("overdue"); }}
+          className={`rounded-xl p-4 text-left transition-colors border ${
+            overview.overdueCount > 0
+              ? "bg-red-950/50 border-red-800/40 hover:bg-red-950/70"
+              : "bg-gray-800/60 border-gray-700/40 hover:bg-gray-800"
+          }`}>
+          <div className="flex items-center gap-1.5 mb-2">
+            <AlertTriangle className={`w-3.5 h-3.5 ${overview.overdue.length > 0 ? "text-red-400" : "text-gray-500"}`} />
+            <p className={`text-[10px] font-bold uppercase tracking-wider ${overview.overdue.length > 0 ? "text-red-400" : "text-gray-500"}`}>Overdue</p>
+          </div>
+          <p className={`text-xl font-bold ${overview.overdue.length > 0 ? "text-red-300" : "text-gray-400"}`}>
+            {overview.overdue.length > 0 ? overview.fmt(overview.sum(overview.overdue)) : "None"}
+          </p>
+          <p className={`text-xs mt-0.5 ${overview.overdue.length > 0 ? "text-red-400/70" : "text-gray-600"}`}>
+            {overview.overdue.length} invoice{overview.overdue.length !== 1 ? "s" : ""}
+          </p>
+        </button>
+
+        {/* Paid */}
+        <button onClick={() => { setTab("invoices"); setFilterStatus("paid"); }}
+          className="bg-green-950/30 border border-green-800/20 rounded-xl p-4 text-left transition-colors hover:bg-green-950/50">
+          <div className="flex items-center gap-1.5 mb-2">
+            <TrendingUp className="w-3.5 h-3.5 text-green-400" />
+            <p className="text-[10px] text-green-400 font-bold uppercase tracking-wider">Paid</p>
+          </div>
+          <p className="text-xl font-bold text-green-300">{overview.fmt(overview.sum(overview.paid))}</p>
+          <p className="text-xs text-green-400/60 mt-0.5">{overview.paid.length} invoice{overview.paid.length !== 1 ? "s" : ""}</p>
+        </button>
+
+        {/* Drafts */}
+        <button onClick={() => { setTab("invoices"); setFilterStatus("draft"); }}
+          className="bg-gray-800/60 border border-gray-700/40 rounded-xl p-4 text-left transition-colors hover:bg-gray-800">
+          <div className="flex items-center gap-1.5 mb-2">
+            <FileText className="w-3.5 h-3.5 text-gray-400" />
+            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Drafts</p>
+          </div>
+          <p className="text-xl font-bold text-white">{overview.drafts.length}</p>
+          <p className="text-xs text-gray-500 mt-0.5">invoice{overview.drafts.length !== 1 ? "s" : ""} in progress</p>
+        </button>
+
+        {/* Quotes */}
+        <button onClick={() => { switchTab("estimates"); setFilterStatus("all"); }}
+          className="bg-indigo-950/30 border border-indigo-800/20 rounded-xl p-4 text-left transition-colors hover:bg-indigo-950/50">
+          <div className="flex items-center gap-1.5 mb-2">
+            <FileCheck className="w-3.5 h-3.5 text-indigo-400" />
+            <p className="text-[10px] text-indigo-400 font-bold uppercase tracking-wider">Quotes</p>
+          </div>
+          <p className="text-xl font-bold text-indigo-300">{overview.activeQuotes.length}</p>
+          <p className="text-xs text-indigo-400/60 mt-0.5">active quote{overview.activeQuotes.length !== 1 ? "s" : ""}</p>
+        </button>
+      </div>
+
+      {/* ── Tabs: Invoices / Quotes ── */}
+      <div className="flex gap-1 bg-gray-800 rounded-lg p-1 mb-3">
         <button onClick={() => switchTab("invoices")}
-          className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${tab === "invoices" ? "bg-indigo-600 text-white" : "text-gray-400 hover:text-gray-200"}`}
-        >
+          className={`flex-1 py-2 rounded-md text-sm font-semibold transition-colors ${tab === "invoices" ? "bg-indigo-600 text-white" : "text-gray-400 hover:text-gray-200"}`}>
           Invoices
         </button>
         <button onClick={() => switchTab("estimates")}
-          className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${tab === "estimates" ? "bg-indigo-600 text-white" : "text-gray-400 hover:text-gray-200"}`}
-        >
-          Estimates
+          className={`flex-1 py-2 rounded-md text-sm font-semibold transition-colors ${tab === "estimates" ? "bg-indigo-600 text-white" : "text-gray-400 hover:text-gray-200"}`}>
+          Quotes
         </button>
       </div>
 
       {/* Bulk select bar */}
       {selectMode && (
-        <div className="flex items-center gap-3 mb-4 bg-gray-800 rounded-xl px-4 py-3">
+        <div className="flex items-center gap-3 mb-3 bg-gray-800 rounded-xl px-4 py-3">
           <button onClick={toggleSelectAll} className="text-indigo-400 text-sm flex items-center gap-1.5">
             {selected.size === filtered.length ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
             {selected.size === filtered.length ? "Deselect all" : "Select all"}
           </button>
           <span className="text-gray-500 text-sm">{selected.size} selected</span>
           {selected.size > 0 && (
-            <button onClick={handleBulkDelete} disabled={deleting} className="ml-auto bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-colors">
+            <button onClick={handleBulkDelete} disabled={deleting}
+              className="ml-auto bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-colors">
               <Trash2 className="w-3.5 h-3.5" />
               {deleting ? "Deleting..." : `Delete ${selected.size}`}
             </button>
@@ -386,53 +468,29 @@ export default function Invoices() {
         </div>
       )}
 
-      {/* Summary Stats — collapsible */}
-      <button
-        onClick={() => setShowSummary(v => !v)}
-        className="w-full flex items-center justify-between bg-gray-800/60 rounded-xl px-4 py-2.5 mb-3 text-sm transition-colors hover:bg-gray-800"
-      >
-        <span className="text-gray-400 font-medium">Summary</span>
-        <div className="flex items-center gap-2">
-          {!showSummary && summaryStats[0] && (
-            <span className={`text-xs font-semibold ${summaryStats[0].color}`}>{summaryStats[0].value}</span>
-          )}
-          {showSummary ? <ChevronUp className="w-3.5 h-3.5 text-gray-500" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-500" />}
-        </div>
-      </button>
-      {showSummary && (
-        <div className={`grid gap-3 mb-4 ${summaryStats.length === 2 ? "grid-cols-2" : "grid-cols-3"}`}>
-          {summaryStats.map((stat, i) => (
-            <div key={i} className="bg-gray-800 rounded-xl p-3 text-center">
-              <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-1">{stat.label}</p>
-              <p className={`text-lg font-bold ${stat.color} truncate`}>{stat.value}</p>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Filter pills */}
-      <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
+      {/* ── Filter pills ── */}
+      <div className="flex gap-2 mb-4 overflow-x-auto pb-1 -mx-1 px-1">
         {filters.map(s => (
-          <button
-            key={s}
-            onClick={() => setFilterStatus(s)}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium flex-shrink-0 transition-colors ${
-              filterStatus === s ? "bg-indigo-600 text-white" : "bg-gray-800 text-gray-400 hover:text-white"
-            }`}
-          >
-            {s.charAt(0).toUpperCase() + s.slice(1)}
+          <button key={s} onClick={() => setFilterStatus(s)}
+            className={`px-3 py-1.5 rounded-full text-xs font-semibold flex-shrink-0 transition-colors whitespace-nowrap ${
+              filterStatus === s
+                ? "bg-indigo-600 text-white"
+                : "bg-gray-800 text-gray-400 hover:text-white hover:bg-gray-700"
+            }`}>
+            {s === "all" ? "All" : s.charAt(0).toUpperCase() + s.slice(1)}
           </button>
         ))}
       </div>
 
-      {/* List */}
+      {/* ── List ── */}
       {loading ? (
         <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="bg-gray-800 rounded-xl h-20 animate-pulse" />)}</div>
       ) : sorted.length === 0 ? (
-        <div className="text-center py-16 text-gray-500">
-          <p className="mb-3">No {isInvoiceTab ? "invoices" : "estimates"} found</p>
-          <Link to={createPageUrl(isInvoiceTab ? "DocumentDetail?type=invoice" : "DocumentDetail?type=estimate")} className="text-indigo-400 text-sm">
-            + Create first {isInvoiceTab ? "invoice" : "estimate"}
+        <div className="text-center py-12 text-gray-500">
+          <p className="mb-3">No {isInvoiceTab ? "invoices" : "quotes"} found</p>
+          <Link to={createPageUrl(isInvoiceTab ? "DocumentDetail?type=invoice" : "DocumentDetail?type=estimate")}
+            className="text-indigo-400 text-sm hover:text-indigo-300 transition-colors">
+            + Create {isInvoiceTab ? "invoice" : "quote"}
           </Link>
         </div>
       ) : (
@@ -440,77 +498,84 @@ export default function Invoices() {
           {sorted.map(item => {
             const isOverdue = isInvoiceTab && item.status === "sent" && item.due_date && isPast(parseISO(item.due_date));
             const isSelected = selected.has(item.id);
-            const client = clientMap[item.client_id];
-            const clientName = client?.name || "";
+            const clientName = clientMap[item.client_id]?.name || "";
             const displayStatus = isOverdue ? "overdue" : item.status;
             const inner = (
-              <div className={`flex items-center justify-between gap-3 bg-gray-800 rounded-xl p-4 transition-colors ${isSelected ? "ring-2 ring-indigo-500" : ""}`}>
+              <div className={`flex items-center gap-3 bg-gray-800 rounded-xl p-4 transition-colors active:bg-gray-700 ${isSelected ? "ring-2 ring-indigo-500" : ""}`}>
                 {selectMode && (
                   <button onClick={() => toggleSelect(item.id)} className="flex-shrink-0 text-indigo-400">
                     {isSelected ? <CheckSquare className="w-5 h-5" /> : <Square className="w-5 h-5 text-gray-600" />}
                   </button>
                 )}
+                {/* Status bar on left edge */}
+                <div className={`w-1 self-stretch rounded-full flex-shrink-0 ${
+                  displayStatus === "overdue" ? "bg-red-500" :
+                  displayStatus === "paid" ? "bg-green-500" :
+                  displayStatus === "sent" ? "bg-blue-500" :
+                  displayStatus === "accepted" ? "bg-green-500" :
+                  displayStatus === "rejected" ? "bg-red-400" :
+                  displayStatus === "converted" ? "bg-indigo-500" :
+                  "bg-gray-600"
+                }`} />
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${activeStatusColors[displayStatus] || activeStatusColors.draft}`}>
-                      {displayStatus}
-                    </span>
-                    {item.is_locked && <Lock className="w-3 h-3 text-yellow-500" />}
-                    {item.status === "converted" && <ArrowRightLeft className="w-3 h-3 text-indigo-400" />}
-                    {item.document_number && <span className="text-xs text-gray-500">#{item.document_number}</span>}
-                    {!isInvoiceTab && item.valid_until && <span className="text-xs text-gray-500">Until {format(parseISO(item.valid_until), "d MMM")}</span>}
+                  <div className="flex items-center gap-2 mb-0.5">
+                    {item.document_number && <span className="text-[11px] text-gray-500 font-mono">#{item.document_number}</span>}
+                    {item.is_locked && <Lock className="w-3 h-3 text-yellow-500 flex-shrink-0" />}
+                    {item.status === "converted" && <ArrowRightLeft className="w-3 h-3 text-indigo-400 flex-shrink-0" />}
                   </div>
-                  <p className="font-semibold text-white truncate">{item.title || clientName}</p>
-                  <p className="text-sm text-gray-400 truncate">{clientName}</p>
-                  {isInvoiceTab && item.due_date && (
-                    <p className="text-xs text-gray-500">Due {format(parseISO(item.due_date), "d MMM yy")}</p>
-                  )}
+                  <p className="font-semibold text-white truncate text-sm">{item.title || clientName}</p>
+                  <p className="text-xs text-gray-400 truncate">{clientName}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full border font-semibold ${activeStatusColors[displayStatus] || activeStatusColors.draft}`}>
+                      {displayStatus.charAt(0).toUpperCase() + displayStatus.slice(1)}
+                    </span>
+                    {isInvoiceTab && item.due_date && (
+                      <span className={`text-[10px] ${isOverdue ? "text-red-400" : "text-gray-500"}`}>
+                        {isOverdue ? "Overdue" : "Due"} {format(parseISO(item.due_date), "d MMM")}
+                      </span>
+                    )}
+                    {!isInvoiceTab && item.valid_until && (
+                      <span className="text-[10px] text-gray-500">Until {format(parseISO(item.valid_until), "d MMM")}</span>
+                    )}
+                  </div>
                 </div>
-                <div className="text-right flex-shrink-0 flex flex-col items-end gap-1">
-                  <p className="font-bold text-white">{currencySymbol(item.currency)}{(item.total ?? item.subtotal ?? 0).toFixed(2)}</p>
-                  {/* Invoice-specific: Mark Paid button for sent invoices */}
+                <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                  <p className="font-bold text-white text-sm">{currencySymbol(item.currency)}{(item.total ?? item.subtotal ?? 0).toFixed(2)}</p>
                   {isInvoiceTab && !selectMode && item.status === "sent" && (
                     <button
                       onClick={async (e) => {
                         e.preventDefault(); e.stopPropagation();
-                        const today = format(new Date(), "yyyy-MM-dd");
                         await appClient.helpers.recordPayment({
                           document_id: item.id,
                           amount: item.total ?? item.subtotal ?? 0,
-                          payment_date: today,
+                          payment_date: format(new Date(), "yyyy-MM-dd"),
                           notes: "Marked as paid from list",
                         });
                         loadData();
                       }}
-                      className="text-[10px] bg-gray-700 hover:bg-green-600/60 text-gray-300 hover:text-green-300 px-2 py-0.5 rounded-full font-medium transition-colors flex items-center gap-1 border border-gray-600 hover:border-green-500/50"
-                    >
+                      className="text-[10px] bg-gray-700 hover:bg-green-700/60 text-gray-300 hover:text-green-300 px-2 py-0.5 rounded-full font-semibold transition-colors flex items-center gap-1 border border-gray-600 hover:border-green-500/50">
                       <CheckCircle2 className="w-3 h-3" /> Mark Paid
                     </button>
                   )}
-                  {/* Invoice-specific: Paid date for paid invoices */}
                   {isInvoiceTab && !selectMode && item.status === "paid" && (
                     <span className="text-[10px] text-green-400 flex items-center gap-1">
                       <CheckCircle2 className="w-3 h-3" />
-                      {item.paid_date ? format(parseISO(item.paid_date), "d MMM yy") : "Paid"}
+                      {item.paid_date ? format(parseISO(item.paid_date), "d MMM") : "Paid"}
                     </span>
                   )}
-                  {!selectMode && <ChevronRight className="w-4 h-4 text-gray-600 mt-1 ml-auto" />}
+                  {!selectMode && <ChevronRight className="w-4 h-4 text-gray-600" />}
                 </div>
               </div>
             );
-            return selectMode ? (
-              <div key={item.id}>{inner}</div>
-            ) : (
-              <Link key={item.id} to={createPageUrl(`DocumentDetail?id=${item.id}`)} className="block active:bg-gray-700">{inner}</Link>
-            );
+            return selectMode
+              ? <div key={item.id}>{inner}</div>
+              : <Link key={item.id} to={createPageUrl(`DocumentDetail?id=${item.id}`)} className="block">{inner}</Link>;
           })}
         </div>
       )}
+
       {showImport && (
-        <InvoiceImportModal
-          onClose={() => setShowImport(false)}
-          onImported={() => { loadData(); setShowImport(false); }}
-        />
+        <InvoiceImportModal onClose={() => setShowImport(false)} onImported={() => { loadData(); setShowImport(false); }} />
       )}
     </div>
   );
