@@ -6,8 +6,9 @@ import { registerPush, unregisterPush, isPushActive, schedulePushNotifications, 
 import { DEFAULT_PREFS } from "@/lib/notificationPrefs";
 import { isGmailConnected, getGmailEmail, connectGmail, disconnectGmail } from "@/lib/gmailClient";
 import SmartCSVImport from "@/components/SmartCSVImport";
-import { exportClients, exportEvents, exportInvoices, downloadCSV } from "@/lib/csvExport";
+import { exportClients, exportEvents, exportInvoices, exportFullApp, downloadCSV } from "@/lib/csvExport";
 import { eventsToIcal, downloadIcal } from "@/lib/icalExport";
+import { generateBusyMusicianData } from "@/lib/busyMusicianTestData";
 import NotificationPrefsEditor from "@/components/NotificationPrefsEditor";
 
 export default function AppSettings() {
@@ -32,6 +33,7 @@ export default function AppSettings() {
   const [showCSVImport, setShowCSVImport] = useState(false);
   const [testImporting, setTestImporting] = useState(null);
   const [testImported, setTestImported] = useState(null);
+  const [loadingBusyMusician, setLoadingBusyMusician] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -835,9 +837,34 @@ export default function AppSettings() {
                 >
                   {testImporting === "lessons" ? "Importing…" : testImported === "lessons" ? "✓ 357 Lessons Imported!" : "Load Sample Lessons (12 students, Jan–Jul)"}
                 </button>
+                <button
+                  onClick={async () => {
+                    setLoadingBusyMusician(true);
+                    try {
+                      const result = await generateBusyMusicianData(appClient);
+                      setTestImported("busymusician");
+                      setTimeout(() => setTestImported(null), 5000);
+                    } catch (err) {
+                      console.error("Error generating busy musician data:", err);
+                    } finally {
+                      setLoadingBusyMusician(false);
+                    }
+                  }}
+                  disabled={loadingBusyMusician}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-purple-900/40 hover:bg-purple-900/60 disabled:opacity-50 text-purple-300 border border-purple-700/40 transition-colors"
+                >
+                  {loadingBusyMusician ? "Generating…" : testImported === "busymusician" ? "✓ Busy Musician Data Loaded!" : "🎵 Load Busy Musician Data (Jan 2025 – May 2027)"}
+                </button>
               </div>
               <div className="border-t border-gray-700 pt-3 space-y-2">
                 <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Export</p>
+                <button
+                  onClick={async () => { const csv = await exportFullApp(appClient); downloadCSV("flowtone-backup.csv", csv); }}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-indigo-600 hover:bg-indigo-500 text-white transition-colors"
+                >
+                  <Download className="w-4 h-4" />
+                  📦 Export Full App Backup
+                </button>
                 <button
                   onClick={async () => { const csv = await exportClients(appClient); downloadCSV("clients.csv", csv); }}
                   className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-gray-700 hover:bg-gray-600 text-gray-200 transition-colors"

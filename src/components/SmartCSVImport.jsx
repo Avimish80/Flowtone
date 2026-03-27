@@ -38,7 +38,12 @@ function normalizeHeader(h) {
   return h.toLowerCase().replace(/[_\-]/g, " ").trim();
 }
 
-function detectType(headers) {
+function detectType(headers, rows) {
+  // Check if this is a full-app export (has __ENTITY__ marker column)
+  if (headers.includes("__ENTITY__") && rows.length > 0) {
+    return "full_app";
+  }
+
   const norm = headers.map(normalizeHeader);
   let clientScore = 0, eventScore = 0, invoiceScore = 0;
 
@@ -156,9 +161,15 @@ export default function SmartCSVImport({ onClose, onImported }) {
     reader.onload = (e) => {
       try {
         const { headers: h, rows: r } = parseCSV(e.target.result);
-        const type = detectType(h);
-        const aliases = type === "clients" ? CLIENT_ALIASES : type === "events" ? EVENT_ALIASES : INVOICE_ALIASES;
-        const m = buildMapping(h, aliases);
+        const type = detectType(h, r);
+        let aliases, m;
+        if (type === "full_app") {
+          // No mapping needed for full app — we'll handle it per-entity
+          m = {};
+        } else {
+          aliases = type === "clients" ? CLIENT_ALIASES : type === "events" ? EVENT_ALIASES : INVOICE_ALIASES;
+          m = buildMapping(h, aliases);
+        }
         setHeaders(h);
         setRows(r);
         setDetectedType(type);
@@ -176,50 +187,239 @@ export default function SmartCSVImport({ onClose, onImported }) {
     let imported = 0, skipped = 0;
 
     try {
-      for (const row of rows) {
-        const mapped = mapRow(row, mapping);
-        try {
-          if (detectedType === "clients") {
-            if (!mapped.name) { skipped++; continue; }
-            await appClient.entities.Client.create({
-              name: mapped.name,
-              email: mapped.email || "",
-              phone: mapped.phone || "",
-              client_type: mapped.client_type || "other",
-              notes: mapped.notes || "",
-            });
-            imported++;
-          } else if (detectedType === "events") {
-            if (!mapped.title) { skipped++; continue; }
-            await appClient.entities.WorkEvent.create({
-              title: mapped.title,
-              date: parseDate(mapped.date),
-              start_time: mapped.start_time || "",
-              end_time: mapped.end_time || "",
-              location_address: mapped.location_address || "",
-              event_type: mapped.event_type || "gig",
-              status: mapped.status || "confirmed",
-              fee: parseAmount(mapped.fee),
-              notes: mapped.notes || "",
-            });
-            imported++;
-          } else {
-            if (!mapped.title && !mapped.document_number) { skipped++; continue; }
-            await appClient.entities.Document.create({
-              document_type: "invoice",
-              document_number: mapped.document_number || "",
-              title: mapped.title || "Imported Invoice",
-              total: parseAmount(mapped.total),
-              subtotal: parseAmount(mapped.total),
-              due_date: parseDate(mapped.due_date),
-              status: mapped.status || "draft",
-              notes: mapped.notes || "",
-              line_items: mapped.title ? [{ description: mapped.title, quantity: 1, unit_price: parseAmount(mapped.total), total: parseAmount(mapped.total) }] : [],
-              currency: "GBP",
-            });
-            imported++;
+      if (detectedType === "full_app") {
+        // Full app import: group rows by __ENTITY__ type
+        const entityGroups = {};
+        for (const row of rows) {
+          const entity = row.__ENTITY__ || "UNKNOWN";
+          if (!entityGroups[entity]) entityGroups[entity] = [];
+          entityGroups[entity].push(row);
+        }
+
+        // Import each entity type
+        for (const [entityType, entityRows] of Object.entries(entityGroups)) {
+          for (const row of entityRows) {
+            try {
+              if (entityType === "CLIENT") {
+                if (!row.name) { skipped++; continue; }
+                await appClient.entities.Client.create({
+                  id: row.id || undefined,
+                  name: row.name,
+                  email: row.email || "",
+                  phone: row.phone || "",
+                  client_type: row.client_type || "other",
+                  city: row.city || "",
+                  default_currency: row.default_currency || "GBP",
+                  default_fee: parseAmount(row.default_fee),
+                  notes: row.notes || "",
+                  late_payment_flag: row.late_payment_flag === "true" || row.late_payment_flag === true,
+                });
+                imported++;
+              } else if (entityType === "WORK_EVENT") {
+                if (!row.title) { skipped++; continue; }
+                await appClient.entities.WorkEvent.create({
+                  id: row.id || undefined,
+                  title: row.title,
+                  event_type: row.event_type || "Gig",
+                  date: parseDate(row.date),
+                  start_time: row.start_time || "",
+                  end_time: row.end_time || "",
+                  status: row.status || "lead",
+                  client_id: row.client_id || "",
+                  location_address: row.location_address || "",
+                  base_price: parseAmount(row.base_price),
+                  total_price: parseAmount(row.total_price),
+                  currency: row.currency || "GBP",
+                  notes: row.notes || "",
+                });
+                imported++;
+              } else if (entityType === "DOCUMENT") {
+                if (!row.document_number && !row.title) { skipped++; continue; }
+                await appClient.entities.Document.create({
+                  id: row.id || undefined,
+                  document_type: row.document_type || "invoice",
+                  document_number: row.document_number || "",
+                  title: row.title || "Imported Document",
+                  client_id: row.client_id || "",
+                  work_event_id: row.work_event_id || "",
+                  status: row.status || "draft",
+                  currency: row.currency || "GBP",
+                  subtotal: parseAmount(row.subtotal),
+                  discount_amount: parseAmount(row.discount_amount),
+                  tax_amount: parseAmount(row.tax_amount),
+                  total: parseAmount(row.total),
+                  due_date: parseDate(row.due_date),
+                  paid_date: parseDate(row.paid_date),
+                  notes: row.notes || "",
+                  line_items: [],
+                });
+                imported++;
+              } else if (entityType === "PAYMENT") {
+                if (!row.document_id) { skipped++; continue; }
+                await appClient.entities.Payment.create({
+                  id: row.id || undefined,
+                  document_id: row.document_id,
+                  amount: parseAmount(row.amount),
+                  payment_date: parseDate(row.payment_date),
+                  payment_method: row.payment_method || "",
+                  notes: row.notes || "",
+                });
+                imported++;
+              } else if (entityType === "PRACTICE_GOAL") {
+                if (!row.title) { skipped++; continue; }
+                await appClient.entities.PracticeGoal.create({
+                  id: row.id || undefined,
+                  title: row.title,
+                  description: row.description || "",
+                  completed: row.completed === "true" || row.completed === true,
+                  target_date: parseDate(row.target_date),
+                });
+                imported++;
+              } else if (entityType === "PRACTICE_SESSION") {
+                if (!row.date) { skipped++; continue; }
+                await appClient.entities.PracticeSession.create({
+                  id: row.id || undefined,
+                  date: parseDate(row.date),
+                  duration_minutes: parseInt(row.duration_minutes) || 0,
+                  notes: row.notes || "",
+                  goal_id: row.goal_id || null,
+                  work_event_id: row.work_event_id || null,
+                  energy_rating: parseInt(row.energy_rating) || 3,
+                });
+                imported++;
+              } else if (entityType === "CHART") {
+                if (!row.title) { skipped++; continue; }
+                await appClient.entities.Chart.create({
+                  id: row.id || undefined,
+                  title: row.title,
+                  artist: row.artist || "",
+                  style: row.style || "",
+                  key: row.key || "",
+                  tempo: row.tempo || "",
+                  notes: row.notes || "",
+                });
+                imported++;
+              } else if (entityType === "EQUIPMENT") {
+                if (!row.name) { skipped++; continue; }
+                await appClient.entities.Equipment.create({
+                  id: row.id || undefined,
+                  name: row.name,
+                  category: row.category || "",
+                  condition: row.condition || "",
+                  serial_number: row.serial_number || "",
+                  notes: row.notes || "",
+                });
+                imported++;
+              } else if (entityType === "REMINDER") {
+                if (!row.title) { skipped++; continue; }
+                await appClient.entities.Reminder.create({
+                  id: row.id || undefined,
+                  title: row.title,
+                  due_date: parseDate(row.due_date),
+                  completed: row.completed === "true" || row.completed === true,
+                });
+                imported++;
+              } else if (entityType === "APP_SETTINGS") {
+                // Update settings (merge with existing)
+                const existing = await appClient.entities.AppSettings.list();
+                if (existing.length > 0) {
+                  await appClient.entities.AppSettings.update(existing[0].id, {
+                    currency: row.currency || "GBP",
+                    tax_year_start_month: row.tax_year_start_month || 1,
+                    invoice_number_prefix: row.invoice_number_prefix || "INV",
+                    invoice_number_next: parseInt(row.invoice_number_next) || 1,
+                    estimate_number_prefix: row.estimate_number_prefix || "EST",
+                    estimate_number_next: parseInt(row.estimate_number_next) || 1,
+                    tax_rate: parseAmount(row.tax_rate),
+                  });
+                } else {
+                  await appClient.entities.AppSettings.create({
+                    currency: row.currency || "GBP",
+                    tax_year_start_month: row.tax_year_start_month || 1,
+                    invoice_number_prefix: row.invoice_number_prefix || "INV",
+                    invoice_number_next: parseInt(row.invoice_number_next) || 1,
+                    estimate_number_prefix: row.estimate_number_prefix || "EST",
+                    estimate_number_next: parseInt(row.estimate_number_next) || 1,
+                    tax_rate: parseAmount(row.tax_rate),
+                  });
+                }
+                imported++;
+              } else if (entityType === "BUSINESS_PROFILE") {
+                // Update or create business profile
+                const existing = await appClient.entities.BusinessProfile.list();
+                if (existing.length > 0) {
+                  await appClient.entities.BusinessProfile.update(existing[0].id, {
+                    business_name: row.business_name || "",
+                    logo_url: row.logo_url || "",
+                    address: row.address || "",
+                    phone: row.phone || "",
+                    email: row.email || "",
+                    website: row.website || "",
+                  });
+                } else {
+                  await appClient.entities.BusinessProfile.create({
+                    business_name: row.business_name || "",
+                    logo_url: row.logo_url || "",
+                    address: row.address || "",
+                    phone: row.phone || "",
+                    email: row.email || "",
+                    website: row.website || "",
+                  });
+                }
+                imported++;
+              }
+            } catch (e) {
+              skipped++;
+            }
           }
-        } catch { skipped++; }
+        }
+      } else {
+        // Original logic for single-entity imports
+        for (const row of rows) {
+          const mapped = mapRow(row, mapping);
+          try {
+            if (detectedType === "clients") {
+              if (!mapped.name) { skipped++; continue; }
+              await appClient.entities.Client.create({
+                name: mapped.name,
+                email: mapped.email || "",
+                phone: mapped.phone || "",
+                client_type: mapped.client_type || "other",
+                notes: mapped.notes || "",
+              });
+              imported++;
+            } else if (detectedType === "events") {
+              if (!mapped.title) { skipped++; continue; }
+              await appClient.entities.WorkEvent.create({
+                title: mapped.title,
+                date: parseDate(mapped.date),
+                start_time: mapped.start_time || "",
+                end_time: mapped.end_time || "",
+                location_address: mapped.location_address || "",
+                event_type: mapped.event_type || "gig",
+                status: mapped.status || "confirmed",
+                fee: parseAmount(mapped.fee),
+                notes: mapped.notes || "",
+              });
+              imported++;
+            } else {
+              if (!mapped.title && !mapped.document_number) { skipped++; continue; }
+              await appClient.entities.Document.create({
+                document_type: "invoice",
+                document_number: mapped.document_number || "",
+                title: mapped.title || "Imported Invoice",
+                total: parseAmount(mapped.total),
+                subtotal: parseAmount(mapped.total),
+                due_date: parseDate(mapped.due_date),
+                status: mapped.status || "draft",
+                notes: mapped.notes || "",
+                line_items: mapped.title ? [{ description: mapped.title, quantity: 1, unit_price: parseAmount(mapped.total), total: parseAmount(mapped.total) }] : [],
+                currency: "GBP",
+              });
+              imported++;
+            }
+          } catch { skipped++; }
+        }
       }
       setResults({ imported, skipped });
       setStep("done");
@@ -266,31 +466,33 @@ export default function SmartCSVImport({ onClose, onImported }) {
               <div className="flex items-center gap-2 bg-indigo-900/30 border border-indigo-700/40 rounded-xl px-4 py-3">
                 <CheckCircle2 className="w-4 h-4 text-indigo-400" />
                 <span className="text-sm text-indigo-300">
-                  Detected: <strong className="capitalize">{detectedType}</strong> — {rows.length} row{rows.length !== 1 ? "s" : ""} found
+                  Detected: <strong className="capitalize">{detectedType === "full_app" ? "Full App Backup" : detectedType}</strong> — {rows.length} row{rows.length !== 1 ? "s" : ""} found
                 </span>
               </div>
 
-              <div>
-                <p className="text-xs text-gray-500 mb-2 uppercase tracking-wider">Column Mapping</p>
-                <div className="space-y-2">
-                  {fields.map(field => (
-                    <div key={field} className="flex items-center gap-2">
-                      <span className="text-xs text-gray-400 w-28 flex-shrink-0 capitalize">{field.replace(/_/g, " ")}</span>
-                      <div className="relative flex-1">
-                        <select
-                          value={mapping[field] || ""}
-                          onChange={e => setMapping(prev => ({ ...prev, [field]: e.target.value || undefined }))}
-                          className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none focus:border-indigo-500 appearance-none"
-                        >
-                          <option value="">— skip —</option>
-                          {headers.map(h => <option key={h} value={h}>{h}</option>)}
-                        </select>
-                        <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-500 pointer-events-none" />
+              {detectedType !== "full_app" && (
+                <div>
+                  <p className="text-xs text-gray-500 mb-2 uppercase tracking-wider">Column Mapping</p>
+                  <div className="space-y-2">
+                    {fields.map(field => (
+                      <div key={field} className="flex items-center gap-2">
+                        <span className="text-xs text-gray-400 w-28 flex-shrink-0 capitalize">{field.replace(/_/g, " ")}</span>
+                        <div className="relative flex-1">
+                          <select
+                            value={mapping[field] || ""}
+                            onChange={e => setMapping(prev => ({ ...prev, [field]: e.target.value || undefined }))}
+                            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none focus:border-indigo-500 appearance-none"
+                          >
+                            <option value="">— skip —</option>
+                            {headers.map(h => <option key={h} value={h}>{h}</option>)}
+                          </select>
+                          <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-500 pointer-events-none" />
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Preview of first 3 rows */}
               {rows.length > 0 && (

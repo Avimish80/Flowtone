@@ -19,7 +19,7 @@ import EventLinkedDocsSection from "../components/workevent/EventLinkedDocsSecti
 
 const SECTIONS = [
   { key: "info",       label: "Info",       icon: CalendarDays },
-  { key: "practice",   label: "Practice",   icon: Dumbbell,   practiceOnly: true },
+  { key: "practice",   label: "Practice",   icon: Dumbbell },
   { key: "financials", label: "Financials", icon: DollarSign, hideForPractice: true },
   { key: "docs",       label: "Docs",       icon: FileText,   hideForPractice: true },
   { key: "equipment",  label: "Equipment",  icon: Package },
@@ -32,8 +32,9 @@ const TODAY = format(new Date(), "yyyy-MM-dd");
 export default function WorkEventDetail() {
   const params = new URLSearchParams(window.location.search);
   const id = params.get("id");
-  const prefilledDate     = params.get("date");       // passed from calendar when creating new event
-  const prefilledType     = params.get("event_type"); // e.g. "Practice" from Practice page shortcut
+  const prefilledDate     = params.get("date");         // passed from calendar when creating new event
+  const prefilledType     = params.get("event_type");   // e.g. "Practice" from Practice page shortcut
+  const prefilledLinkedGig = params.get("linked_gig_id"); // pre-link practice to a gig
   const navigate = useNavigate();
   const goBack = useGoBack("WorkEvents");
 
@@ -41,7 +42,8 @@ export default function WorkEventDetail() {
     title: "", event_type: prefilledType || "Gig", status: "lead",
     date: prefilledDate || "",
     currency: "GBP", base_price: 0, adjustments: [], total_price: 0,
-    equipment_checklist: [], base_price_locked: false
+    equipment_checklist: [], base_price_locked: false,
+    ...(prefilledLinkedGig ? { linked_gig_id: prefilledLinkedGig } : {}),
   });
   const [clients, setClients] = useState([]);
   const [estimate, setEstimate] = useState(null);
@@ -55,6 +57,7 @@ export default function WorkEventDetail() {
   // Practice-specific state
   const [practiceGoals, setPracticeGoals] = useState([]);
   const [upcomingGigs, setUpcomingGigs] = useState([]);
+  const [linkedPracticeSessions, setLinkedPracticeSessions] = useState([]);
   const [loggingPractice, setLoggingPractice] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
 
@@ -63,7 +66,6 @@ export default function WorkEventDetail() {
   // Filter sections based on event type
   const visibleSections = useMemo(() =>
     SECTIONS.filter(s => {
-      if (s.practiceOnly && !isPractice) return false;
       if (s.hideForPractice && isPractice) return false;
       return true;
     }),
@@ -91,7 +93,8 @@ export default function WorkEventDetail() {
     });
   }, [id]);
 
-  // Load practice goals + upcoming gigs whenever we're on a practice event
+  // Load practice data — goals + upcoming gigs for practice events,
+  // linked practice sessions for non-practice events
   useEffect(() => {
     if (isPractice) {
       const todayStr = TODAY;
@@ -105,6 +108,13 @@ export default function WorkEventDetail() {
             .filter(e => e.event_type !== "Practice" && e.date >= todayStr && e.id !== id)
             .sort((a, b) => a.date.localeCompare(b.date))
             .slice(0, 40)
+        );
+      });
+    } else if (id) {
+      // For gigs/lessons: load any practice events that are linked to this event
+      appClient.entities.WorkEvent.list("-date", 500).then(events => {
+        setLinkedPracticeSessions(
+          events.filter(e => e.event_type === "Practice" && e.linked_gig_id === id)
         );
       });
     }
@@ -383,7 +393,7 @@ export default function WorkEventDetail() {
               <div className="px-4 pb-4 pt-1 border-t border-gray-800">
                 {key === "info" && <EventInfoSection event={event} onChange={onChange} clients={clients} />}
 
-                {key === "practice" && (
+                {key === "practice" && isPractice && (
                   <div className="space-y-4 pt-2">
                     {/* Preparing for a gig */}
                     <div>
@@ -462,6 +472,47 @@ export default function WorkEventDetail() {
                           View <ExternalLink className="w-3 h-3" />
                         </button>
                       </div>
+                    )}
+                  </div>
+                )}
+
+                {key === "practice" && !isPractice && (
+                  <div className="space-y-3 pt-2">
+                    {/* Linked practice sessions */}
+                    {linkedPracticeSessions.length > 0 ? (
+                      <div className="space-y-2">
+                        {linkedPracticeSessions.map(p => (
+                          <button
+                            key={p.id}
+                            onClick={() => navigate(createPageUrl("WorkEventDetail?id=" + p.id))}
+                            className="w-full flex items-center gap-3 bg-gray-800/60 border border-gray-700/50 rounded-xl px-3 py-2.5 text-left hover:bg-gray-800 transition-colors"
+                          >
+                            <Dumbbell className="w-4 h-4 text-teal-400 flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm text-white truncate">{p.title || "Practice Session"}</p>
+                              <p className="text-xs text-gray-500">{p.date}{p.start_time ? ` · ${p.start_time}` : ""}{p.duration_hours ? ` · ${p.duration_hours}h` : ""}</p>
+                            </div>
+                            {p.practice_logged && (
+                              <CheckCircle2 className="w-4 h-4 text-teal-400 flex-shrink-0" />
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-600">No practice sessions linked to this event yet.</p>
+                    )}
+
+                    {/* Add practice session button */}
+                    {id && (
+                      <button
+                        onClick={() => navigate(createPageUrl(
+                          `WorkEventDetail?event_type=Practice&date=${event.date || ""}&linked_gig_id=${id}`
+                        ))}
+                        className="w-full flex items-center justify-center gap-2 border border-teal-700/50 text-teal-400 hover:bg-teal-900/20 rounded-xl py-2.5 text-sm font-medium transition-colors"
+                      >
+                        <Dumbbell className="w-4 h-4" />
+                        Add Practice Session
+                      </button>
                     )}
                   </div>
                 )}
