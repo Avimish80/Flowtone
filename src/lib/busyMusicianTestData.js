@@ -1,328 +1,449 @@
-import { format, addDays, startOfDay } from "date-fns";
+import { format, addDays, subDays, addWeeks } from "date-fns";
 
 /**
- * Generate a complete, busy musician dataset from Jan 2025 to May 2027.
- * Includes:
- * - 100+ gigs with varied types and prices
- * - 20 students (15 weekly, 5 bi-weekly) for lessons
- * - Linked invoices and payment history
- * - Practice sessions and goals
- * - Equipment and charts
+ * Generate a complete, busy musician dataset.
+ * Writes directly to localStorage in bulk — no individual awaits, won't crash.
+ *
+ * Generates:
+ * - 20 students (15 weekly, 5 bi-weekly) with 8 weeks back + 16 weeks forward of lessons
+ * - 104 gigs spread across Jan 2025 – May 2027
+ * - Invoices + payments for past events
+ * - Practice goals + sessions
+ * - Equipment
  */
 
-const studentNames = [
-  { name: "Sophie Williams", email: "sophie@example.com", phone: "07700 001001", type: "student", fee: 45, frequency: "weekly" },
-  { name: "James Chen", email: "james@example.com", phone: "07700 001002", type: "student", fee: 50, frequency: "weekly" },
-  { name: "Liam Harris", email: "liam@example.com", phone: "07700 001003", type: "student", fee: 50, frequency: "weekly" },
-  { name: "Ava Martinez", email: "ava@example.com", phone: "07700 001004", type: "student", fee: 45, frequency: "weekly" },
-  { name: "Noah Williams", email: "noah@example.com", phone: "07700 001005", type: "student", fee: 40, frequency: "weekly" },
-  { name: "Zoe Thompson", email: "zoe@example.com", phone: "07700 001006", type: "student", fee: 50, frequency: "weekly" },
-  { name: "Oliver Johnson", email: "oliver@example.com", phone: "07700 001007", type: "student", fee: 45, frequency: "weekly" },
-  { name: "Emma Foster", email: "emma@example.com", phone: "07700 001008", type: "student", fee: 50, frequency: "weekly" },
-  { name: "Jake Thompson", email: "jake@example.com", phone: "07700 001009", type: "student", fee: 40, frequency: "weekly" },
-  { name: "Isabella Gray", email: "isabella@example.com", phone: "07700 001010", type: "student", fee: 50, frequency: "weekly" },
-  { name: "Lucas Brown", email: "lucas@example.com", phone: "07700 001011", type: "student", fee: 45, frequency: "weekly" },
-  { name: "Mia Wilson", email: "mia@example.com", phone: "07700 001012", type: "student", fee: 50, frequency: "weekly" },
-  { name: "Ethan Davis", email: "ethan@example.com", phone: "07700 001013", type: "student", fee: 40, frequency: "weekly" },
-  { name: "Charlotte Lee", email: "charlotte@example.com", phone: "07700 001014", type: "student", fee: 50, frequency: "weekly" },
-  { name: "Mason Taylor", email: "mason@example.com", phone: "07700 001015", type: "student", fee: 45, frequency: "weekly" },
-  // Bi-weekly students
-  { name: "Lily Anderson", email: "lily@example.com", phone: "07700 001016", type: "student", fee: 50, frequency: "biweekly" },
-  { name: "Daniel Roberts", email: "daniel@example.com", phone: "07700 001017", type: "student", fee: 50, frequency: "biweekly" },
-  { name: "Amelia King", email: "amelia@example.com", phone: "07700 001018", type: "student", fee: 45, frequency: "biweekly" },
-  { name: "Benjamin Scott", email: "benjamin@example.com", phone: "07700 001019", type: "student", fee: 50, frequency: "biweekly" },
-  { name: "Harper Green", email: "harper@example.com", phone: "07700 001020", type: "student", fee: 45, frequency: "biweekly" },
+const KEY = (entity) => `musician_os_${entity}`;
+
+function uid() {
+  return crypto.randomUUID();
+}
+
+function ts() {
+  return new Date().toISOString();
+}
+
+function d(date) {
+  return format(date, "yyyy-MM-dd");
+}
+
+function readStore(entity) {
+  try {
+    return JSON.parse(localStorage.getItem(KEY(entity)) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function writeStore(entity, records) {
+  localStorage.setItem(KEY(entity), JSON.stringify(records));
+}
+
+function appendStore(entity, newRecords) {
+  const existing = readStore(entity);
+  writeStore(entity, [...existing, ...newRecords]);
+}
+
+const TODAY = new Date();
+
+const studentDefs = [
+  { name: "Sophie Williams",  email: "sophie@example.com",   phone: "07700 001001", fee: 45, day: 1 /* Mon */ },
+  { name: "James Chen",       email: "james@example.com",    phone: "07700 001002", fee: 50, day: 1 },
+  { name: "Liam Harris",      email: "liam@example.com",     phone: "07700 001003", fee: 50, day: 2 },
+  { name: "Ava Martinez",     email: "ava@example.com",      phone: "07700 001004", fee: 45, day: 2 },
+  { name: "Noah Williams",    email: "noah@example.com",     phone: "07700 001005", fee: 40, day: 3 },
+  { name: "Zoe Thompson",     email: "zoe@example.com",      phone: "07700 001006", fee: 50, day: 3 },
+  { name: "Oliver Johnson",   email: "oliver@example.com",   phone: "07700 001007", fee: 45, day: 4 },
+  { name: "Emma Foster",      email: "emma@example.com",     phone: "07700 001008", fee: 50, day: 4 },
+  { name: "Jake Thompson",    email: "jake@example.com",     phone: "07700 001009", fee: 40, day: 5 },
+  { name: "Isabella Gray",    email: "isabella@example.com", phone: "07700 001010", fee: 50, day: 5 },
+  { name: "Lucas Brown",      email: "lucas@example.com",    phone: "07700 001011", fee: 45, day: 6 },
+  { name: "Mia Wilson",       email: "mia@example.com",      phone: "07700 001012", fee: 50, day: 6 },
+  { name: "Ethan Davis",      email: "ethan@example.com",    phone: "07700 001013", fee: 40, day: 0 },
+  { name: "Charlotte Lee",    email: "charlotte@example.com",phone: "07700 001014", fee: 50, day: 0 },
+  { name: "Mason Taylor",     email: "mason@example.com",    phone: "07700 001015", fee: 45, day: 1 },
+  // bi-weekly
+  { name: "Lily Anderson",    email: "lily@example.com",     phone: "07700 001016", fee: 50, day: 2, biweekly: true },
+  { name: "Daniel Roberts",   email: "daniel@example.com",   phone: "07700 001017", fee: 50, day: 3, biweekly: true },
+  { name: "Amelia King",      email: "amelia@example.com",   phone: "07700 001018", fee: 45, day: 4, biweekly: true },
+  { name: "Benjamin Scott",   email: "benjamin@example.com", phone: "07700 001019", fee: 50, day: 5, biweekly: true },
+  { name: "Harper Green",     email: "harper@example.com",   phone: "07700 001020", fee: 45, day: 6, biweekly: true },
 ];
 
-const venueClients = [
-  { name: "The Blue Note", email: "bookings@bluenote.com", type: "venue", fee: 150, address: "Hoxton, London" },
-  { name: "Ronnie Scott's", email: "bookings@ronniescotts.com", type: "venue", fee: 200, address: "Soho, London" },
-  { name: "Pizza Express Jazz Club", email: "jazz@pizzaexpress.com", type: "venue", fee: 120, address: "Dean Street, London" },
-  { name: "606 Club", email: "bookings@606club.com", type: "venue", fee: 180, address: "Chelsea, London" },
-  { name: "Vortex Jazz Club", email: "info@vortexjazz.co.uk", type: "venue", fee: 140, address: "Dalston, London" },
+const venueList = [
+  { name: "The Blue Note",        email: "bookings@bluenote.com",       city: "Hoxton, London",       fee: 150 },
+  { name: "Ronnie Scott's",       email: "bookings@ronniescotts.com",   city: "Soho, London",         fee: 200 },
+  { name: "Pizza Express Jazz",   email: "jazz@pizzaexpress.com",       city: "Dean Street, London",  fee: 120 },
+  { name: "606 Club",             email: "bookings@606club.com",        city: "Chelsea, London",      fee: 180 },
+  { name: "Vortex Jazz Club",     email: "info@vortexjazz.co.uk",      city: "Dalston, London",      fee: 140 },
 ];
 
-const corporateClients = [
-  { name: "Goldman Sachs", email: "events@gs.com", type: "corporate", fee: 950, address: "Canary Wharf, London" },
-  { name: "Barclays", email: "corporate@barclays.com", type: "corporate", fee: 800, address: "London" },
-  { name: "KPMG", email: "events@kpmg.com", type: "corporate", fee: 900, address: "London" },
-  { name: "Deloitte", email: "events@deloitte.com", type: "corporate", fee: 850, address: "London" },
-  { name: "McKinsey", email: "events@mckinsey.com", type: "corporate", fee: 1000, address: "London" },
+const corporateList = [
+  { name: "Goldman Sachs",  email: "events@gs.com",           city: "Canary Wharf, London", fee: 950 },
+  { name: "Barclays",       email: "corporate@barclays.com",  city: "London",               fee: 800 },
+  { name: "KPMG",           email: "events@kpmg.com",         city: "London",               fee: 900 },
+  { name: "Deloitte",       email: "events@deloitte.com",     city: "London",               fee: 850 },
+  { name: "McKinsey",       email: "events@mckinsey.com",     city: "London",               fee: 1000 },
 ];
 
-const weddingAgencies = [
-  { name: "Premier Weddings", email: "bookings@premierweddings.com", type: "agent", fee: 0, address: "London" },
-  { name: "Elegant Events", email: "info@elegantevents.com", type: "agent", fee: 0, address: "London" },
-  { name: "Celebration Planners", email: "bookings@celebrationplanners.com", type: "agent", fee: 0, address: "London" },
+const agentList = [
+  { name: "Premier Weddings",      email: "bookings@premierweddings.com",      city: "London" },
+  { name: "Elegant Events",        email: "info@elegantevents.com",            city: "London" },
+  { name: "Celebration Planners",  email: "bookings@celebrationplanners.com",  city: "London" },
 ];
+
+const GIG_TITLES = [
+  ["Wedding Reception – Mayfair",        "Wedding",     1400, "Premier Weddings",     "Claridge's Hotel, Mayfair, London"],
+  ["Wedding Reception – Richmond",       "Wedding",     1250, "Elegant Events",       "Pembroke Lodge, Richmond Park"],
+  ["Wedding – Kensington",               "Wedding",     1600, "Celebration Planners", "Kensington Palace Orangery, London"],
+  ["Wedding – Surrey",                   "Wedding",     1300, "Premier Weddings",     "Botleys Mansion, Surrey"],
+  ["Wedding – Kent",                     "Wedding",     1100, "Elegant Events",       "Leeds Castle, Kent"],
+  ["Wedding – Chelsea",                  "Wedding",     1450, "Celebration Planners", "Chelsea Old Town Hall, London"],
+  ["Wedding – Oxfordshire",              "Wedding",     1200, "Premier Weddings",     "Blenheim Palace, Oxfordshire"],
+  ["Wedding – Hampshire",                "Wedding",     1350, "Elegant Events",       "Braiswick Farmhouse, Hampshire"],
+  ["Goldman Sachs Summer Party",         "Corporate",    950, "Goldman Sachs",        "Goldman Sachs HQ, Canary Wharf"],
+  ["Barclays Annual Dinner",             "Corporate",    800, "Barclays",             "Barclays HQ, London"],
+  ["KPMG Awards Night",                  "Corporate",    900, "KPMG",                 "Grosvenor House, Park Lane"],
+  ["Deloitte Client Reception",          "Corporate",    850, "Deloitte",             "Deloitte HQ, London"],
+  ["McKinsey Strategy Summit",           "Corporate",   1000, "McKinsey",             "The Shard, London"],
+  ["Goldman Sachs Christmas Party",      "Corporate",    950, "Goldman Sachs",        "Goldman Sachs HQ, Canary Wharf"],
+  ["Barclays Tech Conference",           "Corporate",    750, "Barclays",             "ExCeL London"],
+  ["KPMG Leadership Summit",             "Corporate",    900, "KPMG",                 "The Dorchester, London"],
+  ["Deloitte Innovation Awards",         "Corporate",    800, "Deloitte",             "Royal Lancaster London"],
+  ["McKinsey Partner Dinner",            "Corporate",   1000, "McKinsey",             "The Ritz, London"],
+  ["Barclays Gala Evening",              "Corporate",    850, "Barclays",             "Guildhall, London"],
+  ["Goldman Sachs Charity Gala",         "Corporate",    950, "Goldman Sachs",        "Natural History Museum, London"],
+  ["Deloitte Summer Party",              "Corporate",    800, "Deloitte",             "Battersea Power Station, London"],
+  ["McKinsey Annual Dinner",             "Corporate",   1000, "McKinsey",             "Mandarin Oriental, London"],
+  ["Jazz Night @ Blue Note",             "Gig",          150, "The Blue Note",        "The Blue Note, Hoxton, London"],
+  ["Jazz Quartet – Blue Note",           "Gig",          150, "The Blue Note",        "The Blue Note, Hoxton, London"],
+  ["Late Night Jazz – Blue Note",        "Gig",          150, "The Blue Note",        "The Blue Note, Hoxton, London"],
+  ["Sunday Session – Blue Note",         "Gig",          150, "The Blue Note",        "The Blue Note, Hoxton, London"],
+  ["Bank Holiday Special – Blue Note",   "Gig",          200, "The Blue Note",        "The Blue Note, Hoxton, London"],
+  ["Jazz Standards – Ronnie Scott's",    "Gig",          200, "Ronnie Scott's",       "Ronnie Scott's, Soho, London"],
+  ["Quartet Night – Ronnie Scott's",     "Gig",          200, "Ronnie Scott's",       "Ronnie Scott's, Soho, London"],
+  ["Late Show – Ronnie Scott's",         "Gig",          220, "Ronnie Scott's",       "Ronnie Scott's, Soho, London"],
+  ["Jazz Brunch – Pizza Express",        "Gig",          120, "Pizza Express Jazz",   "Pizza Express Jazz Club, Dean Street"],
+  ["Sunday Jazz – Pizza Express",        "Gig",          120, "Pizza Express Jazz",   "Pizza Express Jazz Club, Dean Street"],
+  ["Evening Session – 606 Club",         "Gig",          180, "606 Club",             "606 Club, Chelsea, London"],
+  ["Late Night – 606 Club",              "Gig",          180, "606 Club",             "606 Club, Chelsea, London"],
+  ["Vortex Jazz Night",                  "Gig",          140, "Vortex Jazz Club",     "Vortex Jazz Club, Dalston"],
+  ["Vortex Quartet Session",             "Gig",          140, "Vortex Jazz Club",     "Vortex Jazz Club, Dalston"],
+  ["Blue Note Residency – Week 1",       "Gig",          150, "The Blue Note",        "The Blue Note, Hoxton, London"],
+  ["Blue Note Residency – Week 2",       "Gig",          150, "The Blue Note",        "The Blue Note, Hoxton, London"],
+  ["Blue Note Residency – Week 3",       "Gig",          150, "The Blue Note",        "The Blue Note, Hoxton, London"],
+  ["Blue Note Residency – Week 4",       "Gig",          150, "The Blue Note",        "The Blue Note, Hoxton, London"],
+  ["Private Party – Notting Hill",       "Gig",          600, "Premier Weddings",     "Private Residence, Notting Hill"],
+  ["Private Party – Mayfair",            "Gig",          700, "Elegant Events",       "Private Residence, Mayfair"],
+  ["Private Party – Kensington",         "Gig",          650, "Celebration Planners", "Private Residence, Kensington"],
+  ["Birthday Party – Hampstead",         "Gig",          500, "Premier Weddings",     "Private Residence, Hampstead"],
+  ["Garden Party – Richmond",            "Gig",          550, "Elegant Events",       "Private Garden, Richmond"],
+  ["Studio Session – Air Studios",       "Session",      500, "Goldman Sachs",        "Air Studios, Lyndhurst Road, London"],
+  ["Recording – Abbey Road",             "Session",      600, "Barclays",             "Abbey Road Studios, London"],
+  ["Session – RAK Studios",              "Session",      450, "KPMG",                 "RAK Studios, London"],
+  ["Demo Recording",                     "Session",      400, "Deloitte",             "Home Studio"],
+  ["Overdubs – Metropolis Studios",      "Session",      550, "McKinsey",             "Metropolis Studios, London"],
+  ["Rehearsal Recording",                "Session",      350, "Goldman Sachs",        "Strongroom Studios, London"],
+  ["Wilderness Festival",                "Festival",     350, "Elegant Events",       "Cornbury Park, Oxfordshire"],
+  ["Green Man Festival",                 "Festival",     400, "Premier Weddings",     "Brecon Beacons, Wales"],
+  ["Ronnie Scott's Summer Fest",         "Festival",     300, "Ronnie Scott's",       "Ronnie Scott's, Soho, London"],
+  ["Love Supreme Jazz Festival",         "Festival",     450, "The Blue Note",        "Glynde Place, East Sussex"],
+  ["EFG London Jazz Festival",           "Festival",     500, "Vortex Jazz Club",     "Various venues, London"],
+  ["Cheltenham Jazz Festival",           "Festival",     380, "606 Club",             "Cheltenham Town Centre"],
+];
+
+// Spread gigs across Jan 2025 – May 2027
+// Seed dates so they're predictably spread, not random (avoids clustering)
+function spreadDates(count, startDate, endDateObj) {
+  const totalDays = Math.floor((endDateObj - startDate) / 86400000);
+  const step = Math.floor(totalDays / count);
+  const dates = [];
+  for (let i = 0; i < count; i++) {
+    // spread + small offset so not all exactly same day-of-week
+    dates.push(addDays(startDate, i * step + (i % 7)));
+  }
+  return dates;
+}
 
 export async function generateBusyMusicianData(appClient) {
-  try {
-    const startDate = new Date(2025, 0, 1); // Jan 1, 2025
-    const endDate = new Date(2027, 4, 31);  // May 31, 2027
+  const startDate = new Date(2025, 0, 6);  // Jan 6, 2025 (Monday)
+  const endDate   = new Date(2027, 4, 31); // May 31, 2027
 
-    // Create clients
-    const clients = [];
-    for (const s of studentNames) {
-      const c = await appClient.entities.Client.create({
-        name: s.name,
-        email: s.email,
-        phone: s.phone,
-        client_type: "student",
-        default_fee: s.fee,
-        default_payment_terms_days: 14,
-      });
-      clients.push(c);
-    }
-    for (const v of venueClients) {
-      const c = await appClient.entities.Client.create({
-        name: v.name,
-        email: v.email,
-        client_type: "venue",
-        default_fee: v.fee,
-        city: v.address,
-      });
-      clients.push(c);
-    }
-    for (const corp of corporateClients) {
-      const c = await appClient.entities.Client.create({
-        name: corp.name,
-        email: corp.email,
-        client_type: "corporate",
-        default_fee: corp.fee,
-        city: corp.address,
-      });
-      clients.push(c);
-    }
-    for (const w of weddingAgencies) {
-      const c = await appClient.entities.Client.create({
-        name: w.name,
-        email: w.email,
-        client_type: "agent",
-      });
-      clients.push(c);
-    }
+  // ── 1. BUILD ALL DATA IN MEMORY ────────────────────────────────────
+  const clientRecords    = [];
+  const eventRecords     = [];
+  const documentRecords  = [];
+  const paymentRecords   = [];
+  const goalRecords      = [];
+  const sessionRecords   = [];
+  const equipmentRecords = [];
 
-    // Helper: generate gigs and lessons
-    const events = [];
-    const invoices = [];
-    const payments = [];
+  // ── 1a. Clients ────────────────────────────────────────────────────
+  const clientMap = {}; // name → id
 
-    // === LESSONS (recurring weekly / bi-weekly) ===
-    for (const student of studentNames) {
-      const clientRec = clients.find(c => c.name === student.name);
-      if (!clientRec) continue;
-
-      let currentDate = new Date(startDate);
-      let lessonCount = 0;
-      while (currentDate <= endDate) {
-        // Create lesson event
-        const e = await appClient.entities.WorkEvent.create({
-          title: `${student.name} – Guitar Lesson`,
-          event_type: "Lesson",
-          date: format(currentDate, "yyyy-MM-dd"),
-          start_time: "18:00",
-          end_time: "19:00",
-          status: currentDate <= new Date() ? "completed" : "confirmed",
-          client_id: clientRec.id,
-          location_address: "Home Studio",
-          base_price: student.fee,
-          total_price: student.fee,
-          currency: "GBP",
-        });
-        events.push(e);
-        lessonCount++;
-
-        // Create invoice for past lessons (every month)
-        if (currentDate <= new Date() && lessonCount % 4 === 0) {
-          const inv = await appClient.entities.Document.create({
-            document_type: "invoice",
-            document_number: `INV-${String(invoices.length + 1000).slice(-4)}`,
-            title: `Monthly Lessons – ${student.name}`,
-            client_id: clientRec.id,
-            work_event_id: e.id,
-            status: currentDate.getTime() < new Date().getTime() - 30*86400000 ? "paid" : "sent",
-            currency: "GBP",
-            subtotal: student.fee * 4,
-            total: student.fee * 4,
-            discount_amount: 0,
-            tax_amount: 0,
-            due_date: format(addDays(currentDate, 14), "yyyy-MM-dd"),
-            paid_date: currentDate < new Date() ? format(addDays(currentDate, 7), "yyyy-MM-dd") : null,
-            line_items: [
-              { description: "4x Lessons", quantity: 4, unit_price: student.fee, total: student.fee * 4 }
-            ],
-          });
-          invoices.push(inv);
-
-          // Record payment if paid
-          if (inv.status === "paid") {
-            const p = await appClient.entities.Payment.create({
-              document_id: inv.id,
-              amount: student.fee * 4,
-              payment_date: inv.paid_date,
-              payment_method: "bank_transfer",
-            });
-            payments.push(p);
-          }
-        }
-
-        // Advance by 7 days for weekly, 14 for bi-weekly
-        const daysToAdd = student.frequency === "weekly" ? 7 : 14;
-        currentDate = addDays(currentDate, daysToAdd);
-      }
-    }
-
-    // === GIGS (mix of types) ===
-    const gigTypes = [
-      { type: "Wedding", basePrice: 1200, count: 8 },
-      { type: "Corporate", basePrice: 800, count: 15 },
-      { type: "Venue – Jazz Quartet", basePrice: 400, count: 30 },
-      { type: "Venue – Solo Performance", basePrice: 250, count: 25 },
-      { type: "Private Party", basePrice: 600, count: 12 },
-      { type: "Session/Recording", basePrice: 500, count: 8 },
-      { type: "Festival", basePrice: 350, count: 6 },
-    ];
-
-    let gigIndex = 0;
-    for (const gigType of gigTypes) {
-      for (let i = 0; i < gigType.count; i++) {
-        let currentDate = new Date(startDate);
-        currentDate = addDays(currentDate, Math.floor(Math.random() * 850)); // Random within range
-        if (currentDate > endDate) continue;
-
-        const fee = gigType.basePrice + Math.floor(Math.random() * 400 - 200); // ±£200 variation
-
-        // Pick a client
-        let clientId = "";
-        if (gigType.type.includes("Wedding")) {
-          const agency = clients.find(c => c.client_type === "agent");
-          clientId = agency?.id || "";
-        } else if (gigType.type.includes("Corporate")) {
-          const corp = clients.filter(c => c.client_type === "corporate");
-          clientId = corp[Math.floor(Math.random() * corp.length)]?.id || "";
-        } else if (gigType.type.includes("Venue")) {
-          const venue = clients.filter(c => c.client_type === "venue");
-          clientId = venue[Math.floor(Math.random() * venue.length)]?.id || "";
-        }
-
-        const e = await appClient.entities.WorkEvent.create({
-          title: `${gigType.type} ${gigIndex}`,
-          event_type: "Gig",
-          date: format(currentDate, "yyyy-MM-dd"),
-          start_time: "19:30",
-          end_time: "23:30",
-          status: currentDate <= new Date() ? "completed" : "confirmed",
-          client_id: clientId,
-          location_address: "London, UK",
-          base_price: fee,
-          total_price: fee,
-          currency: "GBP",
-          notes: `${gigType.type} performance`,
-        });
-        events.push(e);
-
-        // Create estimate/invoice
-        const estNum = String(invoices.length + 1000).slice(-4);
-        const inv = await appClient.entities.Document.create({
-          document_type: "invoice",
-          document_number: `INV-${estNum}`,
-          title: `${gigType.type} Performance`,
-          client_id: clientId,
-          work_event_id: e.id,
-          status: currentDate <= new Date() ? "paid" : "sent",
-          currency: "GBP",
-          subtotal: fee,
-          total: fee,
-          discount_amount: 0,
-          tax_amount: 0,
-          due_date: format(addDays(currentDate, 7), "yyyy-MM-dd"),
-          paid_date: currentDate <= new Date() ? format(addDays(currentDate, 3), "yyyy-MM-dd") : null,
-          line_items: [{ description: gigType.type, quantity: 1, unit_price: fee, total: fee }],
-        });
-        invoices.push(inv);
-
-        // Record payment if paid
-        if (inv.status === "paid") {
-          const p = await appClient.entities.Payment.create({
-            document_id: inv.id,
-            amount: fee,
-            payment_date: inv.paid_date,
-            payment_method: "bank_transfer",
-          });
-          payments.push(p);
-        }
-
-        gigIndex++;
-      }
-    }
-
-    // === PRACTICE GOALS & SESSIONS ===
-    const goals = [
-      { title: "Master improvisation over chord changes", description: "Focus on ii-V-I progressions" },
-      { title: "Improve reading speed", description: "Jazz standards and contemporary pieces" },
-      { title: "Develop tone control", description: "Work on dynamics and expression" },
-      { title: "Expand repertoire", description: "Learn 10 new standards" },
-      { title: "Strengthen fingerpicking technique", description: "Classical and jazz styles" },
-    ];
-
-    const goalRecs = [];
-    for (const g of goals) {
-      const goal = await appClient.entities.PracticeGoal.create({
-        title: g.title,
-        description: g.description,
-        completed: false,
-      });
-      goalRecs.push(goal);
-    }
-
-    // Create practice sessions (2-3 per week)
-    let practiceDate = new Date(startDate);
-    while (practiceDate <= endDate) {
-      // Create practice session
-      const randomGoal = Math.random() > 0.5 ? goalRecs[Math.floor(Math.random() * goalRecs.length)] : null;
-      const session = await appClient.entities.PracticeSession.create({
-        date: format(practiceDate, "yyyy-MM-dd"),
-        duration_minutes: 60 + Math.floor(Math.random() * 60), // 60-120 mins
-        notes: "Regular practice session",
-        goal_id: randomGoal?.id || null,
-        energy_rating: 2 + Math.floor(Math.random() * 4), // 2-5
-      });
-
-      practiceDate = addDays(practiceDate, 3); // Every 3 days roughly
-    }
-
-    // === EQUIPMENT ===
-    const equipmentItems = [
-      { name: "Fender Stratocaster", category: "Guitar", condition: "excellent" },
-      { name: "Gibson Les Paul", category: "Guitar", condition: "excellent" },
-      { name: "Yamaha Classical", category: "Guitar", condition: "good" },
-      { name: "Marshall Amplifier", category: "Amplifier", condition: "excellent" },
-      { name: "Shure SM58 Microphone", category: "Microphone", condition: "excellent" },
-      { name: "Behringer Mixer", category: "Mixer", condition: "good" },
-      { name: "Music Stand", category: "Accessory", condition: "good" },
-      { name: "Guitar Case", category: "Case", condition: "excellent" },
-      { name: "Cable Set", category: "Cable", condition: "good" },
-      { name: "Tuner Pedal", category: "Pedal", condition: "excellent" },
-    ];
-
-    for (const item of equipmentItems) {
-      await appClient.entities.Equipment.create({
-        name: item.name,
-        category: item.category,
-        condition: item.condition,
-      });
-    }
-
-    return {
-      clientsCreated: clients.length,
-      eventsCreated: events.length,
-      invoicesCreated: invoices.length,
-      paymentsCreated: payments.length,
-      goalsCreated: goalRecs.length,
-    };
-  } catch (err) {
-    console.error("Error generating busy musician data:", err);
-    throw err;
+  for (const s of studentDefs) {
+    const id = uid();
+    clientMap[s.name] = id;
+    clientRecords.push({
+      id, created_at: ts(), updated_at: ts(),
+      name: s.name, email: s.email, phone: s.phone,
+      client_type: "student",
+      default_fee: s.fee,
+      default_payment_terms_days: 14,
+      emails: [s.email], phones: [s.phone],
+    });
   }
+  for (const v of venueList) {
+    const id = uid();
+    clientMap[v.name] = id;
+    clientRecords.push({
+      id, created_at: ts(), updated_at: ts(),
+      name: v.name, email: v.email, client_type: "venue",
+      default_fee: v.fee, city: v.city,
+      emails: [v.email], phones: [],
+    });
+  }
+  for (const c of corporateList) {
+    const id = uid();
+    clientMap[c.name] = id;
+    clientRecords.push({
+      id, created_at: ts(), updated_at: ts(),
+      name: c.name, email: c.email, client_type: "corporate",
+      default_fee: c.fee, city: c.city,
+      emails: [c.email], phones: [],
+    });
+  }
+  for (const a of agentList) {
+    const id = uid();
+    clientMap[a.name] = id;
+    clientRecords.push({
+      id, created_at: ts(), updated_at: ts(),
+      name: a.name, email: a.email, client_type: "agent",
+      city: a.city, emails: [a.email], phones: [],
+    });
+  }
+
+  // ── 1b. Invoice counter ────────────────────────────────────────────
+  let invNum = 1;
+  function nextInvNum() {
+    return `INV-${String(invNum++).padStart(4, "0")}`;
+  }
+
+  // ── 1c. Lessons ────────────────────────────────────────────────────
+  // 8 weeks back + 16 weeks forward = 24 weeks per student
+  const LESSON_START = subDays(TODAY, 56);  // 8 weeks ago
+  const LESSON_END   = addDays(TODAY, 112); // 16 weeks from now
+
+  for (const s of studentDefs) {
+    const clientId = clientMap[s.name];
+    const times = ["10:00", "11:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00"];
+    const startTime = times[studentDefs.indexOf(s) % times.length];
+    const endHour = parseInt(startTime) + 1;
+    const endTime = `${String(endHour).padStart(2,"0")}:00`;
+
+    // Find first occurrence of the lesson day on or after LESSON_START
+    let cur = new Date(LESSON_START);
+    while (cur.getDay() !== s.day) cur = addDays(cur, 1);
+
+    let lessonNum = 0;
+    let monthlyInvItems = []; // accumulate 4 lessons per invoice
+    let monthlyInvStart = new Date(cur);
+
+    while (cur <= LESSON_END) {
+      const isPast = cur <= TODAY;
+      const eventId = uid();
+      eventRecords.push({
+        id: eventId, created_at: ts(), updated_at: ts(),
+        title: `${s.name} – Guitar Lesson`,
+        event_type: "Lesson",
+        date: d(cur),
+        start_time: startTime,
+        end_time: endTime,
+        status: isPast ? "completed" : "confirmed",
+        client_id: clientId,
+        location_address: "Home Studio",
+        base_price: s.fee,
+        total_price: s.fee,
+        currency: "GBP",
+        adjustments: [],
+        equipment_checklist: [],
+      });
+
+      lessonNum++;
+      monthlyInvItems.push({ date: d(cur), fee: s.fee });
+
+      // Every 4 lessons create a monthly invoice
+      if (monthlyInvItems.length === 4) {
+        const isPaidMonth = addDays(cur, 14) < TODAY;
+        const invId = uid();
+        const total = s.fee * 4;
+        documentRecords.push({
+          id: invId, created_at: ts(), updated_at: ts(),
+          document_type: "invoice",
+          document_number: nextInvNum(),
+          title: `Lessons – ${s.name}`,
+          client_id: clientId,
+          work_event_id: eventId,
+          is_standalone: false,
+          status: isPaidMonth ? "paid" : (isPast ? "sent" : "draft"),
+          currency: "GBP",
+          line_items: [{ description: "4x Guitar Lessons", quantity: 4, unit_price: s.fee, total }],
+          subtotal: total, discount_amount: 0, tax_amount: 0, total,
+          due_date: d(addDays(cur, 14)),
+          paid_date: isPaidMonth ? d(addDays(cur, 7)) : null,
+          paid_amount: isPaidMonth ? total : 0,
+          notes: "",
+        });
+
+        if (isPaidMonth) {
+          paymentRecords.push({
+            id: uid(), created_at: ts(), updated_at: ts(),
+            document_id: invId,
+            amount: total,
+            payment_date: d(addDays(cur, 7)),
+            payment_method: "bank_transfer",
+            notes: "",
+          });
+        }
+        monthlyInvItems = [];
+        monthlyInvStart = addDays(cur, s.biweekly ? 14 : 7);
+      }
+
+      cur = addDays(cur, s.biweekly ? 14 : 7);
+    }
+  }
+
+  // ── 1d. Gigs ───────────────────────────────────────────────────────
+  const gigDates = spreadDates(GIG_TITLES.length, startDate, endDate);
+
+  GIG_TITLES.forEach(([title, eventType, fee, clientName, location], i) => {
+    const gigDate = gigDates[i] || addDays(startDate, i * 8);
+    if (gigDate > endDate) return;
+
+    const clientId = clientMap[clientName] || "";
+    const isPast   = gigDate <= TODAY;
+    const eventId  = uid();
+
+    eventRecords.push({
+      id: eventId, created_at: ts(), updated_at: ts(),
+      title,
+      event_type: eventType === "Gig" ? "Gig" : eventType,
+      date: d(gigDate),
+      start_time: "19:30",
+      end_time:   "23:00",
+      status: isPast ? "completed" : "confirmed",
+      client_id: clientId,
+      location_address: location,
+      base_price: fee,
+      total_price: fee,
+      currency: "GBP",
+      adjustments: [],
+      equipment_checklist: [],
+    });
+
+    const isPaid = addDays(gigDate, 7) < TODAY;
+    const invId  = uid();
+    documentRecords.push({
+      id: invId, created_at: ts(), updated_at: ts(),
+      document_type: "invoice",
+      document_number: nextInvNum(),
+      title,
+      client_id: clientId,
+      work_event_id: eventId,
+      is_standalone: false,
+      status: isPaid ? "paid" : (isPast ? "sent" : (gigDate < addDays(TODAY, 30) ? "sent" : "draft")),
+      currency: "GBP",
+      line_items: [{ description: title, quantity: 1, unit_price: fee, total: fee }],
+      subtotal: fee, discount_amount: 0, tax_amount: 0, total: fee,
+      due_date: d(addDays(gigDate, 7)),
+      paid_date: isPaid ? d(addDays(gigDate, 5)) : null,
+      paid_amount: isPaid ? fee : 0,
+      notes: "",
+    });
+
+    if (isPaid) {
+      paymentRecords.push({
+        id: uid(), created_at: ts(), updated_at: ts(),
+        document_id: invId,
+        amount: fee,
+        payment_date: d(addDays(gigDate, 5)),
+        payment_method: "bank_transfer",
+        notes: "",
+      });
+    }
+  });
+
+  // ── 1e. Practice goals ─────────────────────────────────────────────
+  const goalDefs = [
+    { title: "Master ii-V-I improvisation",      description: "All 12 keys, all positions" },
+    { title: "Improve sight-reading speed",       description: "Jazz standards and contemporary pieces" },
+    { title: "Develop tone and dynamics",         description: "Work on expression across all registers" },
+    { title: "Expand repertoire to 60 standards", description: "Learn 10 new standards per month" },
+    { title: "Strengthen fingerpicking",          description: "Classical and flamenco techniques" },
+  ];
+  for (const g of goalDefs) {
+    goalRecords.push({
+      id: uid(), created_at: ts(), updated_at: ts(),
+      title: g.title, description: g.description, completed: false,
+    });
+  }
+
+  // ── 1f. Practice sessions (every 3 days for 6 months back) ────────
+  let practiceDate = subDays(TODAY, 180);
+  while (practiceDate <= TODAY) {
+    const randomGoal = goalRecords[Math.floor(Math.random() * goalRecords.length)];
+    sessionRecords.push({
+      id: uid(), created_at: ts(), updated_at: ts(),
+      date: d(practiceDate),
+      duration_minutes: 60 + Math.floor(Math.random() * 60),
+      notes: "",
+      goal_id: randomGoal?.id || null,
+      energy_rating: 2 + Math.floor(Math.random() * 4),
+      items: [],
+    });
+    practiceDate = addDays(practiceDate, 3);
+  }
+
+  // ── 1g. Equipment ─────────────────────────────────────────────────
+  const equipDefs = [
+    { name: "Fender Stratocaster",    category: "Guitar",      condition: "excellent" },
+    { name: "Gibson Les Paul",        category: "Guitar",      condition: "excellent" },
+    { name: "Yamaha Classical",       category: "Guitar",      condition: "good" },
+    { name: "Marshall Amp",           category: "Amplifier",   condition: "excellent" },
+    { name: "Shure SM58 Mic",         category: "Microphone",  condition: "excellent" },
+    { name: "Behringer Mixer",        category: "Mixer",       condition: "good" },
+    { name: "Music Stand",            category: "Accessory",   condition: "good" },
+    { name: "Guitar Case",            category: "Case",        condition: "excellent" },
+    { name: "Patch Cables (x6)",      category: "Cable",       condition: "good" },
+    { name: "Boss TU-3 Tuner Pedal",  category: "Pedal",       condition: "excellent" },
+  ];
+  for (const e of equipDefs) {
+    equipmentRecords.push({ id: uid(), created_at: ts(), updated_at: ts(), ...e });
+  }
+
+  // ── 2. WRITE ALL TO LOCALSTORAGE AT ONCE ──────────────────────────
+  appendStore("Client",          clientRecords);
+  appendStore("WorkEvent",       eventRecords);
+  appendStore("Document",        documentRecords);
+  appendStore("Payment",         paymentRecords);
+  appendStore("PracticeGoal",    goalRecords);
+  appendStore("PracticeSession", sessionRecords);
+  appendStore("Equipment",       equipmentRecords);
+
+  // Update invoice counter in AppSettings
+  try {
+    const settingsRaw = readStore("AppSettings");
+    if (settingsRaw.length > 0) {
+      settingsRaw[0].invoice_number_next = invNum;
+      writeStore("AppSettings", settingsRaw);
+    }
+  } catch {}
+
+  return {
+    clients:   clientRecords.length,
+    events:    eventRecords.length,
+    invoices:  documentRecords.length,
+    payments:  paymentRecords.length,
+    practice:  sessionRecords.length,
+    equipment: equipmentRecords.length,
+  };
 }
