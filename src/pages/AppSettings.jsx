@@ -6,8 +6,7 @@ import { registerPush, unregisterPush, isPushActive, schedulePushNotifications, 
 import { DEFAULT_PREFS } from "@/lib/notificationPrefs";
 import { isGmailConnected, getGmailEmail, connectGmail, disconnectGmail } from "@/lib/gmailClient";
 import SmartCSVImport from "@/components/SmartCSVImport";
-import { exportClients, exportEvents, exportInvoices, exportFullApp, downloadCSV } from "@/lib/csvExport";
-import { eventsToIcal, downloadIcal } from "@/lib/icalExport";
+import { exportFullApp, downloadCSV } from "@/lib/csvExport";
 import { generateBusyMusicianData } from "@/lib/busyMusicianTestData";
 import NotificationPrefsEditor from "@/components/NotificationPrefsEditor";
 
@@ -220,6 +219,22 @@ export default function AppSettings() {
 
   const inputCls = "w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500 placeholder-gray-500";
   const labelCls = "text-xs text-gray-400 mb-1 block";
+
+  const DataSubSection = ({ label, children, defaultOpen = true }) => {
+    const [open, setOpen] = useState(defaultOpen);
+    return (
+      <div className="border border-gray-700/60 rounded-xl overflow-hidden">
+        <button
+          onClick={() => setOpen(o => !o)}
+          className="w-full flex items-center justify-between px-4 py-2.5 bg-gray-800/60 hover:bg-gray-800 transition-colors"
+        >
+          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{label}</span>
+          {open ? <ChevronUp className="w-3.5 h-3.5 text-gray-500" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-500" />}
+        </button>
+        {open && <div className="px-3 pb-3">{children}</div>}
+      </div>
+    );
+  };
 
   return (
     <div className="p-4 max-w-xl mx-auto">
@@ -595,19 +610,12 @@ export default function AppSettings() {
         <section>
           <SectionHeader icon={Download} label="Data" sectionKey="data" />
           {openSections.has("data") && (
-            <div className="bg-gray-800 rounded-xl p-4 space-y-3">
-              <p className="text-xs text-gray-500">Import data from a CSV file or export your data for backup or migration.</p>
-              <button
-                onClick={() => setShowCSVImport(true)}
-                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-indigo-600 hover:bg-indigo-500 text-white transition-colors"
-              >
-                <UploadIcon className="w-4 h-4" />
-                Import CSV
-              </button>
-              <div className="border-t border-gray-700 pt-3 space-y-2">
-                <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Load Test Data</p>
+            <div className="bg-gray-800 rounded-xl p-4 space-y-2">
 
-                {/* ── Connected demo data — full busy 2-week schedule ── */}
+              {/* ── Load Data ── */}
+              <DataSubSection label="Load Data" defaultOpen={false}>
+                <div className="space-y-2 pt-1">
+
                 <button
                   onClick={async () => {
                     setTestImporting("connected");
@@ -729,119 +737,13 @@ export default function AppSettings() {
                   {testImporting === "connected" ? "Creating…" : testImported === "connected" ? "✓ Demo Data Loaded!" : "✨ Load Connected Demo Data"}
                 </button>
                 {testImported === "connected" && (
-                  <p className="text-[11px] text-gray-500 text-center">10 clients · 25 events · 17 invoices · full 2-week schedule</p>
+                  <p className="text-[11px] text-gray-500 text-center">10 clients · 25 events · 17 invoices</p>
                 )}
-
-                <button
-                  onClick={async () => {
-                    setTestImporting("events");
-                    try {
-                      const res = await fetch("/test-events.csv");
-                      const text = await res.text();
-                      const lines = text.trim().split(/\r?\n/);
-                      const headers = lines[0].split(",");
-                      const rows = lines.slice(1).filter(l => l.trim()).map(line => {
-                        const vals = []; let cur = "", inQ = false;
-                        for (const ch of line) {
-                          if (ch === '"') inQ = !inQ;
-                          else if (ch === ',' && !inQ) { vals.push(cur.trim()); cur = ""; }
-                          else cur += ch;
-                        }
-                        vals.push(cur.trim());
-                        const obj = {}; headers.forEach((h, i) => { obj[h] = vals[i] || ""; }); return obj;
-                      });
-                      for (const r of rows) {
-                        await appClient.entities.WorkEvent.create({
-                          title: r.title, date: r.date, start_time: r.start_time || "",
-                          end_time: r.end_time || "", event_type: r.event_type || "gig",
-                          status: r.status || "confirmed", location_address: r.location_address || "",
-                          fee: parseFloat(r.fee) || 0, notes: r.notes || "",
-                        });
-                      }
-                      setTestImporting(null); setTestImported("events");
-                    } catch { setTestImporting(null); }
-                  }}
-                  disabled={testImporting === "events"}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-teal-900/40 hover:bg-teal-900/60 disabled:opacity-50 text-teal-300 border border-teal-700/40 transition-colors"
-                >
-                  {testImporting === "events" ? "Importing…" : testImported === "events" ? "✓ 47 Events Imported!" : "Load Sample Events (47 gigs)"}
-                </button>
-                <button
-                  onClick={async () => {
-                    setTestImporting("invoices");
-                    try {
-                      const res = await fetch("/test-invoices.csv");
-                      const text = await res.text();
-                      const lines = text.trim().split(/\r?\n/);
-                      const headers = lines[0].split(",");
-                      const rows = lines.slice(1).filter(l => l.trim()).map(line => {
-                        const vals = []; let cur = "", inQ = false;
-                        for (const ch of line) {
-                          if (ch === '"') inQ = !inQ;
-                          else if (ch === ',' && !inQ) { vals.push(cur.trim()); cur = ""; }
-                          else cur += ch;
-                        }
-                        vals.push(cur.trim());
-                        const obj = {}; headers.forEach((h, i) => { obj[h] = vals[i] || ""; }); return obj;
-                      });
-                      for (const r of rows) {
-                        const total = parseFloat(r.total) || 0;
-                        await appClient.entities.Document.create({
-                          document_type: "invoice", document_number: r.document_number || "",
-                          title: r.title, status: r.status || "draft",
-                          total, subtotal: total, due_date: r.due_date || "",
-                          notes: r.notes || "", currency: "GBP",
-                          line_items: [{ description: r.title, quantity: 1, unit_price: total, total }],
-                        });
-                      }
-                      setTestImporting(null); setTestImported("invoices");
-                    } catch { setTestImporting(null); }
-                  }}
-                  disabled={testImporting === "invoices"}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-teal-900/40 hover:bg-teal-900/60 disabled:opacity-50 text-teal-300 border border-teal-700/40 transition-colors"
-                >
-                  {testImporting === "invoices" ? "Importing…" : testImported === "invoices" ? "✓ 25 Invoices Imported!" : "Load Sample Invoices (25)"}
-                </button>
-                <button
-                  onClick={async () => {
-                    setTestImporting("lessons");
-                    try {
-                      const res = await fetch("/test-lessons.csv");
-                      const text = await res.text();
-                      const lines = text.trim().split(/\r?\n/);
-                      const headers = lines[0].split(",");
-                      const rows = lines.slice(1).filter(l => l.trim()).map(line => {
-                        const vals = []; let cur = "", inQ = false;
-                        for (const ch of line) {
-                          if (ch === '"') inQ = !inQ;
-                          else if (ch === ',' && !inQ) { vals.push(cur.trim()); cur = ""; }
-                          else cur += ch;
-                        }
-                        vals.push(cur.trim());
-                        const obj = {}; headers.forEach((h, i) => { obj[h] = vals[i] || ""; }); return obj;
-                      });
-                      for (const r of rows) {
-                        await appClient.entities.WorkEvent.create({
-                          title: r.title, date: r.date, start_time: r.start_time || "",
-                          end_time: r.end_time || "", event_type: "lesson",
-                          status: r.status || "confirmed", location_address: r.location_address || "",
-                          fee: parseFloat(r.fee) || 0, notes: r.notes || "",
-                          is_recurring: true,
-                        });
-                      }
-                      setTestImporting(null); setTestImported("lessons");
-                    } catch { setTestImporting(null); }
-                  }}
-                  disabled={testImporting === "lessons"}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-teal-900/40 hover:bg-teal-900/60 disabled:opacity-50 text-teal-300 border border-teal-700/40 transition-colors"
-                >
-                  {testImporting === "lessons" ? "Importing…" : testImported === "lessons" ? "✓ 357 Lessons Imported!" : "Load Sample Lessons (12 students, Jan–Jul)"}
-                </button>
                 <button
                   onClick={async () => {
                     setLoadingBusyMusician(true);
                     try {
-                      const result = await generateBusyMusicianData(appClient);
+                      await generateBusyMusicianData(appClient);
                       setTestImported("busymusician");
                       setTimeout(() => setTestImported(null), 5000);
                     } catch (err) {
@@ -853,51 +755,35 @@ export default function AppSettings() {
                   disabled={loadingBusyMusician}
                   className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-purple-900/40 hover:bg-purple-900/60 disabled:opacity-50 text-purple-300 border border-purple-700/40 transition-colors"
                 >
-                  {loadingBusyMusician ? "Generating…" : testImported === "busymusician" ? "✓ Busy Musician Data Loaded!" : "🎵 Load Busy Musician Data (Jan 2025 – May 2027)"}
+                  {loadingBusyMusician ? "Generating…" : testImported === "busymusician" ? "✓ Data Loaded!" : "Load Busy Musician Data (Jan 2025 – May 2027)"}
                 </button>
-              </div>
-              <div className="border-t border-gray-700 pt-3 space-y-2">
-                <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Export</p>
-                <button
-                  onClick={async () => { const csv = await exportFullApp(appClient); downloadCSV("flowtone-backup.csv", csv); }}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-indigo-600 hover:bg-indigo-500 text-white transition-colors"
-                >
-                  <Download className="w-4 h-4" />
-                  📦 Export Full App Backup
-                </button>
-                <button
-                  onClick={async () => { const csv = await exportClients(appClient); downloadCSV("clients.csv", csv); }}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-gray-700 hover:bg-gray-600 text-gray-200 transition-colors"
-                >
-                  <Download className="w-4 h-4" />
-                  Export Clients
-                </button>
-                <button
-                  onClick={async () => { const csv = await exportEvents(appClient); downloadCSV("events.csv", csv); }}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-gray-700 hover:bg-gray-600 text-gray-200 transition-colors"
-                >
-                  <Download className="w-4 h-4" />
-                  Export Events (CSV)
-                </button>
-                <button
-                  onClick={async () => {
-                    const events = await appClient.entities.WorkEvent.list().catch(() => []);
-                    const ics = eventsToIcal(events);
-                    downloadIcal("gigflow-events.ics", ics);
-                  }}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-indigo-900/60 hover:bg-indigo-900 text-indigo-300 border border-indigo-700/40 transition-colors"
-                >
-                  <Download className="w-4 h-4" />
-                  Export to iPhone Calendar (.ics)
-                </button>
-                <button
-                  onClick={async () => { const csv = await exportInvoices(appClient); downloadCSV("invoices.csv", csv); }}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-gray-700 hover:bg-gray-600 text-gray-200 transition-colors"
-                >
-                  <Download className="w-4 h-4" />
-                  Export Invoices
-                </button>
-              </div>
+                {testImported === "busymusician" && (
+                  <p className="text-[11px] text-gray-500 text-center">20 students · 56 gigs · invoices · payments · practice</p>
+                )}
+                </div>
+              </DataSubSection>
+
+              {/* ── Backup & Restore ── */}
+              <DataSubSection label="Backup & Restore">
+                <div className="space-y-2 pt-1">
+                  <button
+                    onClick={() => setShowCSVImport(true)}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-gray-700 hover:bg-gray-600 text-gray-200 transition-colors"
+                  >
+                    <UploadIcon className="w-4 h-4" />
+                    Restore from Backup
+                  </button>
+                  <button
+                    onClick={async () => { const csv = await exportFullApp(appClient); downloadCSV("flowtone-backup.csv", csv); }}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-indigo-600 hover:bg-indigo-500 text-white transition-colors"
+                  >
+                    <Download className="w-4 h-4" />
+                    Export Full App Backup
+                  </button>
+                  <p className="text-[11px] text-gray-600 text-center">Saves everything — clients, events, invoices, practice, equipment</p>
+                </div>
+              </DataSubSection>
+
             </div>
           )}
         </section>
