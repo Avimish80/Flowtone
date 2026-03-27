@@ -33,10 +33,10 @@ export default function SortDropdown({ options, activeSort, onSortChange }) {
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen(v => !v)}
-        className="bg-gray-700 hover:bg-gray-600 text-gray-200 px-3 py-2 rounded-lg flex items-center gap-1.5 text-sm font-medium transition-colors"
+        className="text-gray-500 hover:text-gray-300 flex items-center transition-colors"
         title={dirLabel}
       >
-        <ArrowUpDown className="w-4 h-4" />
+        <ArrowUpDown className="w-3.5 h-3.5" />
       </button>
 
       {open && (

@@ -605,7 +605,7 @@ export default function AppSettings() {
               <div className="border-t border-gray-700 pt-3 space-y-2">
                 <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Load Test Data</p>
 
-                {/* ── Connected demo data (clients + events + invoices linked) ── */}
+                {/* ── Connected demo data — full busy 2-week schedule ── */}
                 <button
                   onClick={async () => {
                     setTestImporting("connected");
@@ -617,60 +617,101 @@ export default function AppSettings() {
                         return dt.toISOString().slice(0, 10);
                       };
 
-                      // 1. Create clients
-                      const [venue, agent, student1, student2, band] = await Promise.all([
-                        appClient.entities.Client.create({ name: "The Blue Note", client_type: "venue", emails: ["booker@bluenote.co.uk"], phone: "020 7946 0123", city: "London" }),
-                        appClient.entities.Client.create({ name: "Premier Events Agency", client_type: "agent", emails: ["info@premierevents.co.uk"], phone: "020 7123 4567", city: "London" }),
-                        appClient.entities.Client.create({ name: "Sophie Williams", client_type: "student", emails: ["sophie@gmail.com"], phone: "07700 900111", city: "London" }),
-                        appClient.entities.Client.create({ name: "James Chen", client_type: "student", emails: ["jchen@outlook.com"], phone: "07700 900222", city: "London" }),
-                        appClient.entities.Client.create({ name: "The Groove Collective", client_type: "band", emails: ["band@groove.co.uk"], phone: "07700 900333", city: "Manchester" }),
+                      // ── 1. Clients ──────────────────────────────────────────
+                      const [venue1, venue2, agent, sophie, liam, ava, noah, jake, emily, corp] = await Promise.all([
+                        appClient.entities.Client.create({ name: "The Blue Note", client_type: "venue", emails: ["booker@bluenote.co.uk"], phones: ["020 7946 0123"], city: "London", default_currency: "GBP" }),
+                        appClient.entities.Client.create({ name: "Ronnie Scott's Jazz Club", client_type: "venue", emails: ["gigs@ronniescotts.co.uk"], phones: ["020 7439 0747"], city: "London", default_currency: "GBP" }),
+                        appClient.entities.Client.create({ name: "Premier Events Agency", client_type: "agent", emails: ["info@premierevents.co.uk"], phones: ["020 7123 4567"], city: "London", default_currency: "GBP" }),
+                        appClient.entities.Client.create({ name: "Sophie Williams", client_type: "student", emails: ["sophie.w@gmail.com"], phones: ["07700 900111"], city: "London", default_currency: "GBP", default_fee: 65 }),
+                        appClient.entities.Client.create({ name: "Liam Harris", client_type: "student", emails: ["liam.harris@hotmail.com"], phones: ["07700 900222"], city: "London", default_currency: "GBP", default_fee: 65 }),
+                        appClient.entities.Client.create({ name: "Ava Martinez", client_type: "student", emails: ["ava.m@outlook.com"], phones: ["07700 900333"], city: "London", default_currency: "GBP", default_fee: 65 }),
+                        appClient.entities.Client.create({ name: "Noah Williams", client_type: "student", emails: ["noah.w@gmail.com"], phones: ["07700 900444"], city: "London", default_currency: "GBP", default_fee: 65 }),
+                        appClient.entities.Client.create({ name: "Jake Thompson", client_type: "student", emails: ["jthompson@yahoo.com"], phones: ["07700 900555"], city: "London", default_currency: "GBP", default_fee: 65 }),
+                        appClient.entities.Client.create({ name: "Emily Foster", client_type: "student", emails: ["emily.foster@gmail.com"], phones: ["07700 900666"], city: "London", default_currency: "GBP", default_fee: 70 }),
+                        appClient.entities.Client.create({ name: "Barclays Corporate Events", client_type: "other", emails: ["events@barclays.com"], phones: ["020 7116 1000"], city: "London", default_currency: "GBP" }),
                       ]);
 
-                      // 2. Create events
-                      const events = await Promise.all([
-                        appClient.entities.WorkEvent.create({ title: "Jazz Night @ Blue Note", event_type: "Gig", status: "confirmed", date: d(3), start_time: "20:00", end_time: "23:00", client_id: venue.id, location_address: "131 W 3rd St, London", fee: 350 }),
-                        appClient.entities.WorkEvent.create({ title: "Corporate Summer Party", event_type: "Gig", status: "confirmed", date: d(8), start_time: "19:30", end_time: "22:30", client_id: agent.id, location_address: "Canary Wharf, London", fee: 800 }),
-                        appClient.entities.WorkEvent.create({ title: "Wedding Reception – Kaur", event_type: "Gig", status: "lead", date: d(18), start_time: "18:00", end_time: "23:00", client_id: agent.id, location_address: "Grand Hotel, Birmingham", fee: 1200 }),
-                        appClient.entities.WorkEvent.create({ title: "Sophie Williams – Piano", event_type: "Lesson", status: "confirmed", date: d(1), start_time: "10:00", end_time: "11:00", client_id: student1.id, fee: 60 }),
-                        appClient.entities.WorkEvent.create({ title: "Sophie Williams – Piano", event_type: "Lesson", status: "confirmed", date: d(8), start_time: "10:00", end_time: "11:00", client_id: student1.id, fee: 60 }),
-                        appClient.entities.WorkEvent.create({ title: "James Chen – Guitar", event_type: "Lesson", status: "confirmed", date: d(2), start_time: "14:00", end_time: "15:00", client_id: student2.id, fee: 55 }),
-                        appClient.entities.WorkEvent.create({ title: "James Chen – Guitar", event_type: "Lesson", status: "completed", date: d(-7), start_time: "14:00", end_time: "15:00", client_id: student2.id, fee: 55 }),
-                        appClient.entities.WorkEvent.create({ title: "Groove Collective – Rehearsal", event_type: "Rehearsal", status: "confirmed", date: d(5), start_time: "15:00", end_time: "18:00", client_id: band.id, fee: 0 }),
-                        appClient.entities.WorkEvent.create({ title: "Private 50th Birthday Party", event_type: "Gig", status: "completed", date: d(-10), start_time: "20:00", end_time: "23:00", client_id: venue.id, location_address: "Shoreditch, London", fee: 500 }),
-                        appClient.entities.WorkEvent.create({ title: "School Assembly Performance", event_type: "Session", status: "completed", date: d(-14), start_time: "09:30", end_time: "10:30", client_id: agent.id, location_address: "St Mary's School, London", fee: 250 }),
+                      // ── 2. Events — dense 2-week schedule from today ────────
+                      const evts = await Promise.all([
+                        // ── Week 1 ──────────────────────────────────────────────
+                        // Sat Mar 28
+                        appClient.entities.WorkEvent.create({ title: "Sophie Williams – Piano", event_type: "Lesson", status: "confirmed", date: d(1), start_time: "10:00", end_time: "11:00", client_id: sophie.id, base_price: 65, total_price: 65, currency: "GBP" }),
+                        appClient.entities.WorkEvent.create({ title: "Liam Harris – Guitar", event_type: "Lesson", status: "confirmed", date: d(1), start_time: "14:00", end_time: "15:00", client_id: liam.id, base_price: 65, total_price: 65, currency: "GBP" }),
+                        appClient.entities.WorkEvent.create({ title: "Wedding Reception – Bennett", event_type: "Gig", status: "confirmed", date: d(1), start_time: "17:30", end_time: "23:00", client_id: agent.id, location_address: "Hampton Court Palace, East Molesey KT8 9AU", base_price: 2200, total_price: 2200, currency: "GBP" }),
+                        // Sun Mar 29
+                        appClient.entities.WorkEvent.create({ title: "Jake Thompson – Piano", event_type: "Lesson", status: "confirmed", date: d(2), start_time: "10:00", end_time: "11:00", client_id: jake.id, base_price: 65, total_price: 65, currency: "GBP" }),
+                        // Mon Mar 30
+                        appClient.entities.WorkEvent.create({ title: "Ava Martinez – Piano", event_type: "Lesson", status: "confirmed", date: d(3), start_time: "11:00", end_time: "12:00", client_id: ava.id, base_price: 65, total_price: 65, currency: "GBP" }),
+                        appClient.entities.WorkEvent.create({ title: "Corporate Lunch – Barclays", event_type: "Session", status: "confirmed", date: d(3), start_time: "12:30", end_time: "14:30", client_id: corp.id, location_address: "1 Churchill Place, Canary Wharf, London", base_price: 450, total_price: 450, currency: "GBP" }),
+                        // Tue Apr 1
+                        appClient.entities.WorkEvent.create({ title: "Emily Foster – Vocals", event_type: "Lesson", status: "confirmed", date: d(5), start_time: "17:00", end_time: "18:00", client_id: emily.id, base_price: 70, total_price: 70, currency: "GBP" }),
+                        appClient.entities.WorkEvent.create({ title: "Jazz Quartet Rehearsal", event_type: "Rehearsal", status: "confirmed", date: d(5), start_time: "19:00", end_time: "22:00", location_address: "Home Studio", base_price: 0, total_price: 0, currency: "GBP" }),
+                        // Wed Apr 2
+                        appClient.entities.WorkEvent.create({ title: "Noah Williams – Guitar", event_type: "Lesson", status: "confirmed", date: d(6), start_time: "16:00", end_time: "17:00", client_id: noah.id, base_price: 65, total_price: 65, currency: "GBP" }),
+                        appClient.entities.WorkEvent.create({ title: "Corporate Dinner – Goldman Sachs", event_type: "Gig", status: "confirmed", date: d(6), start_time: "19:30", end_time: "22:30", client_id: corp.id, location_address: "Goldman Sachs HQ, Plumtree Court, London", base_price: 950, total_price: 950, currency: "GBP" }),
+                        // ── Week 2 ──────────────────────────────────────────────
+                        // Thu Apr 3
+                        appClient.entities.WorkEvent.create({ title: "Music Theory Workshop", event_type: "Session", status: "confirmed", date: d(7), start_time: "10:00", end_time: "13:00", client_id: agent.id, location_address: "Trinity Laban, King Charles Court, London", base_price: 300, total_price: 300, currency: "GBP" }),
+                        // Fri Apr 4
+                        appClient.entities.WorkEvent.create({ title: "Private Party – 50th Birthday", event_type: "Gig", status: "confirmed", date: d(8), start_time: "20:00", end_time: "23:00", client_id: agent.id, location_address: "The Ivy, 1-5 West St, London WC2H 9NQ", base_price: 700, total_price: 700, currency: "GBP" }),
+                        // Sat Apr 5
+                        appClient.entities.WorkEvent.create({ title: "Sophie Williams – Piano", event_type: "Lesson", status: "confirmed", date: d(9), start_time: "10:00", end_time: "11:00", client_id: sophie.id, base_price: 65, total_price: 65, currency: "GBP" }),
+                        appClient.entities.WorkEvent.create({ title: "Liam Harris – Guitar", event_type: "Lesson", status: "confirmed", date: d(9), start_time: "14:00", end_time: "15:00", client_id: liam.id, base_price: 65, total_price: 65, currency: "GBP" }),
+                        appClient.entities.WorkEvent.create({ title: "Jazz Night @ Ronnie Scott's", event_type: "Gig", status: "confirmed", date: d(9), start_time: "21:00", end_time: "23:30", client_id: venue2.id, location_address: "47 Frith St, Soho, London W1D 4HT", base_price: 600, total_price: 600, currency: "GBP" }),
+                        // Sun Apr 6
+                        appClient.entities.WorkEvent.create({ title: "Jake Thompson – Piano", event_type: "Lesson", status: "confirmed", date: d(10), start_time: "11:00", end_time: "12:00", client_id: jake.id, base_price: 65, total_price: 65, currency: "GBP" }),
+                        // Mon Apr 7
+                        appClient.entities.WorkEvent.create({ title: "Ava Martinez – Piano", event_type: "Lesson", status: "confirmed", date: d(11), start_time: "11:00", end_time: "12:00", client_id: ava.id, base_price: 65, total_price: 65, currency: "GBP" }),
+                        // Tue Apr 8
+                        appClient.entities.WorkEvent.create({ title: "Chamber Music Session – Barbican", event_type: "Session", status: "lead", date: d(12), start_time: "14:00", end_time: "16:00", client_id: venue1.id, location_address: "Barbican Centre, Silk St, London EC2Y 8DS", base_price: 380, total_price: 380, currency: "GBP" }),
+                        appClient.entities.WorkEvent.create({ title: "Emily Foster – Vocals", event_type: "Lesson", status: "confirmed", date: d(12), start_time: "17:00", end_time: "18:00", client_id: emily.id, base_price: 70, total_price: 70, currency: "GBP" }),
+                        // Wed Apr 9
+                        appClient.entities.WorkEvent.create({ title: "Noah Williams – Guitar", event_type: "Lesson", status: "confirmed", date: d(13), start_time: "16:00", end_time: "17:00", client_id: noah.id, base_price: 65, total_price: 65, currency: "GBP" }),
+                        appClient.entities.WorkEvent.create({ title: "Corporate Awards Night – KPMG", event_type: "Gig", status: "confirmed", date: d(13), start_time: "19:00", end_time: "22:00", client_id: corp.id, location_address: "KPMG HQ, 15 Canada Square, London E14 5GL", base_price: 1200, total_price: 1200, currency: "GBP" }),
+                        // Thu Apr 10
+                        appClient.entities.WorkEvent.create({ title: "Jazz Quartet – Full Rehearsal", event_type: "Rehearsal", status: "confirmed", date: d(14), start_time: "16:00", end_time: "19:00", location_address: "Home Studio", base_price: 0, total_price: 0, currency: "GBP" }),
+                        // ── Past events (completed/paid) ─────────────────────────
+                        appClient.entities.WorkEvent.create({ title: "Jazz Night @ Blue Note", event_type: "Gig", status: "completed", date: d(-14), start_time: "20:00", end_time: "23:00", client_id: venue1.id, location_address: "131 W 3rd St, London", base_price: 350, total_price: 350, currency: "GBP" }),
+                        appClient.entities.WorkEvent.create({ title: "Liam Harris – Guitar", event_type: "Lesson", status: "completed", date: d(-7), start_time: "14:00", end_time: "15:00", client_id: liam.id, base_price: 65, total_price: 65, currency: "GBP" }),
+                        appClient.entities.WorkEvent.create({ title: "School Workshop – St Mary's", event_type: "Session", status: "completed", date: d(-10), start_time: "09:30", end_time: "11:30", client_id: agent.id, location_address: "St Mary's School, Upper Street, London N1", base_price: 280, total_price: 280, currency: "GBP" }),
                       ]);
 
-                      // 3. Create invoices linked to events + clients
-                      const makeInv = (num, title, clientId, eventId, total, status, dueOffset) => ({
-                        document_type: "invoice",
-                        document_number: `INV-${String(num).padStart(4, "0")}`,
-                        title,
-                        client_id: clientId,
-                        client_name: "",
-                        work_event_id: eventId,
-                        status,
-                        total,
-                        subtotal: total,
-                        currency: "GBP",
-                        due_date: d(dueOffset),
-                        line_items: [{ description: title, quantity: 1, unit_price: total, total }],
-                      });
+                      // ── 3. Invoices — all linked, various statuses ───────────
+                      const inv = (num, title, clientId, eventId, total, status, dueOffset, paidOffset) => {
+                        const base = {
+                          document_type: "invoice",
+                          document_number: `INV-${String(num).padStart(4, "0")}`,
+                          title, client_id: clientId, work_event_id: eventId,
+                          status, total, subtotal: total, currency: "GBP",
+                          due_date: d(dueOffset), is_locked: status !== "draft",
+                          line_items: [{ description: title, quantity: 1, unit_price: total, total }],
+                        };
+                        if (paidOffset !== undefined) { base.paid_date = d(paidOffset); base.paid_amount = total; }
+                        return base;
+                      };
 
                       await Promise.all([
-                        // Paid (old gig)
-                        appClient.entities.Document.create({ ...makeInv(1, "Private 50th Birthday Party", venue.id, events[8].id, 500, "paid", -3), paid_date: d(-3) }),
-                        // Paid (old session)
-                        appClient.entities.Document.create({ ...makeInv(2, "School Assembly Performance", agent.id, events[9].id, 250, "paid", -7), paid_date: d(-7) }),
-                        // Overdue (past lesson, not paid)
-                        appClient.entities.Document.create(makeInv(3, "Guitar Lesson – James Chen", student2.id, events[6].id, 55, "sent", -2)),
-                        // Sent (upcoming gig)
-                        appClient.entities.Document.create(makeInv(4, "Jazz Night @ Blue Note", venue.id, events[0].id, 350, "sent", 30)),
-                        // Draft (upcoming corporate)
-                        appClient.entities.Document.create(makeInv(5, "Corporate Summer Party", agent.id, events[1].id, 800, "draft", 38)),
-                        // Draft (upcoming wedding)
-                        appClient.entities.Document.create(makeInv(6, "Wedding Reception – Kaur", agent.id, events[2].id, 1200, "draft", 48)),
-                        // Draft (lesson invoice)
-                        appClient.entities.Document.create(makeInv(7, "Piano Lessons – Sophie Williams (April)", student1.id, events[3].id, 120, "draft", 14)),
+                        // ── Paid (past) ──
+                        appClient.entities.Document.create(inv(1, "Jazz Night @ Blue Note", venue1.id, evts[22].id, 350, "paid", -7, -10)),
+                        appClient.entities.Document.create(inv(2, "School Workshop – St Mary's", agent.id, evts[24].id, 280, "paid", -3, -5)),
+                        appClient.entities.Document.create(inv(3, "Liam Harris – Guitar (Mar)", liam.id, evts[23].id, 65, "paid", -2, -2)),
+                        // ── Overdue (sent but past due) ──
+                        appClient.entities.Document.create(inv(4, "Sophie Williams – Piano (Mar)", sophie.id, evts[0].id, 130, "sent", -3)),
+                        appClient.entities.Document.create(inv(5, "Jake Thompson – Piano (Mar)", jake.id, evts[3].id, 65, "sent", -1)),
+                        // ── Sent (upcoming, awaiting payment) ──
+                        appClient.entities.Document.create(inv(6, "Wedding Reception – Bennett", agent.id, evts[2].id, 2200, "sent", 14)),
+                        appClient.entities.Document.create(inv(7, "Corporate Lunch – Barclays", corp.id, evts[5].id, 450, "sent", 21)),
+                        appClient.entities.Document.create(inv(8, "Corporate Dinner – Goldman Sachs", corp.id, evts[9].id, 950, "sent", 28)),
+                        appClient.entities.Document.create(inv(9, "Jazz Night @ Ronnie Scott's", venue2.id, evts[14].id, 600, "sent", 21)),
+                        // ── Draft (need to send) ──
+                        appClient.entities.Document.create(inv(10, "Private Party – 50th Birthday", agent.id, evts[11].id, 700, "draft", 30)),
+                        appClient.entities.Document.create(inv(11, "Corporate Awards Night – KPMG", corp.id, evts[20].id, 1200, "draft", 30)),
+                        appClient.entities.Document.create(inv(12, "Music Theory Workshop", agent.id, evts[10].id, 300, "draft", 21)),
+                        appClient.entities.Document.create(inv(13, "Liam Harris – Guitar (Apr)", liam.id, evts[1].id, 130, "draft", 14)),
+                        appClient.entities.Document.create(inv(14, "Ava Martinez – Piano (Apr)", ava.id, evts[4].id, 130, "draft", 14)),
+                        appClient.entities.Document.create(inv(15, "Noah Williams – Guitar (Apr)", noah.id, evts[8].id, 130, "draft", 14)),
+                        appClient.entities.Document.create(inv(16, "Emily Foster – Vocals (Apr)", emily.id, evts[6].id, 140, "draft", 14)),
+                        appClient.entities.Document.create(inv(17, "Chamber Music – Barbican", venue1.id, evts[17].id, 380, "draft", 21)),
                       ]);
 
                       setTestImporting(null);
@@ -686,7 +727,7 @@ export default function AppSettings() {
                   {testImporting === "connected" ? "Creating…" : testImported === "connected" ? "✓ Demo Data Loaded!" : "✨ Load Connected Demo Data"}
                 </button>
                 {testImported === "connected" && (
-                  <p className="text-[11px] text-gray-500 text-center">5 clients · 10 events · 7 invoices · all linked</p>
+                  <p className="text-[11px] text-gray-500 text-center">10 clients · 25 events · 17 invoices · full 2-week schedule</p>
                 )}
 
                 <button

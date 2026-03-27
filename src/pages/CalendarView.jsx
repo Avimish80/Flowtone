@@ -108,7 +108,7 @@ export default function CalendarView() {
   const [currentStr, setCurrentStr] = usePageState("calendar_current", new Date().toISOString());
   const current    = useMemo(() => new Date(currentStr), [currentStr]);
   const setCurrent = (d) => setCurrentStr(d instanceof Date ? d.toISOString() : d);
-  const [selectedDay, setSelectedDay] = useState(null); // for month click → day detail
+  const [selectedDay, setSelectedDay] = useState(new Date()); // for month click → day detail
   const [settings, setSettings] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
   const [filterStatus, setFilterStatus] = useState("all");
@@ -144,7 +144,7 @@ export default function CalendarView() {
     else                       setCurrent(dir > 0 ? addDays(current, 1)   : subDays(current, 1));
   };
 
-  const goToday = () => { setCurrent(new Date()); setSelectedDay(null); };
+  const goToday = () => { const t = new Date(); setCurrent(t); setSelectedDay(t); };
 
   const headerLabel = () => {
     if (view === "month") return format(current, "MMMM yyyy");
@@ -204,12 +204,7 @@ export default function CalendarView() {
                 key={day.toISOString()}
                 onClick={() => {
                   if (!inMonth) return;
-                  const dayEvts = eventsOnDay(day);
-                  if (dayEvts.length === 1) {
-                    navigate(createPageUrl(`WorkEventDetail?id=${dayEvts[0].id}`));
-                  } else {
-                    setSelectedDay(isSameDay(day, selectedDay) ? null : day);
-                  }
+                  setSelectedDay(isSameDay(day, selectedDay) ? null : day);
                 }}
                 className={`flex flex-col items-center justify-start py-1.5 cursor-pointer transition-colors h-12
                   ${!inMonth ? "opacity-20" : ""}`}

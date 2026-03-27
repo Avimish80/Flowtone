@@ -5,7 +5,7 @@ import { createPageUrl, currencySymbol } from "@/utils";
 import { useGoBack } from "@/hooks/useGoBack";
 import {
   ArrowLeft, Save, Trash2, Plus, X, AlertTriangle, Send, CheckCircle2,
-  XCircle, Clock, CalendarDays, Loader2, ExternalLink,
+  XCircle, Clock, CalendarDays, Loader2, ExternalLink, ChevronDown,
   Lock, Unlock, ArrowRightLeft, Printer, Mail,
 } from "lucide-react";
 import { format, addDays, parseISO } from "date-fns";
@@ -64,7 +64,8 @@ export default function DocumentDetail() {
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const [sendingEmail, setSendingEmail] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [newItem, setNewItem] = useState({ description: "", quantity: 1, unit_price: 0 });
+  const [newItem, setNewItem] = useState({ description: "", quantity: 1, unit_price: "" });
+  const [editingItem, setEditingItem] = useState(null); // idx of line item being edited inline
   const [showEmailDialog, setShowEmailDialog] = useState(false);
   const [emailTo, setEmailTo] = useState("");
   const [saveError, setSaveError] = useState("");
@@ -72,6 +73,8 @@ export default function DocumentDetail() {
   const [unlockReason, setUnlockReason] = useState("");
   const [quickSending, setQuickSending] = useState(false);
   const [quickSent, setQuickSent] = useState(false);
+  const [linkingType, setLinkingType] = useState(null);
+  const [showDetails, setShowDetails] = useState(false); // "event" | "client" | null — for new invoice tile picker
 
   // Available events for new invoice
   const [availableEvents, setAvailableEvents] = useState([]);
@@ -180,15 +183,15 @@ export default function DocumentDetail() {
     }).catch(() => setLoading(false));
   }, [id]);
 
-  // Load available events for new invoice (show all events)
+  // Load available events for linking (all invoice pages)
   useEffect(() => {
-    if (!isNew || !isInvoice) return;
+    if (!isInvoice) return;
     setLoadingEvents(true);
     appClient.entities.WorkEvent.list("-date").then(events => {
       setAvailableEvents(events);
       setLoadingEvents(false);
     }).catch(() => setLoadingEvents(false));
-  }, [isNew, isInvoice]);
+  }, [isInvoice]);
 
   const clientName = useMemo(() => {
     const cid = linkedEvent?.client_id || doc.client_id;
@@ -355,15 +358,29 @@ export default function DocumentDetail() {
 
   const addLineItem = () => {
     if (!newItem.description) return;
-    const item = { ...newItem, total: (newItem.quantity || 1) * (newItem.unit_price || 0) };
+    const price = parseFloat(newItem.unit_price) || 0;
+    const qty = newItem.quantity || 1;
+    const item = { description: newItem.description, quantity: qty, unit_price: price, total: qty * price };
     const updated = [...(doc.line_items || []), item];
     const totals = recalcTotals(updated, doc.discount_type, doc.discount_value, doc.tax_rate);
     setDoc(prev => ({ ...prev, line_items: updated, ...totals }));
-    setNewItem({ description: "", quantity: 1, unit_price: 0 });
+    setNewItem({ description: "", quantity: 1, unit_price: "" });
   };
 
   const removeLineItem = (idx) => {
     const updated = (doc.line_items || []).filter((_, i) => i !== idx);
+    const totals = recalcTotals(updated, doc.discount_type, doc.discount_value, doc.tax_rate);
+    setDoc(prev => ({ ...prev, line_items: updated, ...totals }));
+    if (editingItem === idx) setEditingItem(null);
+  };
+
+  const updateLineItem = (idx, field, value) => {
+    const updated = (doc.line_items || []).map((item, i) => {
+      if (i !== idx) return item;
+      const next = { ...item, [field]: field === "description" ? value : (parseFloat(value) || 0) };
+      next.total = (next.quantity || 1) * (next.unit_price || 0);
+      return next;
+    });
     const totals = recalcTotals(updated, doc.discount_type, doc.discount_value, doc.tax_rate);
     setDoc(prev => ({ ...prev, line_items: updated, ...totals }));
   };
@@ -684,6 +701,34 @@ export default function DocumentDetail() {
   };
 
   const sym = currencySymbol(doc.currency);
+
+  // Normalize a stored date string to yyyy-MM-dd for <input type="date">
+  const safeDateValue = (v) => {
+    if (!v) return "";
+    try {
+      const d = new Date(v);
+      const year = d.getFullYear();
+      if (isNaN(d.getTime()) || year < 1970 || year > 2100) return "";
+      return format(d, "yyyy-MM-dd");
+    } catch { return ""; }
+  };
+
+  // Save then navigate back
+  const handleGoBack = async () => {
+    if (id && doc.title?.trim() && !doc.is_locked) {
+      try { await appClient.entities.Document.update(id, doc); } catch {}
+    }
+    goBack();
+  };
+
+  const statusIsOverdue = doc.status === "sent" && doc.due_date && new Date(doc.due_date) < new Date();
+  const statusLabel = statusIsOverdue ? "Overdue" : doc.status;
+  const statusPillClass = statusIsOverdue
+    ? "bg-red-950/60 border-red-700/40 text-red-300"
+    : doc.status === "paid" ? "bg-green-950/40 border-green-700/30 text-green-400"
+    : doc.status === "sent" ? "bg-blue-950/40 border-blue-700/30 text-blue-400"
+    : doc.status === "cancelled" || doc.status === "void" ? "bg-gray-800 border-gray-700 text-gray-500"
+    : "bg-gray-800/60 border-gray-700/40 text-gray-500"; // draft
   // Enrich doc with client_name for templates
   const docForPrint = useMemo(() => ({
     ...doc,
@@ -720,13 +765,18 @@ export default function DocumentDetail() {
     <div className="max-w-xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3 bg-gray-900 sticky top-0 z-20 border-b border-gray-800">
-        <button onClick={goBack} className="text-gray-400 hover:text-white transition-colors">
+        <button onClick={handleGoBack} className="text-gray-400 hover:text-white transition-colors flex items-center gap-1.5">
           <ArrowLeft className="w-5 h-5" />
+          <span className="text-sm text-gray-500">{typeLabel}</span>
+          {doc.is_locked && <Lock className="w-3.5 h-3.5 text-yellow-500" />}
         </button>
-        <h1 className="flex-1 font-semibold text-white truncate">
-          {doc.title || `New ${typeLabel}`}
-          {doc.is_locked && <Lock className="w-3.5 h-3.5 inline ml-2 text-yellow-500" />}
-        </h1>
+        <div className="flex-1 flex justify-center">
+          {id && isInvoice && (
+            <span className={`text-xs font-semibold px-3 py-1.5 rounded-full border capitalize ${statusPillClass}`}>
+              {statusLabel}
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           {id && (
             <>
@@ -892,77 +942,6 @@ export default function DocumentDetail() {
           </div>
         )}
 
-        {/* ─── Invoice Status Actions ─────────────────────────────── */}
-        {id && isInvoice && (
-          <div className="space-y-2 border border-gray-700 rounded-xl p-3 bg-gray-800/40">
-            <div className={`rounded-xl px-3 py-2.5 flex items-center gap-2 text-sm
-              ${doc.status === "paid" ? "bg-green-950/50 border border-green-700/40 text-green-300" :
-                doc.status === "cancelled" || doc.status === "void" ? "bg-gray-800/80 border border-gray-600/40 text-gray-400" :
-                doc.status === "sent" && doc.due_date && new Date(doc.due_date) < new Date() ? "bg-red-950/50 border border-red-700/40 text-red-300" :
-                doc.status === "sent" ? "bg-blue-950/50 border border-blue-700/40 text-blue-300" :
-                "bg-gray-800/50 border border-gray-700/40 text-gray-400"}`}>
-              {doc.status === "paid" && <CheckCircle2 className="w-4 h-4" />}
-              {(doc.status === "cancelled" || doc.status === "void") && <XCircle className="w-4 h-4" />}
-              {doc.status === "sent" && doc.due_date && new Date(doc.due_date) < new Date() && <Clock className="w-4 h-4" />}
-              {doc.status === "sent" && !(doc.due_date && new Date(doc.due_date) < new Date()) && <Send className="w-4 h-4" />}
-              <span className="capitalize font-medium">
-                {doc.status === "sent" && doc.due_date && new Date(doc.due_date) < new Date() ? "Overdue" : doc.status}
-              </span>
-              {doc.status === "paid" && doc.paid_date && (
-                <>
-                  <span className="text-green-500/60 mx-1">·</span>
-                  <span>Paid on {format(new Date(doc.paid_date), "d MMM yyyy")}</span>
-                </>
-              )}
-              {doc.status === "paid" && doc.paid_amount != null && (
-                <span className="ml-auto font-semibold">{sym}{Number(doc.paid_amount).toFixed(2)}</span>
-              )}
-              {doc.document_number && (
-                <span className="ml-auto text-xs opacity-60">#{doc.document_number}</span>
-              )}
-            </div>
-
-            {doc.status === "paid" && (
-              <div className="flex items-center gap-2">
-                <label className="text-xs text-gray-400 flex-shrink-0">Date paid:</label>
-                <input
-                  type="date"
-                  className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none focus:border-indigo-500"
-                  value={doc.paid_date || ""}
-                  onChange={e => onChange("paid_date", e.target.value)}
-                />
-              </div>
-            )}
-
-            <div className="flex gap-2 flex-wrap">
-              {doc.status === "draft" && (
-                <button onClick={handleMarkSent} className="flex-1 bg-blue-600 hover:bg-blue-500 text-white rounded-xl py-2.5 text-sm font-medium flex items-center justify-center gap-2 transition-colors">
-                  <Send className="w-4 h-4" /> Mark Sent
-                </button>
-              )}
-              {(doc.status === "sent" || doc.status === "draft") && (
-                <button onClick={handleMarkPaid} className="flex-1 bg-green-600 hover:bg-green-500 text-white rounded-xl py-2.5 text-sm font-medium flex items-center justify-center gap-2 transition-colors">
-                  <CheckCircle2 className="w-4 h-4" /> Mark Paid
-                </button>
-              )}
-              {doc.status === "paid" && (
-                <button onClick={handleMarkUnpaid} className="flex-1 bg-gray-700 hover:bg-gray-600 text-white rounded-xl py-2.5 text-sm font-medium flex items-center justify-center gap-2 transition-colors">
-                  <XCircle className="w-4 h-4" /> Mark Unpaid
-                </button>
-              )}
-              {doc.status !== "cancelled" && doc.status !== "void" && (
-                <button onClick={handleMarkCancelled} className="bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-xl py-2.5 px-4 text-sm font-medium flex items-center gap-2 transition-colors">
-                  <XCircle className="w-4 h-4" /> Cancel
-                </button>
-              )}
-              {(doc.status === "cancelled" || doc.status === "void") && (
-                <button onClick={handleReopenDraft} className="flex-1 bg-gray-700 hover:bg-gray-600 text-white rounded-xl py-2.5 text-sm font-medium flex items-center justify-center gap-2 transition-colors">
-                  Reopen as Draft
-                </button>
-              )}
-            </div>
-          </div>
-        )}
 
         {/* ─── Estimate Status Actions ────────────────────────────── */}
         {id && isEstimate && (
@@ -1013,88 +992,7 @@ export default function DocumentDetail() {
           </div>
         )}
 
-        {/* ─── NEW INVOICE: Event Dropdown ────────────────────────── */}
-        {isInvoice && isNew && (
-          <>
-            <div>
-              <label className="text-xs text-gray-400 mb-1 block">Event</label>
-              {loadingEvents ? (
-                <div className="flex items-center gap-2 py-2 text-gray-400 text-sm">
-                  <Loader2 className="w-4 h-4 animate-spin" /> Loading events...
-                </div>
-              ) : (
-                <select
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
-                  value={doc.work_event_id || ""}
-                  onChange={e => handleEventDropdownChange(e.target.value)}
-                >
-                  <option value="">No event (standalone)</option>
-                  {availableEvents.map(evt => {
-                    const evtClient = clientMap[evt.client_id]?.name || "";
-                    const dateStr = evt.date ? format(parseISO(evt.date), "d MMM yyyy") : "";
-                    return (
-                      <option key={evt.id} value={evt.id}>
-                        {evt.title}{dateStr ? ` — ${dateStr}` : ""}{evtClient ? ` — ${evtClient}` : ""}
-                      </option>
-                    );
-                  })}
-                  <option value="__new_event__">+ Create New Event</option>
-                </select>
-              )}
-            </div>
 
-            {/* Show Edit Event link when event is selected */}
-            {doc.work_event_id && linkedEvent && (
-              <div className="flex items-center gap-2 -mt-2">
-                <span className="text-xs text-gray-500">
-                  {clientName && <>Client: <span className="text-gray-300">{clientName}</span> · </>}
-                </span>
-                <a
-                  href={createPageUrl(`WorkEventDetail?id=${linkedEvent.id}`)}
-                  className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 transition-colors"
-                >
-                  <ExternalLink className="w-3 h-3" /> Edit Event
-                </a>
-              </div>
-            )}
-
-            {/* Client dropdown only when standalone */}
-            {!doc.work_event_id && (
-              <div>
-                <label className="text-xs text-gray-400 mb-1 block">Client</label>
-                {renderClientSelect(doc.client_id, null, false, "invoice")}
-              </div>
-            )}
-          </>
-        )}
-
-        {/* ─── EXISTING INVOICE: Compact Event Line ───────────────── */}
-        {isInvoice && !isNew && linkedEvent && (
-          <div className="flex items-center gap-2 bg-gray-800/60 rounded-lg px-3 py-2.5">
-            <CalendarDays className="w-4 h-4 text-indigo-400 flex-shrink-0" />
-            <span className="text-sm text-white truncate flex-1">
-              {linkedEvent.title}
-              {linkedEvent.date && (
-                <span className="text-gray-400"> — {(() => { try { return format(parseISO(linkedEvent.date), "d MMM yyyy"); } catch { return linkedEvent.date; } })()}</span>
-              )}
-              {clientName && <span className="text-gray-400"> — {clientName}</span>}
-            </span>
-            <a
-              href={createPageUrl(`WorkEventDetail?id=${linkedEvent.id}`)}
-              className="text-xs text-indigo-400 hover:text-indigo-300 bg-indigo-500/15 hover:bg-indigo-500/25 px-2.5 py-1 rounded-md flex items-center gap-1 flex-shrink-0 transition-colors"
-            >
-              <ExternalLink className="w-3 h-3" /> Edit Event
-            </a>
-          </div>
-        )}
-
-        {/* ─── EXISTING STANDALONE INVOICE: Client Dropdown ─────── */}
-        {isInvoice && !isNew && !linkedEvent && (
-          <div>
-            <label className="text-xs text-gray-400 mb-1 block">Client</label>
-            {renderClientSelect(doc.client_id, null, doc.is_locked, "invoice")}
-          </div>
-        )}
 
         {/* ─── ESTIMATE: Client + Valid Until ─────────────────────── */}
         {isEstimate && (
@@ -1116,179 +1014,304 @@ export default function DocumentDetail() {
           </div>
         )}
 
-        {/* ─── Title + Due Date / Valid Until (same row) ──────────── */}
-        {isInvoice ? (
-          <div className="grid grid-cols-3 gap-3">
-            <div className="col-span-2">
-              <label className="text-xs text-gray-400 mb-1 block">Invoice Title *</label>
+        {/* ── Unified Invoice Card: Title · Items · Total ────────── */}
+        <div className="rounded-2xl border border-gray-700/60 bg-gray-800/30 overflow-hidden">
+
+          {/* Card Header: Title · Status · Date · Actions · Link */}
+          <div className="px-4 pt-4 pb-3 border-b border-gray-700/40 space-y-2.5">
+
+            {/* Row 1: Title + Due date on same line */}
+            <div className="flex items-center gap-3">
               <input
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500"
-                placeholder="e.g. Gig at The Roundhouse"
+                className="flex-1 min-w-0 bg-transparent text-white text-base font-semibold placeholder-gray-600 focus:outline-none"
+                placeholder={isInvoice ? "Invoice title…" : "Estimate title…"}
                 value={doc.title || ""}
                 onChange={e => onChange("title", e.target.value)}
                 disabled={doc.is_locked}
               />
-            </div>
-            <div>
-              <label className="text-xs text-gray-400 mb-1 block">Due Date</label>
-              <input
-                type="date"
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
-                value={doc.due_date || ""}
-                onChange={e => onChange("due_date", e.target.value)}
-                disabled={doc.is_locked}
-              />
-            </div>
-          </div>
-        ) : (
-          <div>
-            <label className="text-xs text-gray-400 mb-1 block">Estimate Title *</label>
-            <input
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500"
-              placeholder="e.g. Quote for Saturday gig"
-              value={doc.title || ""}
-              onChange={e => onChange("title", e.target.value)}
-              disabled={doc.is_locked}
-            />
-          </div>
-        )}
-
-        {/* Doc# + Currency */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-xs text-gray-400 mb-1 block">{typeLabel} #</label>
-            <input
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500"
-              placeholder="Auto-generated"
-              value={doc.document_number || ""}
-              onChange={e => onChange("document_number", e.target.value)}
-              disabled={doc.is_locked || !id}
-            />
-          </div>
-          <div>
-            <label className="text-xs text-gray-400 mb-1 block">Currency</label>
-            <select
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
-              value={doc.currency || "GBP"}
-              onChange={e => onChange("currency", e.target.value)}
-              disabled={doc.is_locked}
-            >
-              {CURRENCIES.map(c => <option key={c}>{c}</option>)}
-            </select>
-          </div>
-        </div>
-
-        {/* Line Items */}
-        <div>
-          <label className="text-xs text-gray-400 mb-2 block">Line Items</label>
-          <div className="space-y-2 mb-3">
-            {(doc.line_items || []).map((item, idx) => (
-              <div key={idx} className="bg-gray-800 rounded-lg p-3 flex items-center gap-2">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-white">{item.description}</p>
-                  <p className="text-xs text-gray-500">{item.quantity} × {sym}{item.unit_price}</p>
+              {isInvoice && doc.status === "paid" ? (
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <span className="text-xs text-green-600">Paid</span>
+                  <input
+                    type="date"
+                    className="bg-gray-800/60 border border-green-800/40 rounded-lg px-2 py-1 text-green-400 text-xs focus:outline-none focus:border-green-600 transition-colors"
+                    value={safeDateValue(doc.paid_date) || format(new Date(), "yyyy-MM-dd")}
+                    onChange={e => onChange("paid_date", e.target.value)}
+                  />
                 </div>
-                <span className="text-sm font-medium text-indigo-300">{sym}{((item.quantity || 0) * (item.unit_price || 0)).toFixed(2)}</span>
+              ) : (
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <span className="text-xs text-gray-600">{isInvoice ? "Due" : "Until"}</span>
+                  <input
+                    type="date"
+                    className="bg-gray-800/60 border border-gray-700/50 rounded-lg px-2 py-1 text-gray-400 text-xs focus:outline-none focus:border-indigo-500 focus:text-white transition-colors"
+                    value={safeDateValue(isInvoice ? doc.due_date : doc.valid_until)}
+                    onChange={e => onChange(isInvoice ? "due_date" : "valid_until", e.target.value)}
+                    disabled={doc.is_locked}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Row 2: Action buttons + status pill — all right-aligned */}
+            {isInvoice && (
+              <div className="flex items-center justify-end gap-2 flex-wrap">
                 {!doc.is_locked && (
-                  <button onClick={() => removeLineItem(idx)} className="text-gray-600 hover:text-red-400 transition-colors"><X className="w-4 h-4" /></button>
+                  <>
+                    {doc.status === "draft" && (
+                      <button onClick={handleMarkSent}
+                        className="text-xs bg-blue-600/15 text-blue-400 hover:bg-blue-600/30 border border-blue-700/30 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors">
+                        <Send className="w-3 h-3" /> Mark sent
+                      </button>
+                    )}
+                    {(doc.status === "sent" || doc.status === "draft") && (
+                      <button onClick={handleMarkPaid}
+                        className="text-xs bg-green-600/15 text-green-400 hover:bg-green-600/30 border border-green-700/30 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors">
+                        <CheckCircle2 className="w-3 h-3" /> Mark paid
+                      </button>
+                    )}
+                    {doc.status === "paid" && (
+                      <button onClick={handleMarkUnpaid}
+                        className="text-xs bg-gray-700/50 text-gray-400 hover:bg-gray-700 border border-gray-700/40 px-3 py-1.5 rounded-lg transition-colors">
+                        Mark unpaid
+                      </button>
+                    )}
+                    {doc.status !== "cancelled" && doc.status !== "void" && doc.status !== "paid" && (
+                      <button onClick={handleMarkCancelled}
+                        className="text-xs text-gray-600 hover:text-red-400 transition-colors">
+                        Cancel
+                      </button>
+                    )}
+                    {(doc.status === "cancelled" || doc.status === "void") && (
+                      <button onClick={handleReopenDraft}
+                        className="text-xs bg-gray-700/50 text-gray-400 hover:bg-gray-700 border border-gray-700/40 px-3 py-1.5 rounded-lg transition-colors">
+                        Reopen as draft
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
-            ))}
+            )}
+
+            {/* Event / Client link — or inline tile picker if neither is set */}
+            {isInvoice && (
+              linkedEvent ? (
+                <span className="flex items-center gap-1">
+                  <a
+                    href={createPageUrl(`WorkEventDetail?id=${linkedEvent.id}`)}
+                    className="flex items-center gap-1 text-xs text-indigo-400/60 hover:text-indigo-300 transition-colors"
+                    onClick={e => e.stopPropagation()}
+                  >
+                    <ExternalLink className="w-3 h-3" />
+                    {linkedEvent.title}
+                    {linkedEvent.date && (
+                      <span className="text-indigo-400/40">
+                        {" · "}{(() => { try { return format(parseISO(linkedEvent.date), "d MMM"); } catch { return ""; } })()}
+                      </span>
+                    )}
+                  </a>
+                  {!doc.is_locked && (
+                    <button onClick={e => { e.stopPropagation(); handleSelectEvent(""); }}
+                      className="text-gray-600 hover:text-red-400 transition-colors ml-0.5" title="Unlink event">
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </span>
+              ) : clientName ? (
+                <span className="flex items-center gap-1 text-xs text-gray-600">
+                  <span className="w-1.5 h-1.5 rounded-full bg-gray-600 inline-block" />
+                  {clientName}
+                  {!doc.is_locked && (
+                    <button onClick={e => { e.stopPropagation(); onChange("client_id", ""); }}
+                      className="text-gray-600 hover:text-red-400 transition-colors ml-0.5" title="Unlink client">
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </span>
+              ) : !doc.is_locked && (
+                linkingType === null ? (
+                  <div className="grid grid-cols-2 gap-2 pt-0.5">
+                    <button onClick={() => setLinkingType("event")}
+                      className="rounded-xl p-3 text-left border bg-indigo-950/30 border-indigo-800/20 hover:bg-indigo-950/50 transition-all">
+                      <CalendarDays className="w-3.5 h-3.5 text-indigo-400 mb-1.5" />
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-400 mb-0.5">Event</p>
+                      <p className="text-[10px] text-indigo-300/60">
+                        {loadingEvents ? "Loading…" : `${availableEvents.length} available`}
+                      </p>
+                    </button>
+                    <button onClick={() => setLinkingType("client")}
+                      className="rounded-xl p-3 text-left border bg-gray-800/60 border-gray-700/40 hover:bg-gray-700/50 transition-all">
+                      <div className="w-3.5 h-3.5 mb-1.5 text-gray-400">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+                        </svg>
+                      </div>
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Client</p>
+                      <p className="text-[10px] text-gray-600">{clients.length} contacts</p>
+                    </button>
+                  </div>
+                ) : linkingType === "event" ? (
+                  <div className="rounded-xl border border-indigo-800/30 bg-indigo-950/20 overflow-hidden">
+                    <div className="flex items-center justify-between px-3 py-2.5 border-b border-indigo-800/20">
+                      <p className="text-sm font-medium text-indigo-300">Choose an event</p>
+                      <button onClick={() => setLinkingType(null)} className="text-gray-500 hover:text-gray-300 transition-colors"><X className="w-4 h-4" /></button>
+                    </div>
+                    <div className="max-h-48 overflow-y-auto divide-y divide-indigo-900/30">
+                      {availableEvents.map(evt => {
+                        const evtClient = clientMap[evt.client_id]?.name || "";
+                        const dateStr = evt.date ? (() => { try { return format(parseISO(evt.date), "d MMM"); } catch { return ""; } })() : "";
+                        return (
+                          <button key={evt.id} onClick={() => { handleSelectEvent(evt.id); setLinkingType(null); }}
+                            className="w-full text-left px-3 py-2.5 hover:bg-indigo-900/30 transition-colors">
+                            <p className="text-sm text-white">{evt.title}</p>
+                            <p className="text-xs text-gray-500">{[dateStr, evtClient].filter(Boolean).join(" · ")}</p>
+                          </button>
+                        );
+                      })}
+                      <button onClick={() => { handleEventDropdownChange("__new_event__"); setLinkingType(null); }}
+                        className="w-full text-left px-3 py-2.5 text-indigo-400 hover:bg-indigo-900/20 text-sm transition-colors flex items-center gap-2">
+                        <Plus className="w-3.5 h-3.5" /> Create new event
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-gray-700/40 bg-gray-800/40 overflow-hidden">
+                    <div className="flex items-center justify-between px-3 py-2.5 border-b border-gray-700/30">
+                      <p className="text-sm font-medium text-white">Choose a client</p>
+                      <button onClick={() => setLinkingType(null)} className="text-gray-500 hover:text-gray-300 transition-colors"><X className="w-4 h-4" /></button>
+                    </div>
+                    <div className="max-h-48 overflow-y-auto divide-y divide-gray-700/20">
+                      {clients.map(c => (
+                        <button key={c.id} onClick={() => { handleClientDropdownChange(c.id); setLinkingType(null); }}
+                          className="w-full text-left px-3 py-2.5 hover:bg-gray-700/30 transition-colors">
+                          <p className="text-sm text-white">{c.name}</p>
+                          {c.client_type && <p className="text-xs text-gray-500 capitalize">{c.client_type}</p>}
+                        </button>
+                      ))}
+                      <button onClick={() => { handleClientDropdownChange("__new_client__"); setLinkingType(null); }}
+                        className="w-full text-left px-3 py-2.5 text-indigo-400 hover:bg-gray-700/20 text-sm transition-colors flex items-center gap-2">
+                        <Plus className="w-3.5 h-3.5" /> Add new client
+                      </button>
+                    </div>
+                  </div>
+                )
+              )
+            )}
           </div>
 
+          {/* Line items list */}
+          <div className="divide-y divide-gray-700/30">
+            {(doc.line_items || []).length === 0 && (
+              <p className="px-4 py-4 text-sm text-gray-600 italic">No items yet — add one below</p>
+            )}
+            {(doc.line_items || []).map((item, idx) =>
+              editingItem === idx ? (
+                /* ─ Inline edit mode ─ */
+                <div key={idx} className="flex items-center gap-2 px-4 py-3 bg-gray-800/70">
+                  <input
+                    autoFocus
+                    className="flex-1 bg-gray-700/60 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 min-w-0"
+                    value={item.description}
+                    onChange={e => updateLineItem(idx, "description", e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter") setEditingItem(null); }}
+                  />
+                  <div className="flex items-center bg-gray-700/60 rounded-lg px-2.5 py-1.5 gap-1 w-28 flex-shrink-0">
+                    <span className="text-gray-400 text-sm">{sym}</span>
+                    <input
+                      type="number"
+                      className="w-full bg-transparent text-white text-sm focus:outline-none"
+                      value={item.unit_price}
+                      onChange={e => updateLineItem(idx, "unit_price", e.target.value)}
+                      onKeyDown={e => { if (e.key === "Enter") setEditingItem(null); }}
+                    />
+                  </div>
+                  <button onClick={() => setEditingItem(null)}
+                    className="text-indigo-400 hover:text-indigo-300 text-xs font-medium px-1 flex-shrink-0 transition-colors">
+                    Done
+                  </button>
+                </div>
+              ) : (
+                /* ─ Display mode (tap to edit) ─ */
+                <div key={idx}
+                  className={`flex items-center gap-3 px-4 py-3 ${!doc.is_locked ? "cursor-pointer active:bg-gray-700/40" : ""}`}
+                  onClick={() => { if (!doc.is_locked) setEditingItem(idx); }}
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-white">{item.description}</p>
+                    {item.quantity !== 1 && (
+                      <p className="text-xs text-gray-500">{item.quantity} ×  {sym}{(item.unit_price || 0).toFixed(2)}</p>
+                    )}
+                  </div>
+                  <span className="text-sm font-semibold text-white flex-shrink-0">
+                    {sym}{((item.quantity || 1) * (item.unit_price || 0)).toFixed(2)}
+                  </span>
+                  {!doc.is_locked && (
+                    <button onClick={e => { e.stopPropagation(); removeLineItem(idx); }}
+                      className="text-gray-600 hover:text-red-400 flex-shrink-0 transition-colors">
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              )
+            )}
+          </div>
+
+          {/* Add item row */}
           {!doc.is_locked && (
-            <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-3 space-y-2">
+            <div className="flex items-center gap-2 px-4 py-3 border-t border-gray-700/40">
               <input
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-indigo-500"
-                placeholder="Description"
+                className="flex-1 bg-transparent text-white text-sm placeholder-gray-600 focus:outline-none min-w-0"
+                placeholder="Add item…"
                 value={newItem.description}
                 onChange={e => setNewItem(p => ({ ...p, description: e.target.value }))}
                 onKeyDown={e => { if (e.key === "Enter") addLineItem(); }}
               />
-              <div className="flex gap-2">
+              <div className="flex items-center bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-1.5 gap-1 w-28 flex-shrink-0">
+                <span className="text-gray-500 text-sm">{sym}</span>
                 <input
                   type="number"
-                  className="w-20 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500"
-                  placeholder="Qty"
-                  value={newItem.quantity}
-                  onChange={e => setNewItem(p => ({ ...p, quantity: parseFloat(e.target.value) || 1 }))}
-                />
-                <input
-                  type="number"
-                  className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500"
-                  placeholder="Unit price"
+                  className="w-full bg-transparent text-white text-sm focus:outline-none"
+                  placeholder="0.00"
                   value={newItem.unit_price}
-                  onChange={e => setNewItem(p => ({ ...p, unit_price: parseFloat(e.target.value) || 0 }))}
+                  onChange={e => setNewItem(p => ({ ...p, unit_price: e.target.value }))}
+                  onKeyDown={e => { if (e.key === "Enter") addLineItem(); }}
                 />
-                <button onClick={addLineItem} className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg px-3 py-2 transition-colors">
-                  <Plus className="w-4 h-4" />
-                </button>
               </div>
+              <button onClick={addLineItem} disabled={!newItem.description}
+                className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-30 text-white rounded-lg p-2 flex-shrink-0 transition-colors">
+                <Plus className="w-4 h-4" />
+              </button>
             </div>
           )}
-        </div>
 
-        {/* Discount & Tax */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-xs text-gray-400 mb-1 block">Discount</label>
-            <div className="flex gap-1">
-              <select
-                className="w-24 bg-gray-800 border border-gray-700 rounded-lg px-2 py-2 text-white text-sm focus:outline-none focus:border-indigo-500"
-                value={doc.discount_type || ""}
-                onChange={e => updateDiscountOrTax("discount_type", e.target.value || null)}
-                disabled={doc.is_locked}
-              >
-                <option value="">None</option>
-                <option value="percentage">%</option>
-                <option value="fixed">Fixed</option>
-              </select>
-              {doc.discount_type && (
-                <input
-                  type="number"
-                  className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500"
-                  value={doc.discount_value || ""}
-                  onChange={e => updateDiscountOrTax("discount_value", parseFloat(e.target.value) || 0)}
-                  disabled={doc.is_locked}
-                  placeholder={doc.discount_type === "percentage" ? "%" : sym}
-                />
-              )}
+          {/* Total footer */}
+          <div className="px-4 py-4 border-t border-gray-700/40 bg-gray-800/50">
+            {(doc.discount_amount > 0 || doc.tax_amount > 0) && (
+              <div className="space-y-1 mb-3">
+                {doc.discount_amount > 0 && (
+                  <div className="flex justify-between text-xs text-gray-500">
+                    <span>Subtotal</span><span>{sym}{(doc.subtotal || 0).toFixed(2)}</span>
+                  </div>
+                )}
+                {doc.discount_amount > 0 && (
+                  <div className="flex justify-between text-xs text-gray-500">
+                    <span>Discount {doc.discount_type === "percentage" ? `(${doc.discount_value}%)` : ""}</span>
+                    <span>−{sym}{(doc.discount_amount || 0).toFixed(2)}</span>
+                  </div>
+                )}
+                {doc.tax_amount > 0 && (
+                  <div className="flex justify-between text-xs text-gray-500">
+                    <span>Tax ({doc.tax_rate}%)</span>
+                    <span>+{sym}{(doc.tax_amount || 0).toFixed(2)}</span>
+                  </div>
+                )}
+              </div>
+            )}
+            <div className="flex items-center justify-between">
+              <span className="text-gray-400 text-sm">Total</span>
+              <span className="text-2xl font-bold text-white">{sym}{(doc.total || doc.subtotal || 0).toFixed(2)}</span>
             </div>
-          </div>
-          <div>
-            <label className="text-xs text-gray-400 mb-1 block">Tax Rate (%)</label>
-            <input
-              type="number"
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500"
-              placeholder="0"
-              value={doc.tax_rate || ""}
-              onChange={e => updateDiscountOrTax("tax_rate", parseFloat(e.target.value) || 0)}
-              disabled={doc.is_locked}
-            />
-          </div>
-        </div>
 
-        {/* Totals */}
-        <div className="bg-indigo-950/50 border border-indigo-700/30 rounded-xl p-3 space-y-1">
-          <div className="flex justify-between text-sm text-gray-400">
-            <span>Subtotal</span>
-            <span>{sym}{(doc.subtotal || 0).toFixed(2)}</span>
-          </div>
-          {doc.discount_amount > 0 && (
-            <div className="flex justify-between text-sm text-gray-400">
-              <span>Discount {doc.discount_type === "percentage" ? `(${doc.discount_value}%)` : ""}</span>
-              <span>-{sym}{(doc.discount_amount || 0).toFixed(2)}</span>
-            </div>
-          )}
-          {doc.tax_amount > 0 && (
-            <div className="flex justify-between text-sm text-gray-400">
-              <span>Tax ({doc.tax_rate}%)</span>
-              <span>+{sym}{(doc.tax_amount || 0).toFixed(2)}</span>
-            </div>
-          )}
-          <div className="flex items-center justify-between pt-1 border-t border-indigo-700/30">
-            <span className="text-gray-300 font-medium">Total</span>
-            <span className="text-xl font-bold text-indigo-300">{sym}{(doc.total || doc.subtotal || 0).toFixed(2)}</span>
           </div>
         </div>
 
@@ -1321,6 +1344,97 @@ export default function DocumentDetail() {
             onChange={e => onChange("notes", e.target.value)}
             disabled={doc.is_locked}
           />
+        </div>
+
+        {/* ── Details (collapsible) ────────────────────────────────── */}
+        <div className="border-t border-gray-800/80 pt-4">
+          <button
+            onClick={() => setShowDetails(v => !v)}
+            className="flex items-center gap-2 w-full text-left mb-0 group"
+          >
+            <p className="text-[10px] text-gray-600 group-hover:text-gray-500 uppercase tracking-widest font-semibold transition-colors">Details</p>
+            <ChevronDown className={`w-3 h-3 text-gray-700 group-hover:text-gray-500 ml-auto transition-transform duration-200 ${showDetails ? "rotate-180" : ""}`} />
+          </button>
+          {showDetails && <div className="mt-3 space-y-3">
+
+          {/* Discount & Tax */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Discount</label>
+              <div className="flex gap-1">
+                <select
+                  className="w-24 bg-gray-800 border border-gray-700 rounded-lg px-2 py-2 text-white text-sm focus:outline-none focus:border-indigo-500"
+                  value={doc.discount_type || ""}
+                  onChange={e => updateDiscountOrTax("discount_type", e.target.value || null)}
+                  disabled={doc.is_locked}
+                >
+                  <option value="">None</option>
+                  <option value="percentage">%</option>
+                  <option value="fixed">Fixed</option>
+                </select>
+                {doc.discount_type && (
+                  <input
+                    type="number"
+                    className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500"
+                    value={doc.discount_value || ""}
+                    onChange={e => updateDiscountOrTax("discount_value", parseFloat(e.target.value) || 0)}
+                    disabled={doc.is_locked}
+                    placeholder={doc.discount_type === "percentage" ? "%" : sym}
+                  />
+                )}
+              </div>
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Tax Rate (%)</label>
+              <input
+                type="number"
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500"
+                placeholder="0"
+                value={doc.tax_rate || ""}
+                onChange={e => updateDiscountOrTax("tax_rate", parseFloat(e.target.value) || 0)}
+                disabled={doc.is_locked}
+              />
+            </div>
+          </div>
+
+          {/* Currency + Invoice # */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Currency</label>
+              <select
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500"
+                value={doc.currency || "GBP"}
+                onChange={e => onChange("currency", e.target.value)}
+                disabled={doc.is_locked}
+              >
+                {CURRENCIES.map(c => <option key={c}>{c}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">{typeLabel} #</label>
+              <input
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-indigo-500"
+                placeholder="Auto-generated"
+                value={doc.document_number || ""}
+                onChange={e => onChange("document_number", e.target.value)}
+                disabled={doc.is_locked || !id}
+              />
+            </div>
+          </div>
+
+          {/* Paid date (if paid) */}
+          {isInvoice && doc.status === "paid" && (
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-gray-500 flex-shrink-0">Date paid</label>
+              <input
+                type="date"
+                className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none focus:border-indigo-500"
+                value={doc.paid_date || ""}
+                onChange={e => onChange("paid_date", e.target.value)}
+              />
+            </div>
+          )}
+        </div>}
         </div>
 
         {/* Delete */}
