@@ -126,6 +126,7 @@ export default function Layout({ children, currentPageName }) {
     closePanel,
     sendMessage,
     clearHistory,
+    briefLoading,
     pendingNavigate,
     clearPendingNavigate,
   } = useAIAssistant();
@@ -212,6 +213,7 @@ export default function Layout({ children, currentPageName }) {
         navigate={navigate}
         messages={messages}
         loading={aiLoading}
+        briefLoading={briefLoading}
         sendMessage={sendMessage}
         clearHistory={clearHistory}
         pendingNavigate={pendingNavigate}
