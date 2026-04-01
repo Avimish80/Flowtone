@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { appClient } from "@/api/appClient";
 import { Check, Mail, Navigation, Bell, DollarSign, Building2, Hash, ChevronDown, ChevronUp, Upload, X, Palette, Download, Upload as UploadIcon } from "lucide-react";
-import { TEMPLATE_DEFS } from "@/lib/invoiceTemplates";
+import { TEMPLATE_DEFS, generateInvoiceHTML } from "@/lib/invoiceTemplates";
 import { registerPush, unregisterPush, isPushActive, schedulePushNotifications, sendTestPush } from "@/lib/pushManager";
 import { DEFAULT_PREFS } from "@/lib/notificationPrefs";
 import { isGmailConnected, getGmailEmail, connectGmail, disconnectGmail } from "@/lib/gmailClient";
@@ -432,30 +432,82 @@ export default function AppSettings() {
           <SectionHeader icon={Palette} label="Invoice Templates" sectionKey="templates" />
           {openSections.has("templates") && (
             <div className="bg-gray-800 rounded-xl p-4 space-y-3">
-              <p className="text-xs text-gray-500">Choose the design used when printing or emailing invoices.</p>
+              <p className="text-xs text-gray-500">Choose the design used when printing or emailing invoices. Tap Preview to see how it looks.</p>
               <div className="grid grid-cols-1 gap-2">
-                {TEMPLATE_DEFS.map(t => (
-                  <button
+                {TEMPLATE_DEFS.map(t => {
+                  const isActive = (settings.invoice_template || 1) === t.id;
+                  // Thumbnail colours per template
+                  const thumb = {
+                    1: { hdr: "#e2e8f0", hdrText: "#475569", accent: "#475569", line: "#cbd5e1" },
+                    2: { hdr: "#4f46e5", hdrText: "#fff",    accent: "#4f46e5", line: "#e0e7ff" },
+                    3: { hdr: "#0f172a", hdrText: "#e2e8f0", accent: "#0f172a", line: "#f1f5f9" },
+                    4: { hdr: "#fff",    hdrText: "#111827", accent: "#374151", line: "#e5e7eb" },
+                    5: { hdr: "#4c1d95", hdrText: "#ede9fe", accent: "#7c3aed", line: "#ddd6fe" },
+                  }[t.id];
+                  return (
+                  <div
                     key={t.id}
-                    onClick={() => onChange("invoice_template", t.id)}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-colors ${
-                      (settings.invoice_template || 1) === t.id
-                        ? "border-indigo-500 bg-indigo-600/10"
-                        : "border-gray-700 bg-gray-900 hover:border-gray-600"
+                    className={`flex items-center gap-3 px-3 py-3 rounded-xl border transition-colors ${
+                      isActive ? "border-indigo-500 bg-indigo-600/10" : "border-gray-700 bg-gray-900"
                     }`}
                   >
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0 ${
-                      (settings.invoice_template || 1) === t.id ? "bg-indigo-600 text-white" : "bg-gray-700 text-gray-400"
-                    }`}>{t.id}</div>
-                    <div>
-                      <p className={`text-sm font-medium ${(settings.invoice_template || 1) === t.id ? "text-indigo-400" : "text-white"}`}>{t.name}</p>
-                      <p className="text-xs text-gray-500">{t.desc}</p>
-                    </div>
-                    {(settings.invoice_template || 1) === t.id && (
-                      <Check className="w-4 h-4 text-indigo-400 ml-auto flex-shrink-0" />
-                    )}
-                  </button>
-                ))}
+                    {/* SVG thumbnail */}
+                    <button onClick={() => onChange("invoice_template", t.id)} className="flex-shrink-0">
+                      <svg width="40" height="52" viewBox="0 0 40 52" fill="none" className="rounded shadow-sm">
+                        <rect width="40" height="52" fill="white" rx="2"/>
+                        <rect width="40" height="13" fill={thumb.hdr} rx="2"/>
+                        <rect x="0" y="11" width="40" height="2" fill={thumb.hdr}/>
+                        <rect x="3" y="3" width="18" height="3" fill={thumb.hdrText} opacity="0.9" rx="1"/>
+                        <rect x="3" y="7" width="10" height="1.5" fill={thumb.hdrText} opacity="0.5" rx="1"/>
+                        <rect x="3" y="16" width="16" height="2" fill={thumb.accent} opacity="0.5" rx="1"/>
+                        <rect x="3" y="20" width="11" height="1.5" fill={thumb.accent} opacity="0.3" rx="1"/>
+                        <rect x="3" y="27" width="34" height="1.2" fill={thumb.line} rx="1"/>
+                        <rect x="3" y="30.5" width="34" height="1.2" fill={thumb.line} rx="1"/>
+                        <rect x="3" y="34" width="34" height="1.2" fill={thumb.line} rx="1"/>
+                        <rect x="3" y="37.5" width="34" height="1.2" fill={thumb.line} rx="1"/>
+                        <rect x="22" y="44" width="15" height="2" fill={thumb.accent} opacity="0.6" rx="1"/>
+                      </svg>
+                    </button>
+                    {/* Info */}
+                    <button onClick={() => onChange("invoice_template", t.id)} className="flex-1 text-left min-w-0">
+                      <p className={`text-sm font-medium ${isActive ? "text-indigo-400" : "text-white"}`}>{t.name}</p>
+                      <p className="text-xs text-gray-500 leading-snug mt-0.5">{t.desc}</p>
+                    </button>
+                    {/* Preview button */}
+                    <button
+                      onClick={() => {
+                        const sampleDoc = {
+                          document_type: "invoice", document_number: "INV-0001",
+                          title: "Sample Invoice", status: "sent",
+                          currency: "GBP",
+                          line_items: [
+                            { description: "Performance — Evening Event", quantity: 1, unit_price: 800, total: 800 },
+                            { description: "Travel expenses", quantity: 1, unit_price: 50, total: 50 },
+                          ],
+                          subtotal: 850, total: 850, discount_amount: 0, tax_amount: 0, tax_rate: 0,
+                          due_date: new Date(Date.now() + 14*86400000).toISOString().slice(0,10),
+                          notes: "Thank you for booking. Please transfer within 14 days.",
+                        };
+                        const sampleProfile = {
+                          business_name: profile?.business_name || "Your Name",
+                          address: profile?.address || "London, UK",
+                          email: profile?.email || "you@example.com",
+                          phone: profile?.phone || "",
+                          website: profile?.website || "",
+                          payment_instructions: profile?.payment_instructions || "Bank transfer preferred.",
+                        };
+                        const html = generateInvoiceHTML(sampleDoc, sampleProfile, settings, t.id);
+                        const win = window.open("", "_blank");
+                        if (win) { win.document.write(html); win.document.close(); }
+                      }}
+                      className="flex-shrink-0 px-2.5 py-1.5 rounded-lg text-xs text-gray-400 border border-gray-700 hover:border-gray-500 hover:text-white transition-colors"
+                    >
+                      Preview
+                    </button>
+                    {isActive && <Check className="w-4 h-4 text-indigo-400 flex-shrink-0" />}
+                  </div>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -500,25 +552,27 @@ export default function AppSettings() {
               {/* Mode selector */}
               <div>
                 <label className={labelCls}>Intensity</label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="space-y-2">
                   {[
-                    { key: "minimal",  label: "Minimal",  desc: "Money + live gig alerts" },
+                    { key: "minimal",  label: "Minimal",  desc: "Money + live gig alerts only" },
                     { key: "standard", label: "Standard", desc: "Money + day-before reminders" },
-                    { key: "full",     label: "Full",     desc: "Everything — fully customisable" },
+                    { key: "full",     label: "Full",     desc: "Everything, fully customisable" },
                   ].map(({ key, label, desc }) => {
                     const active = (settings.notification_level || "standard") === key;
                     return (
                       <button
                         key={key}
                         onClick={() => handleLevelChange(key)}
-                        className={`flex flex-col items-start px-3 py-2.5 rounded-xl text-left transition-colors border ${
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors border ${
                           active
-                            ? "bg-indigo-600/20 border-indigo-500 text-white"
-                            : "bg-gray-900 border-gray-700 text-gray-400 hover:text-white"
+                            ? "bg-indigo-600/20 border-indigo-500"
+                            : "bg-gray-900 border-gray-700 hover:border-gray-600"
                         }`}
                       >
-                        <span className="text-sm font-semibold leading-tight">{label}</span>
-                        <span className={`text-[10px] mt-0.5 leading-snug ${active ? "text-indigo-300" : "text-gray-600"}`}>{desc}</span>
+                        <div className={`w-2 h-2 rounded-full flex-shrink-0 ${active ? "bg-indigo-400" : "bg-gray-600"}`} />
+                        <span className={`text-sm font-semibold flex-shrink-0 ${active ? "text-white" : "text-gray-300"}`}>{label}</span>
+                        <span className="text-xs text-gray-500 truncate">{desc}</span>
+                        {active && <Check className="w-3.5 h-3.5 text-indigo-400 ml-auto flex-shrink-0" />}
                       </button>
                     );
                   })}
