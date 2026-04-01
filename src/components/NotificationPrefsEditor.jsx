@@ -59,9 +59,14 @@ export default function NotificationPrefsEditor({ prefs = {}, onChange }) {
                 const pref = getPref(key);
                 return (
                   <div key={key} className="px-3 py-3">
-                    {/* Toggle row */}
-                    <div className="flex items-start gap-3">
-                      {/* Toggle */}
+                    {/* Label on left, toggle on right */}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-medium leading-tight ${enabled ? "text-white" : "text-gray-400"}`}>
+                          {typeLabel}
+                        </p>
+                        <p className="text-[10px] text-gray-500 mt-0.5 leading-snug italic">{example}</p>
+                      </div>
                       <button
                         onClick={() => handleToggle(key)}
                         className={`mt-0.5 flex-shrink-0 w-9 h-5 rounded-full transition-colors relative ${
@@ -72,37 +77,27 @@ export default function NotificationPrefsEditor({ prefs = {}, onChange }) {
                           enabled ? "translate-x-4" : "translate-x-0.5"
                         }`} />
                       </button>
-
-                      {/* Label + example */}
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-sm font-medium leading-tight ${enabled ? "text-white" : "text-gray-400"}`}>
-                          {typeLabel}
-                        </p>
-                        <p className="text-[10px] text-gray-500 mt-0.5 leading-snug italic">{example}</p>
-                      </div>
                     </div>
 
-                    {/* Timing selector — only shown when enabled and has options */}
+                    {/* Timing buttons — right-aligned below label */}
                     {enabled && timingKey && timingOptions && (
-                      <div className="mt-2">
-                        <div className="flex flex-wrap gap-1.5">
-                          {timingOptions.map(({ value, label: optLabel }) => {
-                            const isSelected = (pref[timingKey] ?? timingOptions[1]?.value ?? timingOptions[0]?.value) === value;
-                            return (
-                              <button
-                                key={String(value)}
-                                onClick={() => handleTiming(key, timingKey, value)}
-                                className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors border ${
-                                  isSelected
-                                    ? "bg-indigo-600 border-indigo-500 text-white"
-                                    : "bg-gray-900 border-gray-700 text-gray-400 hover:text-gray-200"
-                                }`}
-                              >
-                                {optLabel}
-                              </button>
-                            );
-                          })}
-                        </div>
+                      <div className="mt-2 flex flex-wrap justify-end gap-1.5">
+                        {timingOptions.map(({ value, label: optLabel }) => {
+                          const isSelected = (pref[timingKey] ?? timingOptions[1]?.value ?? timingOptions[0]?.value) === value;
+                          return (
+                            <button
+                              key={String(value)}
+                              onClick={() => handleTiming(key, timingKey, value)}
+                              className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors border ${
+                                isSelected
+                                  ? "bg-indigo-600 border-indigo-500 text-white"
+                                  : "bg-gray-900 border-gray-700 text-gray-400 hover:text-gray-200"
+                              }`}
+                            >
+                              {optLabel}
+                            </button>
+                          );
+                        })}
                       </div>
                     )}
                   </div>

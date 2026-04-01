@@ -169,9 +169,9 @@ export default function AppSettings() {
 
   const toggleSection = (key) => {
     setOpenSections(prev => {
-      const n = new Set(prev);
-      n.has(key) ? n.delete(key) : n.add(key);
-      return n;
+      // Single-open accordion: open clicked section, close everything else
+      if (prev.has(key)) return new Set(); // tap same = close
+      return new Set([key]);
     });
   };
 
