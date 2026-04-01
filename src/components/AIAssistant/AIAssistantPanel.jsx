@@ -336,7 +336,7 @@ export default function AIAssistantPanel({
       <div className={`fixed inset-0 z-50 flex flex-col ${closing ? "ai-overlay-close" : "ai-overlay-open"}`}>
 
         {/* Glass background */}
-        <div className="absolute inset-0 bg-gray-950/96" style={{ backdropFilter: "blur(32px)", WebkitBackdropFilter: "blur(32px)" }} />
+        <div className="absolute inset-0 bg-gray-950" style={{ backdropFilter: "blur(32px)", WebkitBackdropFilter: "blur(32px)" }} />
 
         {/* Glow border when thinking */}
         <div className={`absolute inset-0 pointer-events-none transition-all duration-500 ${isThinking ? "ai-thinking" : ""}`} />
