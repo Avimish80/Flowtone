@@ -71,7 +71,8 @@ async function executeAction(action) {
         type,
         label: `Created: ${data.title || "New Event"}${data.date ? " – " + new Date(data.date).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }) : ""}`,
         entityId: created?.id,
-        page: "WorkEvents",
+        page: "WorkEventDetail",
+        navigate: { page: "WorkEventDetail", params: { id: created?.id } },
       };
     }
 
@@ -82,7 +83,8 @@ async function executeAction(action) {
         type,
         label: `Updated event${data.title ? ": " + data.title : ""}`,
         entityId: data.id,
-        page: "WorkEvents",
+        page: "WorkEventDetail",
+        navigate: { page: "WorkEventDetail", params: { id: data.id } },
       };
     }
 
@@ -93,7 +95,8 @@ async function executeAction(action) {
         type,
         label: `Added client: ${data.name}`,
         entityId: created?.id,
-        page: "Clients",
+        page: "ClientDetail",
+        navigate: { page: "ClientDetail", params: { id: created?.id } },
       };
     }
 
