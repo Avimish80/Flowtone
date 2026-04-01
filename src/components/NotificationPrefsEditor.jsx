@@ -84,7 +84,7 @@ export default function NotificationPrefsEditor({ prefs = {}, onChange }) {
 
                     {/* Timing selector — only shown when enabled and has options */}
                     {enabled && timingKey && timingOptions && (
-                      <div className="mt-2 ml-12">
+                      <div className="mt-2">
                         <div className="flex flex-wrap gap-1.5">
                           {timingOptions.map(({ value, label: optLabel }) => {
                             const isSelected = (pref[timingKey] ?? timingOptions[1]?.value ?? timingOptions[0]?.value) === value;

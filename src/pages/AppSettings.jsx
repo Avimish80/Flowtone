@@ -497,8 +497,9 @@ export default function AppSettings() {
                           payment_instructions: profile?.payment_instructions || "Bank transfer preferred.",
                         };
                         const html = generateInvoiceHTML(sampleDoc, sampleProfile, settings, t.id);
-                        const win = window.open("", "_blank");
-                        if (win) { win.document.write(html); win.document.close(); }
+                        const blob = new Blob([html], { type: "text/html" });
+                        const url = URL.createObjectURL(blob);
+                        window.open(url, "_blank");
                       }}
                       className="flex-shrink-0 px-2.5 py-1.5 rounded-lg text-xs text-gray-400 border border-gray-700 hover:border-gray-500 hover:text-white transition-colors"
                     >
@@ -552,27 +553,25 @@ export default function AppSettings() {
               {/* Mode selector */}
               <div>
                 <label className={labelCls}>Intensity</label>
-                <div className="space-y-2">
+                <div className="grid grid-cols-3 gap-2">
                   {[
-                    { key: "minimal",  label: "Minimal",  desc: "Money + live gig alerts only" },
+                    { key: "minimal",  label: "Minimal",  desc: "Money + live gig alerts" },
                     { key: "standard", label: "Standard", desc: "Money + day-before reminders" },
-                    { key: "full",     label: "Full",     desc: "Everything, fully customisable" },
+                    { key: "full",     label: "Full",     desc: "Everything — customisable" },
                   ].map(({ key, label, desc }) => {
                     const active = (settings.notification_level || "standard") === key;
                     return (
                       <button
                         key={key}
                         onClick={() => handleLevelChange(key)}
-                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors border ${
+                        className={`flex flex-col items-start px-3 py-2.5 rounded-xl text-left transition-colors border ${
                           active
-                            ? "bg-indigo-600/20 border-indigo-500"
-                            : "bg-gray-900 border-gray-700 hover:border-gray-600"
+                            ? "bg-indigo-600/20 border-indigo-500 text-white"
+                            : "bg-gray-900 border-gray-700 text-gray-400 hover:text-white"
                         }`}
                       >
-                        <div className={`w-2 h-2 rounded-full flex-shrink-0 ${active ? "bg-indigo-400" : "bg-gray-600"}`} />
-                        <span className={`text-sm font-semibold flex-shrink-0 ${active ? "text-white" : "text-gray-300"}`}>{label}</span>
-                        <span className="text-xs text-gray-500 truncate">{desc}</span>
-                        {active && <Check className="w-3.5 h-3.5 text-indigo-400 ml-auto flex-shrink-0" />}
+                        <span className="text-sm font-semibold leading-tight">{label}</span>
+                        <span className={`text-[10px] mt-0.5 leading-snug ${active ? "text-indigo-300" : "text-gray-600"}`}>{desc}</span>
                       </button>
                     );
                   })}
