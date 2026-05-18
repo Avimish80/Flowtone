@@ -13,11 +13,11 @@ cleanupOutdatedCaches()
 self.addEventListener('push', (event) => {
   const data = event.data?.json() ?? {}
   const {
-    title = 'GigFlow',
+    title = 'Flowtone',
     body = '',
     url = '/',
     icon = '/icon-192x192.svg',
-    tag = 'gigflow',
+    tag = 'flowtone',
     actions = [],
     actionUrls = {},
   } = data

@@ -229,7 +229,7 @@ export function useAIAssistant() {
   const [messages, setMessages] = useState([
     makeMessage(
       "assistant",
-      "Hey! I'm your GigFlow Assistant. Ask me anything — I can create events, log practice, add clients, or just help you stay on top of your gigs. 🎵"
+      "Hey! I'm your Flowtone Assistant. Ask me anything — I can create events, log practice, add clients, or help you stay on top of your work. 🎵"
     ),
   ]);
   const [loading, setLoading] = useState(false);

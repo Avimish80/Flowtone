@@ -221,7 +221,7 @@ export default function AIAssistantPanel({
             </div>
             <div>
               <p className="text-sm font-semibold text-white leading-tight">
-                GigFlow Assistant
+                Flowtone Assistant
               </p>
               <p className="text-[10px] text-indigo-400 leading-tight">
                 AI-powered musician OS
@@ -346,7 +346,7 @@ export default function AIAssistantPanel({
           )}
           {!listening && (
             <p className="text-center text-[10px] text-gray-700 mt-1.5">
-              GigFlow AI · Local app data only
+              Flowtone AI · Your live account data
             </p>
           )}
         </div>

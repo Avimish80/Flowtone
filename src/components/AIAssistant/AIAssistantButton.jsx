@@ -11,8 +11,8 @@ export default function AIAssistantButton({ onClick }) {
     <button
       type="button"
       onClick={onClick}
-      aria-label="Open GigFlow Assistant"
-      title="GigFlow Assistant"
+      aria-label="Open Flowtone Assistant"
+      title="Flowtone Assistant"
       className={[
         // Positioning — above the bottom nav bar
         "fixed right-4 z-40",
@@ -39,11 +39,11 @@ export default function AIAssistantButton({ onClick }) {
       ].join(" ")}
       style={{
         // Override the default pulse to affect only the box-shadow ring, not opacity
-        animation: "gigflow-ai-glow 3s ease-in-out infinite",
+        animation: "flowtone-ai-glow 3s ease-in-out infinite",
       }}
     >
       <style>{`
-        @keyframes gigflow-ai-glow {
+        @keyframes flowtone-ai-glow {
           0%, 100% { box-shadow: 0 0 0 0 rgba(99,102,241,0.5), 0 10px 30px -6px rgba(99,102,241,0.6); }
           50%       { box-shadow: 0 0 0 6px rgba(99,102,241,0), 0 10px 30px -6px rgba(99,102,241,0.4); }
         }

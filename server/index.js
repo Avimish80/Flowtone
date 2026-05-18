@@ -6,6 +6,8 @@ import cors from 'cors';
 import aiRoutes from './routes/ai.js';
 import pushRoutes from './routes/push.js';
 import gmailRoutes from './routes/gmail.js';
+import billingRoutes, { handleStripeWebhook } from './routes/billing.js';
+import meRoutes from './routes/me.js';
 import { startScheduler } from './scheduler.js';
 
 // Load .env manually — works even if env vars are pre-set to empty
@@ -56,12 +58,15 @@ app.use(
 );
 
 // ─── Body Parser ───────────────────────────────────────────────────
+app.post('/api/billing/webhook', express.raw({ type: 'application/json' }), handleStripeWebhook);
 app.use(express.json());
 
 // ─── Routes ────────────────────────────────────────────────────────
 app.use('/api/ai', aiRoutes);
 app.use('/api/push', pushRoutes);
 app.use('/api/gmail', gmailRoutes);
+app.use('/api/billing', billingRoutes);
+app.use('/api/me', meRoutes);
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -69,6 +74,6 @@ app.get('/api/health', (_req, res) => {
 
 // ─── Start ─────────────────────────────────────────────────────────
 app.listen(PORT, () => {
-  console.log(`GigFlow server running on http://localhost:${PORT}`);
+  console.log(`Flowtone server running on http://localhost:${PORT}`);
   startScheduler();
 });

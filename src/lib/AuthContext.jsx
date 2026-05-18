@@ -1,36 +1,251 @@
-import React, { createContext, useState, useContext } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createCheckoutSession, createPortalSession, fetchAccessState } from "@/lib/billingClient";
+import { PREVIEW_ACCESS_STATE, PREVIEW_USER } from "@/lib/previewMode";
+import { getSupabaseClient, isPreviewModeEnabled, isSupabaseConfigured } from "@/lib/supabaseClient";
 
-const AuthContext = createContext();
+const AuthContext = createContext(null);
+
+async function ensureProfile(session) {
+  const supabase = getSupabaseClient();
+  if (!supabase || !session?.user) return null;
+
+  const metadata = session.user.user_metadata || {};
+  const profileInput = {
+    id: session.user.id,
+    email: session.user.email || "",
+    full_name: metadata.full_name || metadata.name || "",
+  };
+
+  const { error } = await supabase
+    .from("profiles")
+    .upsert(profileInput, { onConflict: "id" });
+
+  if (error) throw error;
+  return profileInput;
+}
 
 export const AuthProvider = ({ children }) => {
-  const [user] = useState({
-    id: 'local-user',
-    name: 'Local User',
-    email: 'user@local.app',
-    role: 'admin',
-  });
-  const [isAuthenticated] = useState(true);
-  const [isLoadingAuth] = useState(false);
-  const [isLoadingPublicSettings] = useState(false);
-  const [authError] = useState(null);
-  const [appPublicSettings] = useState({});
+  const [session, setSession] = useState(null);
+  const [user, setUser] = useState(null);
+  const [authReady, setAuthReady] = useState(false);
+  const [isSendingMagicLink, setIsSendingMagicLink] = useState(false);
+  const [isStartingCheckout, setIsStartingCheckout] = useState(false);
+  const [isOpeningPortal, setIsOpeningPortal] = useState(false);
+  const [isLoadingAccess, setIsLoadingAccess] = useState(false);
+  const [accessState, setAccessState] = useState(null);
+  const [authError, setAuthError] = useState(null);
 
-  const logout = () => {};
-  const navigateToLogin = () => {};
-  const checkAppState = () => {};
+  const refreshAccess = useCallback(async (activeSession) => {
+    if (!activeSession?.access_token) {
+      setAccessState(null);
+      return null;
+    }
+
+    setIsLoadingAccess(true);
+
+    try {
+      await ensureProfile(activeSession);
+      const access = await fetchAccessState(activeSession.access_token);
+      setAccessState(access);
+      setAuthError(null);
+      return access;
+    } catch (error) {
+      const message = error.message || "Could not load account access.";
+      setAuthError({ type: "access_error", message });
+      setAccessState(null);
+      return null;
+    } finally {
+      setIsLoadingAccess(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured) {
+      if (isPreviewModeEnabled()) {
+        setSession({ access_token: "preview-mode", user: PREVIEW_USER });
+        setUser(PREVIEW_USER);
+        setAccessState(PREVIEW_ACCESS_STATE);
+        setAuthError(null);
+        setAuthReady(true);
+        return undefined;
+      }
+
+      setAuthError({
+        type: "config_error",
+        message: "Supabase configuration is missing.",
+      });
+      setAuthReady(true);
+      return undefined;
+    }
+
+    const supabase = getSupabaseClient();
+
+    let mounted = true;
+
+    supabase.auth.getSession().then(async ({ data, error }) => {
+      if (!mounted) return;
+
+      if (error) {
+        setAuthError({ type: "auth_error", message: error.message });
+      }
+
+      const nextSession = data.session || null;
+      setSession(nextSession);
+      setUser(nextSession?.user || null);
+
+      if (nextSession) {
+        await refreshAccess(nextSession);
+      } else {
+        setAccessState(null);
+      }
+
+      if (mounted) setAuthReady(true);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (_event, nextSession) => {
+      if (!mounted) return;
+
+      setSession(nextSession || null);
+      setUser(nextSession?.user || null);
+
+      if (nextSession) {
+        await refreshAccess(nextSession);
+      } else {
+        setAccessState(null);
+        setAuthError(null);
+      }
+
+      if (mounted) setAuthReady(true);
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, [refreshAccess]);
+
+  const sendMagicLink = useCallback(async (email) => {
+    if (isPreviewModeEnabled()) return;
+
+    const trimmedEmail = String(email || "").trim().toLowerCase();
+    if (!trimmedEmail) throw new Error("Enter your email first.");
+
+    const supabase = getSupabaseClient();
+    setIsSendingMagicLink(true);
+
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email: trimmedEmail,
+        options: {
+          emailRedirectTo: window.location.origin,
+        },
+      });
+
+      if (error) throw error;
+      setAuthError(null);
+    } catch (error) {
+      setAuthError({ type: "auth_error", message: error.message || "Could not send magic link." });
+      throw error;
+    } finally {
+      setIsSendingMagicLink(false);
+    }
+  }, []);
+
+  const logout = useCallback(async (redirectTo = "/") => {
+    if (isPreviewModeEnabled()) {
+      if (redirectTo) window.location.assign(redirectTo);
+      return;
+    }
+
+    const supabase = getSupabaseClient();
+    await supabase.auth.signOut();
+    setAccessState(null);
+    setAuthError(null);
+    if (redirectTo) window.location.assign(redirectTo);
+  }, []);
+
+  const navigateToLogin = useCallback((redirectTo = "/") => {
+    window.location.assign(redirectTo);
+  }, []);
+
+  const openCheckout = useCallback(async () => {
+    if (isPreviewModeEnabled()) return;
+
+    setIsStartingCheckout(true);
+    try {
+      const result = await createCheckoutSession();
+      if (result?.url) window.location.assign(result.url);
+    } catch (error) {
+      setAuthError({ type: "billing_error", message: error.message || "Could not start checkout." });
+    } finally {
+      setIsStartingCheckout(false);
+    }
+  }, []);
+
+  const openBillingPortal = useCallback(async () => {
+    if (isPreviewModeEnabled()) return;
+
+    setIsOpeningPortal(true);
+    try {
+      const result = await createPortalSession();
+      if (result?.url) window.location.assign(result.url);
+    } catch (error) {
+      setAuthError({ type: "billing_error", message: error.message || "Could not open billing portal." });
+    } finally {
+      setIsOpeningPortal(false);
+    }
+  }, []);
+
+  const hasAccess = useMemo(() => Boolean(accessState?.has_access), [accessState?.has_access]);
+  const isAuthenticated = Boolean(session?.user);
+
+  const contextValue = useMemo(() => ({
+    user,
+    session,
+    accessState,
+    authReady,
+    hasAccess,
+    isAuthenticated,
+    isLoadingAuth: !authReady,
+    isLoadingPublicSettings: false,
+    isLoadingAccess,
+    isSendingMagicLink,
+    isStartingCheckout,
+    isOpeningPortal,
+    authError,
+    appPublicSettings: {},
+    isPreviewMode: isPreviewModeEnabled(),
+    sendMagicLink,
+    refreshAccess,
+    logout,
+    navigateToLogin,
+    openCheckout,
+    openBillingPortal,
+    checkAppState: refreshAccess,
+  }), [
+    accessState,
+    authError,
+    authReady,
+    hasAccess,
+    isAuthenticated,
+    isLoadingAccess,
+    isOpeningPortal,
+    isSendingMagicLink,
+    isStartingCheckout,
+    logout,
+    navigateToLogin,
+    openBillingPortal,
+    openCheckout,
+    refreshAccess,
+    session,
+    sendMagicLink,
+    user,
+  ]);
 
   return (
-    <AuthContext.Provider value={{
-      user,
-      isAuthenticated,
-      isLoadingAuth,
-      isLoadingPublicSettings,
-      authError,
-      appPublicSettings,
-      logout,
-      navigateToLogin,
-      checkAppState,
-    }}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );
@@ -39,7 +254,7 @@ export const AuthProvider = ({ children }) => {
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 };

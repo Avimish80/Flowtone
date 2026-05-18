@@ -446,7 +446,7 @@ export default function SmartCSVImport({ onClose, onImported }) {
           {/* Upload step */}
           {step === "upload" && (
             <div>
-              <p className="text-sm text-gray-400 mb-4">Upload any CSV — from Apple Contacts, Google Calendar, QuickBooks, or your own spreadsheet. GigFlow will figure out what it is and map the columns automatically.</p>
+              <p className="text-sm text-gray-400 mb-4">Upload any CSV — from Apple Contacts, Google Calendar, QuickBooks, or your own spreadsheet. Flowtone will figure out what it is and map the columns automatically.</p>
               {error && <p className="text-red-400 text-sm mb-3">{error}</p>}
               <button
                 onClick={() => fileRef.current?.click()}

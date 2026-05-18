@@ -1,5 +1,5 @@
 // iCal (.ics) export utility
-// Generates a standards-compliant VCALENDAR file from GigFlow WorkEvent records
+// Generates a standards-compliant VCALENDAR file from Flowtone WorkEvent records
 
 // Escape special iCal characters in text fields
 function esc(str) {
@@ -45,10 +45,10 @@ export function eventsToIcal(events) {
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//GigFlow//GigFlow App//EN",
+    "PRODID:-//Flowtone//Flowtone App//EN",
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
-    "X-WR-CALNAME:GigFlow Events",
+    "X-WR-CALNAME:Flowtone Events",
     "X-WR-TIMEZONE:Europe/London",
   ];
 
@@ -65,7 +65,7 @@ export function eventsToIcal(events) {
     const isAllDay = !event.start_time;
 
     lines.push("BEGIN:VEVENT");
-    lines.push(fold(`UID:${event.id}@gigflow`));
+    lines.push(fold(`UID:${event.id}@flowtone`));
 
     if (isAllDay) {
       lines.push(fold(`DTSTART;VALUE=DATE:${dtstart}`));

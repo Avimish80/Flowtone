@@ -2,7 +2,7 @@ import { format, addDays, subDays, addWeeks } from "date-fns";
 
 /**
  * Generate a complete, busy musician dataset.
- * Writes directly to localStorage in bulk — no individual awaits, won't crash.
+ * Writes directly to the active signed-in account in Supabase.
  *
  * Generates:
  * - 20 students (15 weekly, 5 bi-weekly) with 8 weeks back + 16 weeks forward of lessons
@@ -11,8 +11,6 @@ import { format, addDays, subDays, addWeeks } from "date-fns";
  * - Practice goals + sessions
  * - Equipment
  */
-
-const KEY = (entity) => `musician_os_${entity}`;
 
 function uid() {
   return crypto.randomUUID();
@@ -24,23 +22,6 @@ function ts() {
 
 function d(date) {
   return format(date, "yyyy-MM-dd");
-}
-
-function readStore(entity) {
-  try {
-    return JSON.parse(localStorage.getItem(KEY(entity)) || "[]");
-  } catch {
-    return [];
-  }
-}
-
-function writeStore(entity, records) {
-  localStorage.setItem(KEY(entity), JSON.stringify(records));
-}
-
-function appendStore(entity, newRecords) {
-  const existing = readStore(entity);
-  writeStore(entity, [...existing, ...newRecords]);
 }
 
 const TODAY = new Date();
@@ -420,23 +401,37 @@ export async function generateBusyMusicianData(appClient) {
     equipmentRecords.push({ id: uid(), created_at: ts(), updated_at: ts(), ...e });
   }
 
-  // ── 2. WRITE ALL TO LOCALSTORAGE AT ONCE ──────────────────────────
-  appendStore("Client",          clientRecords);
-  appendStore("WorkEvent",       eventRecords);
-  appendStore("Document",        documentRecords);
-  appendStore("Payment",         paymentRecords);
-  appendStore("PracticeGoal",    goalRecords);
-  appendStore("PracticeSession", sessionRecords);
-  appendStore("Equipment",       equipmentRecords);
+  // ── 2. WRITE ALL TO THE SIGNED-IN CLOUD ACCOUNT ───────────────────
+  await appClient.entities.Client.createMany(clientRecords);
+  await appClient.entities.WorkEvent.createMany(eventRecords);
+  await appClient.entities.Document.createMany(documentRecords);
+  await appClient.entities.Payment.createMany(paymentRecords);
+  await appClient.entities.PracticeGoal.createMany(goalRecords);
+  await appClient.entities.PracticeSession.createMany(sessionRecords);
+  await appClient.entities.Equipment.createMany(equipmentRecords);
 
-  // Update invoice counter in AppSettings
-  try {
-    const settingsRaw = readStore("AppSettings");
-    if (settingsRaw.length > 0) {
-      settingsRaw[0].invoice_number_next = invNum;
-      writeStore("AppSettings", settingsRaw);
-    }
-  } catch {}
+  const existingSettings = await appClient.entities.AppSettings.list();
+  if (existingSettings[0]) {
+    await appClient.entities.AppSettings.update(existingSettings[0].id, {
+      invoice_number_next: invNum,
+    });
+  } else {
+    await appClient.entities.AppSettings.create({
+      invoice_number_prefix: "INV-",
+      invoice_number_next: invNum,
+      estimate_number_prefix: "EST-",
+      estimate_number_next: 1,
+      currency: "GBP",
+      default_currency: "GBP",
+      default_nav_app: "google_maps",
+      default_payment_terms_days: 30,
+      default_tax_rate: 0,
+      invoice_template: 1,
+      notification_level: "standard",
+      tax_rate: 0,
+      tax_year_start_month: 4,
+    });
+  }
 
   return {
     clients:   clientRecords.length,

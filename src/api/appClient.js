@@ -1,4 +1,7 @@
 import { createLocalEntity } from "@/api/localStorageEngine";
+import { ENTITY_DEFAULTS } from "@/api/entityMetadata";
+import { PREVIEW_USER } from "@/lib/previewMode";
+import { getSupabaseClient, isPreviewModeEnabled } from "@/lib/supabaseClient";
 import { format } from "date-fns";
 
 // ─── Entity Registry ───────────────────────────────────────────────
@@ -22,14 +25,6 @@ const entityNames = [
 const entities = Object.fromEntries(
   entityNames.map((name) => [name, createLocalEntity(name)])
 );
-
-// ─── Local User ────────────────────────────────────────────────────
-const localUser = {
-  id: "local-user",
-  email: "local@localhost",
-  name: "Local User",
-  role: "admin",
-};
 
 // ─── Utility Helpers ───────────────────────────────────────────────
 const parseCsvLine = (line) => {
@@ -114,17 +109,20 @@ const ensureClient = async ({ name, email, address }) => {
 
 // ─── Document Helpers ──────────────────────────────────────────────
 
+const ensureSingletonEntity = async (entityName) => {
+  const existing = await entities[entityName].list();
+  if (existing[0]) return existing[0];
+
+  const defaults = ENTITY_DEFAULTS[entityName] || {};
+  return entities[entityName].create(defaults);
+};
+
 /**
  * Get the next auto-generated document number (INV-0001, EST-0003, etc.)
  * Reads the counter from AppSettings and increments it.
  */
 const getNextDocumentNumber = async (documentType) => {
-  const settings = await entities.AppSettings.list();
-  const s = settings[0];
-  if (!s) {
-    // Fallback if no settings exist
-    return documentType === "invoice" ? "INV-0001" : "EST-0001";
-  }
+  const s = await ensureSingletonEntity("AppSettings");
 
   const isInvoice = documentType === "invoice";
   const prefix = isInvoice
@@ -1073,9 +1071,19 @@ export const appClient = {
   },
   auth: {
     async me() {
-      return localUser;
+      if (isPreviewModeEnabled()) return PREVIEW_USER;
+      const supabase = getSupabaseClient();
+      const { data, error } = await supabase.auth.getUser();
+      if (error) throw error;
+      return data.user;
     },
-    logout(redirectTo) {
+    async logout(redirectTo) {
+      if (isPreviewModeEnabled()) {
+        if (redirectTo) window.location.href = redirectTo;
+        return;
+      }
+      const supabase = getSupabaseClient();
+      await supabase.auth.signOut();
       if (redirectTo) window.location.href = redirectTo;
     },
     redirectToLogin(redirectTo) {

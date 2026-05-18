@@ -1,4 +1,4 @@
-// GigFlow Push Notification Manager
+// Flowtone Push Notification Manager
 // Handles SW registration, subscription, scheduling — 5-layer notification system.
 
 import { getEffectivePrefs, timingToMinutes } from './notificationPrefs.js';
@@ -118,7 +118,7 @@ export async function sendTestPush() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         endpoint: sub.endpoint,
-        title: '🎵 GigFlow Notifications Working!',
+        title: '🎵 Flowtone Notifications Working!',
         body: 'You will receive reminders for gigs, lessons and invoices.',
         url: '/',
         tag: `test-${Date.now()}`,
