@@ -201,6 +201,8 @@ export default function AuthGate() {
     );
   }
 
+  if (hasAccess) return null;
+
   return (
     <ScreenFrame>
       <Panel>
