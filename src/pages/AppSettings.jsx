@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { appClient } from "@/api/appClient";
-import { Check, Mail, Navigation, Bell, DollarSign, Building2, Hash, ChevronDown, ChevronUp, Upload, X, Palette, Download, Upload as UploadIcon } from "lucide-react";
+import { useAuth } from "@/lib/AuthContext";
+import { Check, Mail, Navigation, Bell, DollarSign, Building2, Hash, ChevronDown, ChevronUp, Upload, X, Palette, Download, Upload as UploadIcon, LogOut } from "lucide-react";
 import { TEMPLATE_DEFS, generateInvoiceHTML } from "@/lib/invoiceTemplates";
 import { registerPush, unregisterPush, isPushActive, schedulePushNotifications, sendTestPush } from "@/lib/pushManager";
 import { DEFAULT_PREFS } from "@/lib/notificationPrefs";
@@ -11,6 +12,7 @@ import { generateBusyMusicianData } from "@/lib/busyMusicianTestData";
 import NotificationPrefsEditor from "@/components/NotificationPrefsEditor";
 
 export default function AppSettings() {
+  const { logout, user, isPreviewMode } = useAuth();
   const [settings, setSettings] = useState(null);
   const [profile, setProfile] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -851,6 +853,23 @@ export default function AppSettings() {
         >
           {saved ? <><Check className="w-4 h-4" /> Saved!</> : saving ? "Saving..." : "Save Settings"}
         </button>
+
+        {/* Account */}
+        {!isPreviewMode && (
+          <div className="rounded-2xl border border-gray-700/60 bg-gray-800/30 p-4 space-y-3">
+            <p className="text-xs text-gray-500 uppercase tracking-wider font-medium">Account</p>
+            {user?.email && (
+              <p className="text-sm text-gray-400">Signed in as <span className="text-white">{user.email}</span></p>
+            )}
+            <button
+              onClick={() => logout()}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium border border-gray-700 text-gray-300 hover:text-white hover:border-gray-500 transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+              Sign out
+            </button>
+          </div>
+        )}
       </div>
 
       {showCSVImport && <SmartCSVImport onClose={() => setShowCSVImport(false)} onImported={() => setShowCSVImport(false)} />}
