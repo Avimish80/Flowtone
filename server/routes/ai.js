@@ -224,7 +224,7 @@ router.post('/chat', async (req, res) => {
     const systemPrompt = buildSystemPrompt(context);
 
     const apiResponse = await client.messages.create({
-      model: 'claude-sonnet-4-5',
+      model: 'claude-sonnet-4-6',
       max_tokens: 1024,
       temperature: 0,
       system: systemPrompt,
@@ -260,6 +260,87 @@ router.post('/chat', async (req, res) => {
     const status = err.status ?? 500;
     const message = err.message ?? 'Unexpected error from AI service';
     return res.status(status).json({ error: message });
+  }
+});
+
+// ─── POST /api/ai/briefing ─────────────────────────────────────────
+// Lightweight daily briefing using Haiku for cost efficiency.
+// Body: { today, name, todayEvents, overdueInvoices, noInvoiceEvents }
+// Returns: { greeting, items: [{ text, type, entity_id, entity_type }] }
+router.post('/briefing', async (req, res) => {
+  try {
+    const { today, name, todayEvents = [], overdueInvoices = [], noInvoiceEvents = [] } = req.body;
+
+    const client = getClient();
+
+    const prompt = `You are generating a morning briefing for ${name ? name : 'a professional musician'} using Flowtone, their business management app.
+
+Return ONLY valid JSON — no markdown, no prose outside the JSON:
+{
+  "greeting": "Short warm greeting (max 8 words, use their name if provided)",
+  "items": [
+    {
+      "text": "Short actionable description (max 12 words)",
+      "type": "event_today|invoice_overdue|invoice_missing|general",
+      "entity_id": "record id or null",
+      "entity_type": "event|invoice|null"
+    }
+  ]
+}
+
+Rules:
+- 2 to 4 items max
+- Priority: today events first, then overdue invoices, then events missing invoices
+- If everything looks clear, return 1 general item saying so warmly
+- Keep text short, friendly, and action-oriented
+- Return raw JSON only — absolutely no markdown fences
+
+TODAY: ${today}
+USER NAME: ${name || '(not set)'}
+
+TODAY'S EVENTS (${todayEvents.length}):
+${JSON.stringify(todayEvents)}
+
+OVERDUE INVOICES (${overdueInvoices.length}):
+${JSON.stringify(overdueInvoices)}
+
+EVENTS WITHOUT INVOICES (${noInvoiceEvents.length}):
+${JSON.stringify(noInvoiceEvents)}`;
+
+    const apiResponse = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 512,
+      temperature: 0,
+      messages: [{ role: 'user', content: prompt }],
+    });
+
+    const rawText = apiResponse.content
+      .filter((b) => b.type === 'text')
+      .map((b) => b.text)
+      .join('');
+
+    let parsed;
+    try {
+      const cleaned = rawText
+        .replace(/^```(?:json)?\s*/i, '')
+        .replace(/\s*```\s*$/i, '')
+        .trim();
+      parsed = JSON.parse(cleaned);
+    } catch {
+      parsed = {
+        greeting: `Good morning${name ? ', ' + name : ''}`,
+        items: [{ text: 'Have a great day.', type: 'general', entity_id: null, entity_type: null }],
+      };
+    }
+
+    return res.json(parsed);
+  } catch (err) {
+    console.error('[AI briefing error]', err);
+    if (err.message === 'ANTHROPIC_API_KEY is not set') {
+      return res.status(500).json({ error: 'Server configuration error: API key missing' });
+    }
+    const status = err.status ?? 500;
+    return res.status(status).json({ error: err.message ?? 'Unexpected error' });
   }
 });
 

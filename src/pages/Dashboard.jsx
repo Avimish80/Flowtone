@@ -6,6 +6,7 @@ import {
   CalendarDays, ChevronRight, MapPin, Clock, Navigation, Car, Bus, AlertCircle, Plus, Mic2, Users
 } from "lucide-react";
 import { format, isToday, isTomorrow, parseISO, isPast, startOfDay, addDays, differenceInDays, differenceInHours, differenceInMinutes } from "date-fns";
+import { AIDashboardBriefing } from "@/components/AIDashboardBriefing";
 
 function buildNavUrl(address, app = "google_maps") {
   const encoded = encodeURIComponent(address);
@@ -106,6 +107,9 @@ export default function Dashboard() {
 
   return (
     <div className="p-4 max-w-xl mx-auto space-y-5">
+
+      {/* ── AI Briefing ── */}
+      <AIDashboardBriefing events={events} documents={documents} />
 
       {/* ── Next Gig Hero ── */}
       {nextGig ? (
