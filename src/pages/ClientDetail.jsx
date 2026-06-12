@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { appClient } from "@/api/appClient";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { ArrowLeft, Save, Trash2, Plus, X, AlertTriangle, AlertCircle } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Plus, X, AlertTriangle, AlertCircle, CheckCircle2 } from "lucide-react";
 import { useGoBack } from "@/hooks/useGoBack";
 import ClientFinancialSummary from "../components/client/ClientFinancialSummary";
 
@@ -22,6 +22,7 @@ export default function ClientDetail() {
   });
   const [loading, setLoading] = useState(!!id);
   const [saving, setSaving] = useState(false);
+  const [savedFlash, setSavedFlash] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [newEmail, setNewEmail] = useState("");
   const [newPhone, setNewPhone] = useState("");
@@ -57,6 +58,8 @@ export default function ClientDetail() {
     setSaving(true);
     if (id) {
       await appClient.entities.Client.update(id, client);
+      setSavedFlash(true);
+      setTimeout(() => setSavedFlash(false), 2000);
     } else {
       const created = await appClient.entities.Client.create(client);
       navigate(createPageUrl(`ClientDetail?id=${created.id}`));
@@ -82,9 +85,16 @@ export default function ClientDetail() {
         <button
           onClick={handleSave}
           disabled={saving}
-          className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white px-4 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-colors"
+          className={`px-4 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-all ${
+            savedFlash
+              ? "bg-green-600 text-white"
+              : "bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white"
+          }`}
         >
-          <Save className="w-4 h-4" /> {saving ? "Saving..." : "Save"}
+          {savedFlash
+            ? <><CheckCircle2 className="w-4 h-4" /> Saved</>
+            : <><Save className="w-4 h-4" /> {saving ? "Saving..." : "Save"}</>
+          }
         </button>
       </div>
 

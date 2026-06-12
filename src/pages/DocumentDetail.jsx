@@ -61,6 +61,7 @@ export default function DocumentDetail() {
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(!!id);
   const [saving, setSaving] = useState(false);
+  const [savedFlash, setSavedFlash] = useState(false);
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const [sendingEmail, setSendingEmail] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -421,6 +422,8 @@ export default function DocumentDetail() {
 
       if (id) {
         await appClient.entities.Document.update(id, dataToSave);
+        setSavedFlash(true);
+        setTimeout(() => setSavedFlash(false), 2000);
       } else {
         const docNumber = await appClient.helpers.getNextDocumentNumber(dataToSave.document_type);
         dataToSave.document_number = docNumber;
@@ -804,8 +807,19 @@ export default function DocumentDetail() {
               </button>
             </>
           )}
-          <button onClick={handleSave} disabled={saving || doc.is_locked} className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white px-4 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-colors">
-            <Save className="w-4 h-4" /> {saving ? "Saving..." : "Save"}
+          <button
+            onClick={handleSave}
+            disabled={saving || doc.is_locked}
+            className={`px-4 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-all ${
+              savedFlash
+                ? "bg-green-600 text-white"
+                : "bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white"
+            }`}
+          >
+            {savedFlash
+              ? <><CheckCircle2 className="w-4 h-4" /> Saved</>
+              : <><Save className="w-4 h-4" /> {saving ? "Saving..." : "Save"}</>
+            }
           </button>
         </div>
       </div>

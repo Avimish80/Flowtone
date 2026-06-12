@@ -302,7 +302,9 @@ export function useAIAssistant() {
           try {
             const result = await executeAction(action);
             if (result) {
-              if (result.navigate) {
+              // Only an explicit NAVIGATE request moves the user away.
+              // Created records stay in chat as a green card with a View link.
+              if (result.type === "NAVIGATE" && result.navigate) {
                 setPendingNavigate(result.navigate);
               }
 
