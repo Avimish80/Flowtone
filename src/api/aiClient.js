@@ -1,44 +1,24 @@
-const AI_BASE_URL = import.meta.env.VITE_API_URL
-  ? `${import.meta.env.VITE_API_URL}/api/ai`
-  : 'http://localhost:3001/api/ai';
+import { flowtoneJson } from "@/lib/flowtoneApi";
 
 /**
- * Send a chat request to the GigFlow AI backend.
+ * Send a chat request to the Flowtone AI backend.
+ * Authenticated: flowtoneJson attaches the Supabase access token.
  *
  * @param {Array<{ role: 'user' | 'assistant', content: string }>} messages
- * @param {object} [context] - Structured context object: { today, upcomingEvents, clients, practiceGoals, recentSessions }
- * @returns {Promise<{ message: string, action: object|null }>} Parsed AI response.
+ * @param {object} [context] - Structured context object: { today, upcomingEvents, clients, practiceGoals, recentSessions, assistantProfile }
+ * @returns {Promise<{ message: string, actions: array, action: object|null }>} Parsed AI response.
  */
 export async function askAI(messages, context = {}) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15000);
-
   try {
-    const res = await fetch(`${AI_BASE_URL}/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+    return await flowtoneJson("/api/ai/chat", {
+      method: "POST",
       body: JSON.stringify({ messages, context }),
-      signal: controller.signal,
+      timeoutMs: 30000,
     });
-
-    if (!res.ok) {
-      let errorMsg = `AI request failed with status ${res.status}`;
-      try {
-        const data = await res.json();
-        if (data.error) errorMsg = data.error;
-      } catch {
-        // ignore JSON parse errors
-      }
-      throw new Error(errorMsg);
-    }
-
-    return await res.json();
   } catch (err) {
-    if (err.name === 'AbortError') {
-      throw new Error('The AI is taking too long to respond. Check that the server is running.');
+    if (err.name === "AbortError") {
+      throw new Error("The AI is taking too long to respond. Check that the server is running.");
     }
     throw err;
-  } finally {
-    clearTimeout(timeout);
   }
 }

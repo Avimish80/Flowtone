@@ -8,6 +8,7 @@ import pushRoutes from './routes/push.js';
 import gmailRoutes from './routes/gmail.js';
 import billingRoutes, { handleStripeWebhook } from './routes/billing.js';
 import meRoutes from './routes/me.js';
+import { requireAuthenticatedUser } from './lib/auth.js';
 import { startScheduler } from './scheduler.js';
 
 // Load .env manually — works even if env vars are pre-set to empty
@@ -62,7 +63,7 @@ app.post('/api/billing/webhook', express.raw({ type: 'application/json' }), hand
 app.use(express.json());
 
 // ─── Routes ────────────────────────────────────────────────────────
-app.use('/api/ai', aiRoutes);
+app.use('/api/ai', requireAuthenticatedUser, aiRoutes);
 app.use('/api/push', pushRoutes);
 app.use('/api/gmail', gmailRoutes);
 app.use('/api/billing', billingRoutes);
