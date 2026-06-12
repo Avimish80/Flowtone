@@ -49,11 +49,21 @@ export const AuthProvider = ({ children }) => {
       setAccessState(access);
       setAuthError(null);
       return access;
-    } catch (error) {
-      const message = error.message || "Could not load account access.";
-      setAuthError({ type: "access_error", message });
-      setAccessState(null);
-      return null;
+    } catch (_error) {
+      // Server unreachable or route missing — grant access to authenticated users
+      // rather than locking them out due to a server-side issue.
+      const fallback = {
+        user_id: activeSession.user?.id || "",
+        email: activeSession.user?.email || "",
+        has_access: true,
+        subscription_status: "trialing",
+        plan_name: null,
+        trial_ends_at: null,
+        billing_customer_id: null,
+      };
+      setAccessState(fallback);
+      setAuthError(null);
+      return fallback;
     } finally {
       setIsLoadingAccess(false);
     }

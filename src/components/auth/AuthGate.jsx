@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Loader2, Mail, CreditCard, Music2, LogOut, ShieldAlert, CheckCircle2, KeyRound } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 
@@ -73,6 +73,13 @@ export default function AuthGate() {
   const [codeSent, setCodeSent] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [localError, setLocalError] = useState("");
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return undefined;
+    const timer = setTimeout(() => setResendCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [resendCooldown]);
 
   const trialLabel = useMemo(() => {
     if (!accessState?.trial_ends_at) return "";
@@ -88,6 +95,7 @@ export default function AuthGate() {
     try {
       await sendMagicLink(email);
       setCodeSent(true);
+      setResendCooldown(60);
     } catch (error) {
       setLocalError(error.message || "Could not send code.");
     }
@@ -242,12 +250,30 @@ export default function AuthGate() {
                     </PrimaryButton>
                   </form>
 
-                  <button
-                    onClick={() => { setCodeSent(false); setOtpCode(""); setLocalError(""); }}
-                    className="w-full text-center text-xs text-gray-500 hover:text-gray-300 transition-colors"
-                  >
-                    Wrong email? Go back
-                  </button>
+                  <div className="flex items-center justify-between">
+                    <button
+                      onClick={() => { setCodeSent(false); setOtpCode(""); setLocalError(""); setResendCooldown(0); }}
+                      className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
+                    >
+                      Wrong email? Go back
+                    </button>
+                    <button
+                      onClick={async () => {
+                        if (resendCooldown > 0) return;
+                        setLocalError("");
+                        try {
+                          await sendMagicLink(email);
+                          setResendCooldown(60);
+                        } catch (error) {
+                          setLocalError(error.message || "Could not resend code.");
+                        }
+                      }}
+                      disabled={resendCooldown > 0 || isSendingMagicLink}
+                      className="text-xs text-gray-500 hover:text-gray-300 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend code"}
+                    </button>
+                  </div>
                 </>
               )}
 
