@@ -174,12 +174,15 @@ async function executeAction(action) {
       }));
       const subtotal = lineItems.reduce((sum, i) => sum + i.total, 0);
 
+      const status = ["draft", "sent", "paid"].includes(data.status) ? data.status : "draft";
+      const todayStr = new Date().toISOString().slice(0, 10);
+
       const created = await appClient.entities.Document.create({
         document_type: "invoice",
         document_number: docNumber,
         title: data.title || "New Invoice",
         client_id: data.client_id || "",
-        status: "draft",
+        status,
         currency: data.currency || "GBP",
         line_items: lineItems,
         subtotal,
@@ -191,7 +194,9 @@ async function executeAction(action) {
         discount_value: 0,
         discount_amount: 0,
         is_locked: false,
-        paid_amount: 0,
+        paid_amount: status === "paid" ? subtotal : 0,
+        ...(status === "paid" ? { paid_date: todayStr } : {}),
+        ...(status === "sent" || status === "paid" ? { sent_date: todayStr } : {}),
       });
 
       return {
@@ -256,35 +261,44 @@ export function useAIAssistant() {
           .filter((m) => m.role === "user" || m.role === "assistant")
           .map((m) => ({ role: m.role, content: m.content }));
 
-        // Call AI — returns { message, action } already parsed
-        const { message: aiMessage, action = null } = await askAI(history, context);
+        // Call AI — returns { message, actions } already parsed
+        const response = await askAI(history, context);
+        const aiMessage = response.message || "";
+        const actions = Array.isArray(response.actions)
+          ? response.actions
+          : response.action
+            ? [response.action]
+            : [];
 
         // Add assistant message
         const assistantMsg = makeMessage("assistant", aiMessage);
         setMessages((prev) => [...prev, assistantMsg]);
 
-        // Handle LOCATION_SEARCH inline (no executeAction needed)
-        if (action && action.type === "LOCATION_SEARCH") {
-          try {
-            const query = encodeURIComponent(action.data?.query || "");
-            const resp = await fetch(
-              `https://nominatim.openstreetmap.org/search?format=json&limit=3&q=${query}`,
-              { headers: { "User-Agent": "Flowtone/1.0" } }
-            );
-            const results = await resp.json();
-            if (results && results.length > 0) {
-              const locationMsg = results.map((r) => `📍 ${r.display_name}`).join("\n");
-              setMessages((prev) => [...prev, makeMessage("assistant", locationMsg)]);
-            } else {
+        // Execute every action, in order
+        for (const action of actions) {
+          if (!action || !action.type) continue;
+
+          // Handle LOCATION_SEARCH inline (no executeAction needed)
+          if (action.type === "LOCATION_SEARCH") {
+            try {
+              const query = encodeURIComponent(action.data?.query || "");
+              const resp = await fetch(
+                `https://nominatim.openstreetmap.org/search?format=json&limit=3&q=${query}`,
+                { headers: { "User-Agent": "Flowtone/1.0" } }
+              );
+              const results = await resp.json();
+              if (results && results.length > 0) {
+                const locationMsg = results.map((r) => `📍 ${r.display_name}`).join("\n");
+                setMessages((prev) => [...prev, makeMessage("assistant", locationMsg)]);
+              } else {
+                setMessages((prev) => [...prev, makeMessage("assistant", "Couldn't find that location. Try being more specific.")]);
+              }
+            } catch {
               setMessages((prev) => [...prev, makeMessage("assistant", "Couldn't find that location. Try being more specific.")]);
             }
-          } catch {
-            setMessages((prev) => [...prev, makeMessage("assistant", "Couldn't find that location. Try being more specific.")]);
+            continue;
           }
-        }
 
-        // Execute action if present
-        if (action && action.type && action.type !== "LOCATION_SEARCH") {
           try {
             const result = await executeAction(action);
             if (result) {

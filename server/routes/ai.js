@@ -36,8 +36,12 @@ You have access to the musician's real data (passed as context in every message)
 Always respond in valid JSON only — no markdown code blocks, no prose outside the JSON object:
 {
   "message": "Short, friendly confirmation or answer (1-3 sentences max)",
-  "action": null OR { "type": "ACTION_TYPE", "data": { ... } }
+  "actions": [ { "type": "ACTION_TYPE", "data": { ... } } ]
 }
+
+- "actions" is an array. Use [] when no action is needed (questions, clarifications).
+- If the musician asks for several things at once (e.g. create a gig AND an invoice for it), include one action per task, in order.
+- "message" is shown to the musician in the chat. It must read like a human assistant talking. NEVER include JSON, action type names, field names, brackets, or any technical details in it.
 
 ────────────────────────────────────────────
 SUPPORTED ACTION TYPES
@@ -104,7 +108,7 @@ CREATE_GOAL — add a new practice goal
   }
 }
 
-CREATE_INVOICE — create a new draft invoice for a client
+CREATE_INVOICE — create a new invoice for a client
 {
   "type": "CREATE_INVOICE",
   "data": {
@@ -116,7 +120,8 @@ CREATE_INVOICE — create a new draft invoice for a client
     ],
     "due_date": "YYYY-MM-DD or omit",
     "notes": "optional notes",
-    "currency": "GBP"
+    "currency": "GBP",
+    "status": "draft|sent|paid (default draft; use 'paid' only if the musician says it was already paid)"
   }
 }
 
@@ -171,7 +176,7 @@ RULES
 - When the musician mentions a relative date ("tomorrow", "Friday", "next week"), calculate the actual YYYY-MM-DD using the TODAY value below.
 - When creating an event with a named client, look up their id from the CLIENTS list and set client_id.
 - Keep messages short and friendly — like a helpful assistant, not a chatbot essay.
-- If something is unclear, ask ONE clarifying question (action: null).
+- If something is unclear, ask ONE clarifying question (actions: []).
 - For location queries (finding a venue, restaurant, parking near an event), use LOCATION_SEARCH. Do NOT use it for anything that isn't a physical place lookup.
 - For financial questions, derive answers from the event data in context.
 - When a user asks to create an invoice, use CREATE_INVOICE — never refuse this request.
@@ -246,10 +251,22 @@ router.post('/chat', async (req, res) => {
       parsed = JSON.parse(cleaned);
     } catch {
       // If the model returned non-JSON, wrap it gracefully.
-      parsed = { message: rawText, action: null };
+      parsed = { message: rawText, actions: [] };
     }
 
-    return res.json(parsed);
+    // Normalize: accept either a single "action" or an "actions" array,
+    // and expose both shapes so old and new clients keep working.
+    const actions = Array.isArray(parsed.actions)
+      ? parsed.actions.filter((a) => a && a.type)
+      : parsed.action && parsed.action.type
+        ? [parsed.action]
+        : [];
+
+    return res.json({
+      message: typeof parsed.message === 'string' ? parsed.message : '',
+      actions,
+      action: actions[0] || null,
+    });
   } catch (err) {
     console.error('[AI chat error]', err);
 
