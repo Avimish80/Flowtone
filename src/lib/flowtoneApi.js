@@ -9,7 +9,7 @@ async function getAccessToken() {
 }
 
 export async function flowtoneFetch(path, options = {}) {
-  const { accessToken, ...requestOptions } = options;
+  const { accessToken, timeoutMs = 15000, ...requestOptions } = options;
   const token = accessToken || await getAccessToken();
   const headers = new Headers(requestOptions.headers || {});
 
@@ -18,10 +18,18 @@ export async function flowtoneFetch(path, options = {}) {
     headers.set("Content-Type", "application/json");
   }
 
-  return fetch(`${API_BASE_URL}${path}`, {
-    ...requestOptions,
-    headers,
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(`${API_BASE_URL}${path}`, {
+      ...requestOptions,
+      headers,
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 export async function flowtoneJson(path, options = {}) {

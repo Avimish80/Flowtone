@@ -148,9 +148,8 @@ export const AuthProvider = ({ children }) => {
     try {
       const { error } = await supabase.auth.signInWithOtp({
         email: trimmedEmail,
-        options: {
-          emailRedirectTo: window.location.origin,
-        },
+        // No emailRedirectTo — sends a 6-digit code only, no magic link in the email.
+        // Magic links open Safari instead of the PWA on iOS, breaking the login loop.
       });
 
       if (error) throw error;
