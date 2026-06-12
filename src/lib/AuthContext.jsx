@@ -153,6 +153,30 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
+  const verifyOtp = useCallback(async (email, token) => {
+    if (isPreviewModeEnabled()) return;
+
+    const trimmedEmail = String(email || "").trim().toLowerCase();
+    const trimmedToken = String(token || "").replace(/\s/g, "");
+    if (!trimmedEmail || !trimmedToken) throw new Error("Email and code are required.");
+
+    const supabase = getSupabaseClient();
+
+    try {
+      const { error } = await supabase.auth.verifyOtp({
+        email: trimmedEmail,
+        token: trimmedToken,
+        type: "email",
+      });
+      if (error) throw error;
+      setAuthError(null);
+    } catch (error) {
+      const message = error.message || "Invalid or expired code.";
+      setAuthError({ type: "auth_error", message });
+      throw new Error(message);
+    }
+  }, []);
+
   const logout = useCallback(async (redirectTo = "/") => {
     if (isPreviewModeEnabled()) {
       if (redirectTo) window.location.assign(redirectTo);
@@ -218,6 +242,7 @@ export const AuthProvider = ({ children }) => {
     appPublicSettings: {},
     isPreviewMode: isPreviewModeEnabled(),
     sendMagicLink,
+    verifyOtp,
     refreshAccess,
     logout,
     navigateToLogin,
@@ -241,6 +266,7 @@ export const AuthProvider = ({ children }) => {
     refreshAccess,
     session,
     sendMagicLink,
+    verifyOtp,
     user,
   ]);
 

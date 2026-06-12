@@ -7,7 +7,11 @@ function toIsoOrNull(value) {
   return date.toISOString();
 }
 
+const stripeConfigured = Boolean(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_PRICE_ID);
+
 export function profileHasAccess(profile) {
+  if (!stripeConfigured) return true;
+
   const status = profile?.subscription_status || "trialing";
   if (status === "active") return true;
   if (status !== "trialing") return false;
@@ -95,4 +99,3 @@ export async function updateProfileByCustomerId(customerId, changes) {
   if (error) throw error;
   return data || [];
 }
-

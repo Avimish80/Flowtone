@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Loader2, Mail, CreditCard, Music2, LogOut, ShieldAlert, CheckCircle2 } from "lucide-react";
+import { Loader2, Mail, CreditCard, Music2, LogOut, ShieldAlert, CheckCircle2, KeyRound } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 
 function Panel({ children }) {
@@ -62,13 +62,16 @@ export default function AuthGate() {
     isOpeningPortal,
     accessState,
     sendMagicLink,
+    verifyOtp,
     logout,
     openCheckout,
     openBillingPortal,
   } = useAuth();
 
   const [email, setEmail] = useState("");
-  const [infoMessage, setInfoMessage] = useState("");
+  const [otpCode, setOtpCode] = useState("");
+  const [codeSent, setCodeSent] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
   const [localError, setLocalError] = useState("");
 
   const trialLabel = useMemo(() => {
@@ -78,16 +81,29 @@ export default function AuthGate() {
     return date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
   }, [accessState?.trial_ends_at]);
 
-  const handleSendMagicLink = async (event) => {
+  const handleSendCode = async (event) => {
     event.preventDefault();
     setLocalError("");
-    setInfoMessage("");
 
     try {
       await sendMagicLink(email);
-      setInfoMessage(`Magic link sent to ${email}. Open it on this device to sign in.`);
+      setCodeSent(true);
     } catch (error) {
-      setLocalError(error.message || "Could not send magic link.");
+      setLocalError(error.message || "Could not send code.");
+    }
+  };
+
+  const handleVerifyCode = async (event) => {
+    event.preventDefault();
+    setLocalError("");
+    setIsVerifying(true);
+
+    try {
+      await verifyOtp(email, otpCode);
+    } catch (error) {
+      setLocalError(error.message || "Invalid or expired code. Try again.");
+    } finally {
+      setIsVerifying(false);
     }
   };
 
@@ -149,49 +165,95 @@ export default function AuthGate() {
 
           <Panel>
             <div className="space-y-5 px-6 py-8">
-              <div>
-                <p className="text-lg font-semibold text-white">Sign in to Flowtone</p>
-                <p className="mt-1 text-sm text-gray-400">
-                  We’ll send you a magic link by email. No password needed.
-                </p>
-              </div>
-
-              <form className="space-y-4" onSubmit={handleSendMagicLink}>
-                <div className="space-y-2">
-                  <label className="text-xs font-medium uppercase tracking-wider text-gray-500">Email</label>
-                  <div className="flex items-center gap-3 rounded-2xl border border-gray-800 bg-gray-950/80 px-4 py-3">
-                    <Mail className="h-4 w-4 text-gray-500" />
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="you@example.com"
-                      className="w-full bg-transparent text-sm text-white outline-none placeholder:text-gray-600"
-                      autoComplete="email"
-                      required
-                    />
+              {!codeSent ? (
+                <>
+                  <div>
+                    <p className="text-lg font-semibold text-white">Sign in to Flowtone</p>
+                    <p className="mt-1 text-sm text-gray-400">
+                      We’ll email you a 6-digit code. No password needed.
+                    </p>
                   </div>
-                </div>
 
-                <PrimaryButton
-                  type="submit"
-                  disabled={!email.trim() || isSendingMagicLink}
-                  className="bg-indigo-600 text-white hover:bg-indigo-500"
-                >
-                  {isSendingMagicLink ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
-                  Send Magic Link
-                </PrimaryButton>
-              </form>
+                  <form className="space-y-4" onSubmit={handleSendCode}>
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium uppercase tracking-wider text-gray-500">Email</label>
+                      <div className="flex items-center gap-3 rounded-2xl border border-gray-800 bg-gray-950/80 px-4 py-3">
+                        <Mail className="h-4 w-4 text-gray-500" />
+                        <input
+                          type="email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          placeholder="you@example.com"
+                          className="w-full bg-transparent text-sm text-white outline-none placeholder:text-gray-600"
+                          autoComplete="email"
+                          required
+                        />
+                      </div>
+                    </div>
 
-              {(localError || authError?.message) && (
-                <div className="rounded-2xl border border-red-900/50 bg-red-950/40 px-4 py-3 text-sm text-red-200">
-                  {localError || authError?.message}
-                </div>
+                    <PrimaryButton
+                      type="submit"
+                      disabled={!email.trim() || isSendingMagicLink}
+                      className="bg-indigo-600 text-white hover:bg-indigo-500"
+                    >
+                      {isSendingMagicLink ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
+                      Send Code
+                    </PrimaryButton>
+                  </form>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <p className="text-lg font-semibold text-white">Check your email</p>
+                    <p className="mt-1 text-sm text-gray-400">
+                      We sent a 6-digit code to <span className="text-white">{email}</span>.
+                      Enter it below — no need to tap any link.
+                    </p>
+                  </div>
+
+                  <form className="space-y-4" onSubmit={handleVerifyCode}>
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium uppercase tracking-wider text-gray-500">6-digit code</label>
+                      <div className="flex items-center gap-3 rounded-2xl border border-gray-800 bg-gray-950/80 px-4 py-3">
+                        <KeyRound className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          maxLength={6}
+                          value={otpCode}
+                          onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
+                          placeholder="123456"
+                          className="w-full bg-transparent text-sm text-white outline-none placeholder:text-gray-600 tracking-widest"
+                          autoComplete="one-time-code"
+                          autoFocus
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <PrimaryButton
+                      type="submit"
+                      disabled={otpCode.length < 6 || isVerifying}
+                      className="bg-indigo-600 text-white hover:bg-indigo-500"
+                    >
+                      {isVerifying ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
+                      Sign In
+                    </PrimaryButton>
+                  </form>
+
+                  <button
+                    onClick={() => { setCodeSent(false); setOtpCode(""); setLocalError(""); }}
+                    className="w-full text-center text-xs text-gray-500 hover:text-gray-300 transition-colors"
+                  >
+                    Wrong email? Go back
+                  </button>
+                </>
               )}
 
-              {infoMessage && (
-                <div className="rounded-2xl border border-emerald-900/50 bg-emerald-950/40 px-4 py-3 text-sm text-emerald-200">
-                  {infoMessage}
+              {(localError || authError?.type === "auth_error") && (
+                <div className="rounded-2xl border border-red-900/50 bg-red-950/40 px-4 py-3 text-sm text-red-200">
+                  {localError || authError?.message}
                 </div>
               )}
             </div>
