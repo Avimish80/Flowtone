@@ -286,15 +286,15 @@ router.post('/chat', async (req, res) => {
 // Returns: { greeting, items: [{ text, type, entity_id, entity_type }] }
 router.post('/briefing', async (req, res) => {
   try {
-    const { today, name, todayEvents = [], overdueInvoices = [], noInvoiceEvents = [] } = req.body;
+    const { today, timeOfDay = 'morning', name, todayEvents = [], overdueInvoices = [], noInvoiceEvents = [] } = req.body;
 
     const client = getClient();
 
-    const prompt = `You are generating a morning briefing for ${name ? name : 'a professional musician'} using Flowtone, their business management app.
+    const prompt = `You are generating a briefing for ${name ? name : 'a professional musician'} using Flowtone, their business management app. It is currently the ${timeOfDay}.
 
 Return ONLY valid JSON — no markdown, no prose outside the JSON:
 {
-  "greeting": "Short warm greeting (max 8 words, use their name if provided)",
+  "greeting": "Short warm greeting matching the time of day, e.g. 'Good ${timeOfDay}' (max 8 words, use their name if provided)",
   "items": [
     {
       "text": "Short actionable description (max 12 words)",
@@ -345,7 +345,7 @@ ${JSON.stringify(noInvoiceEvents)}`;
       parsed = JSON.parse(cleaned);
     } catch {
       parsed = {
-        greeting: `Good morning${name ? ', ' + name : ''}`,
+        greeting: `Good ${timeOfDay}${name ? ', ' + name : ''}`,
         items: [{ text: 'Have a great day.', type: 'general', entity_id: null, entity_type: null }],
       };
     }

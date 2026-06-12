@@ -20,14 +20,31 @@ function getFirstName(user) {
   return prefix.charAt(0).toUpperCase() + prefix.slice(1);
 }
 
+function getTimeOfDay() {
+  const hour = new Date().getHours();
+  if (hour < 12) return "morning";
+  if (hour < 18) return "afternoon";
+  return "evening";
+}
+
 export function AIDashboardBriefing({ events = [], documents = [] }) {
-  const [briefing, setBriefing] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [dismissed, setDismissed] = useState(false);
+  const today = new Date().toISOString().slice(0, 10);
+  const timeOfDay = getTimeOfDay();
+  const cacheKey = `flowtone_briefing_${today}_${timeOfDay}`;
+  const dismissKey = `flowtone_briefing_dismissed_${today}`;
+
+  const [briefing, setBriefing] = useState(() => {
+    try {
+      const cached = sessionStorage.getItem(cacheKey);
+      return cached ? JSON.parse(cached) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [loading, setLoading] = useState(!briefing);
+  const [dismissed, setDismissed] = useState(() => sessionStorage.getItem(dismissKey) === "1");
   const navigate = useNavigate();
   const { user } = useAuth();
-
-  const today = new Date().toISOString().slice(0, 10);
 
   const eventMap = useMemo(
     () => Object.fromEntries(events.map((e) => [e.id, e])),
@@ -36,6 +53,12 @@ export function AIDashboardBriefing({ events = [], documents = [] }) {
 
   useEffect(() => {
     if (isPreviewModeEnabled()) {
+      setLoading(false);
+      return;
+    }
+
+    // Already have today's briefing for this part of the day — no refetch
+    if (briefing) {
       setLoading(false);
       return;
     }
@@ -72,13 +95,21 @@ export function AIDashboardBriefing({ events = [], documents = [] }) {
       method: "POST",
       body: JSON.stringify({
         today,
+        timeOfDay,
         name: getFirstName(user),
         todayEvents,
         overdueInvoices,
         noInvoiceEvents,
       }),
     })
-      .then((data) => setBriefing(data))
+      .then((data) => {
+        setBriefing(data);
+        try {
+          sessionStorage.setItem(cacheKey, JSON.stringify(data));
+        } catch {
+          // storage full or unavailable — briefing just won't be cached
+        }
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
@@ -127,7 +158,14 @@ export function AIDashboardBriefing({ events = [], documents = [] }) {
           <span className="text-sm font-medium text-gray-200 truncate">{briefing.greeting}</span>
         </div>
         <button
-          onClick={() => setDismissed(true)}
+          onClick={() => {
+            setDismissed(true);
+            try {
+              sessionStorage.setItem(dismissKey, "1");
+            } catch {
+              // unavailable storage — dismissal just won't persist
+            }
+          }}
           className="text-gray-600 hover:text-gray-400 transition-colors ml-3 flex-shrink-0"
           aria-label="Dismiss briefing"
         >
