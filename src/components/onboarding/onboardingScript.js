@@ -1,5 +1,6 @@
 export const LANGUAGE_OPTIONS = ["English", "Hebrew", "Spanish", "French", "German"];
 export const PROFESSION_OPTIONS = ["Guitarist", "Pianist", "Singer", "Drummer", "Teacher", "Producer"];
+export const CURRENCY_OPTIONS = ["GBP", "USD", "EUR", "AUD", "CAD"];
 
 // Step types:
 //   say  — assistant bubble, auto-advances
@@ -41,6 +42,20 @@ export const STEPS = [
     input: { kind: "chips", options: PROFESSION_OPTIONS, allowFreeText: true, placeholder: "Or describe what you do" },
   },
   {
+    id: "business_name",
+    type: "ask",
+    field: "business_name",
+    prompt: (a) => `Now the business side. What name goes on your invoices — a business name, or just "${a.user_name}"? Send empty to use your own name.`,
+    input: { kind: "text", placeholder: "Business or stage name", defaultValue: (a) => a.user_name },
+  },
+  {
+    id: "currency",
+    type: "ask",
+    field: "currency",
+    prompt: () => "And which currency do we get paid in? Arguably the most important question so far.",
+    input: { kind: "chips", options: CURRENCY_OPTIONS },
+  },
+  {
     id: "tour_events",
     type: "say",
     text: (a) => `Alright ${a.user_name}, quick backstage tour. Events is where your gigs, lessons and rehearsals live — dates, venues, fees. No more notes scribbled on napkins.`,
@@ -54,6 +69,11 @@ export const STEPS = [
     id: "tour_ai",
     type: "say",
     text: (a) => `And me — ${a.assistant_name}? Tap the sparkle button anytime and just talk. "Book a wedding gig next Friday for £400" — done before the drummer counts in.`,
+  },
+  {
+    id: "tour_settings",
+    type: "say",
+    text: (a) => `I've already set up "${a.business_name || a.user_name}" and ${a.currency || "GBP"} for your invoices. One thing only you can do: drop your logo into Settings → Business Profile, and your invoices go from plain to pro.`,
   },
   {
     id: "tour_done",

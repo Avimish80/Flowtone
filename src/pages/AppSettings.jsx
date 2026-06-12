@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { appClient } from "@/api/appClient";
 import { useAuth } from "@/lib/AuthContext";
-import { Check, Mail, Navigation, Bell, DollarSign, Building2, Hash, ChevronDown, ChevronUp, Upload, X, Palette, Download, Upload as UploadIcon, LogOut, Sparkles } from "lucide-react";
+import { Check, Mail, Navigation, Bell, Banknote, Building2, Hash, ChevronDown, ChevronUp, Upload, X, Palette, Download, Upload as UploadIcon, LogOut, Sparkles } from "lucide-react";
 import { getAssistantProfile, DEFAULT_ASSISTANT_NAME, DEFAULT_LANGUAGE } from "@/lib/assistantProfile";
 import { LANGUAGE_OPTIONS } from "@/components/onboarding/onboardingScript";
 import { TEMPLATE_DEFS, generateInvoiceHTML } from "@/lib/invoiceTemplates";
@@ -405,7 +405,7 @@ export default function AppSettings() {
         </section>
 
         <section>
-          <SectionHeader icon={DollarSign} label="Finance" sectionKey="finance" />
+          <SectionHeader icon={Banknote} label="Finance" sectionKey="finance" />
           {openSections.has("finance") && (
             <div className="bg-gray-800 rounded-xl p-4 space-y-4">
               <div className="grid grid-cols-2 gap-3">

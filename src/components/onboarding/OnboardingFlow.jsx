@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Sparkles } from "lucide-react";
 import { createPageUrl } from "@/utils";
 import { useAuth } from "@/lib/AuthContext";
+import { appClient } from "@/api/appClient";
 import {
   saveAssistantProfile,
   deriveFallbackName,
@@ -88,11 +89,32 @@ export default function OnboardingFlow({ onFinish }) {
     };
   };
 
+  const applyBusinessAnswers = async () => {
+    const a = answersRef.current;
+
+    if (a.currency) {
+      const settings = await appClient.helpers.ensureSingletonEntity("AppSettings");
+      await appClient.entities.AppSettings.update(settings.id, {
+        currency: a.currency,
+        default_currency: a.currency,
+      });
+    }
+
+    const businessName = a.business_name || a.user_name;
+    if (businessName) {
+      const profile = await appClient.helpers.ensureSingletonEntity("BusinessProfile");
+      if (!profile.business_name) {
+        await appClient.entities.BusinessProfile.update(profile.id, { business_name: businessName });
+      }
+    }
+  };
+
   const finishWith = async ({ skipped = false, after } = {}) => {
     if (saving) return;
     setSaving(true);
     try {
       await saveAssistantProfile(buildProfile({ skipped }));
+      await applyBusinessAnswers();
     } catch (err) {
       // Fail open — they'll see onboarding again next session
       console.warn("Onboarding: could not save profile", err);
@@ -171,7 +193,17 @@ export default function OnboardingFlow({ onFinish }) {
         style={{ padding: "12px", paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}
       >
         {inputEnabled && step?.input ? (
-          <OnboardingInput input={step.input} onSubmit={handleAnswer} disabled={saving} />
+          <OnboardingInput
+            input={{
+              ...step.input,
+              defaultValue:
+                typeof step.input.defaultValue === "function"
+                  ? step.input.defaultValue(answersRef.current)
+                  : step.input.defaultValue,
+            }}
+            onSubmit={handleAnswer}
+            disabled={saving}
+          />
         ) : (
           <p className="text-center text-[10px] text-gray-700 py-2">Flowtone · First-time setup</p>
         )}

@@ -5,7 +5,7 @@ import { createPageUrl } from "@/utils";
 import { useGoBack } from "@/hooks/useGoBack";
 import { format } from "date-fns";
 import {
-  ArrowLeft, Save, Trash2, DollarSign,
+  ArrowLeft, Save, Trash2, Banknote,
   Package, Mail, Navigation, ChevronDown, ChevronUp, AlertTriangle, FileText, CalendarDays, RefreshCw,
   Dumbbell, Check, X, CheckCircle2, Target, ExternalLink, Loader2, CalendarPlus
 } from "lucide-react";
@@ -20,7 +20,7 @@ import EventLinkedDocsSection from "../components/workevent/EventLinkedDocsSecti
 const SECTIONS = [
   { key: "info",       label: "Info",       icon: CalendarDays },
   { key: "practice",   label: "Practice",   icon: Dumbbell },
-  { key: "financials", label: "Financials", icon: DollarSign, hideForPractice: true },
+  { key: "financials", label: "Financials", icon: Banknote, hideForPractice: true },
   { key: "docs",       label: "Docs",       icon: FileText,   hideForPractice: true },
   { key: "equipment",  label: "Equipment",  icon: Package },
   { key: "navigation", label: "Navigate",   icon: Navigation },
