@@ -136,7 +136,7 @@ export const AuthProvider = ({ children }) => {
     };
   }, [refreshAccess]);
 
-  const sendMagicLink = useCallback(async (email) => {
+  const sendMagicLink = useCallback(async (email, { allowSignup = false } = {}) => {
     if (isPreviewModeEnabled()) return;
 
     const trimmedEmail = String(email || "").trim().toLowerCase();
@@ -148,14 +148,22 @@ export const AuthProvider = ({ children }) => {
     try {
       const { error } = await supabase.auth.signInWithOtp({
         email: trimmedEmail,
-        // No emailRedirectTo — sends a 6-digit code only, no magic link in the email.
+        // No emailRedirectTo — sends a code-only email, no magic link.
         // Magic links open Safari instead of the PWA on iOS, breaking the login loop.
+        // shouldCreateUser: false makes sign-in reject unknown emails instead of
+        // silently registering them; the signup flow passes allowSignup: true.
+        options: { shouldCreateUser: allowSignup },
       });
 
-      if (error) throw error;
+      if (error) {
+        if (/signups not allowed/i.test(error.message || "")) {
+          throw new Error("No account found for this email. Tap 'Create account' below to register.");
+        }
+        throw error;
+      }
       setAuthError(null);
     } catch (error) {
-      setAuthError({ type: "auth_error", message: error.message || "Could not send magic link." });
+      setAuthError({ type: "auth_error", message: error.message || "Could not send code." });
       throw error;
     } finally {
       setIsSendingMagicLink(false);

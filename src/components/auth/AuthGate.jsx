@@ -70,6 +70,7 @@ export default function AuthGate() {
 
   const [email, setEmail] = useState("");
   const [otpCode, setOtpCode] = useState("");
+  const [mode, setMode] = useState("signin"); // "signin" | "signup"
   const [codeSent, setCodeSent] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [localError, setLocalError] = useState("");
@@ -93,7 +94,7 @@ export default function AuthGate() {
     setLocalError("");
 
     try {
-      await sendMagicLink(email);
+      await sendMagicLink(email, { allowSignup: mode === "signup" });
       setCodeSent(true);
       setResendCooldown(60);
     } catch (error) {
@@ -176,9 +177,11 @@ export default function AuthGate() {
               {!codeSent ? (
                 <>
                   <div>
-                    <p className="text-lg font-semibold text-white">Sign in to Flowtone</p>
+                    <p className="text-lg font-semibold text-white">
+                      {mode === "signup" ? "Create your Flowtone account" : "Sign in to Flowtone"}
+                    </p>
                     <p className="mt-1 text-sm text-gray-400">
-                      We’ll email you a 6-digit code. No password needed.
+                      We’ll email you a sign-in code. No password needed.
                     </p>
                   </div>
 
@@ -208,6 +211,15 @@ export default function AuthGate() {
                       Send Code
                     </PrimaryButton>
                   </form>
+
+                  <button
+                    onClick={() => { setMode(mode === "signup" ? "signin" : "signup"); setLocalError(""); }}
+                    className="w-full text-center text-xs text-gray-500 hover:text-gray-300 transition-colors"
+                  >
+                    {mode === "signup"
+                      ? "Already have an account? Sign in"
+                      : "New to Flowtone? Create an account"}
+                  </button>
                 </>
               ) : (
                 <>
