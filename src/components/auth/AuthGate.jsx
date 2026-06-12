@@ -228,7 +228,7 @@ export default function AuthGate() {
                           type="text"
                           inputMode="numeric"
                           pattern="[0-9]*"
-                          maxLength={6}
+                          maxLength={8}
                           value={otpCode}
                           onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
                           placeholder="123456"
@@ -242,7 +242,7 @@ export default function AuthGate() {
 
                     <PrimaryButton
                       type="submit"
-                      disabled={otpCode.length < 6 || isVerifying}
+                      disabled={otpCode.length < 4 || isVerifying}
                       className="bg-indigo-600 text-white hover:bg-indigo-500"
                     >
                       {isVerifying ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
