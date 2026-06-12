@@ -10,8 +10,13 @@
 **Owner:** Avi Mishali — professional musician based in London
 **Purpose:** Mobile-first business OS for musicians — events, invoicing, clients, calendar, finance dashboard, AI assistant, driving mode, notifications
 **Repo:** https://github.com/Avimish80/Flowtone
-**Deployed:** Already live on Vercel (connected to the repo — auto-deploys on push to `main`)
-**Local dev:** `npm run dev` → `http://localhost:3000`, also on LAN via `http://192.168.0.8:3000` (phone testing)
+**Deployed:**
+- Frontend: Vercel (auto-deploys on push to `main`). Env vars: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_API_URL`
+- Express server (`server/`): Railway at `https://flowtone-production.up.railway.app` (also auto-deploys on push)
+- Database + auth: Supabase (project `jducrkssrtzhjpymldrw`) — Postgres with RLS, email OTP sign-in, custom SMTP via Resend
+- Billing: Stripe (server routes in `server/routes/billing.js`; access gating in `server/lib/access.js`)
+
+**Local dev:** `npm run dev` → `http://localhost:3000`, also on LAN via `http://192.168.0.8:3000` (phone testing). Local `.env` has the Supabase keys, so local dev signed-in sessions share the same cloud data as production.
 
 ---
 
@@ -24,8 +29,9 @@
 | Routing | React Router v6 — `createPageUrl(name)` = `'/' + name.replace(/ /g, '-')` |
 | Icons | lucide-react |
 | UI primitives | shadcn/ui (Radix-based) in `src/components/ui/` |
-| Data storage | `localStorage` — all data lives in the browser, no backend |
-| Data API | `src/api/appClient.js` wraps `src/api/localStorageEngine.js` |
+| Data storage | **Dual-mode:** Supabase Postgres (production — all 14 entities, `user_id` + RLS) or `localStorage` (preview mode only, when Supabase env vars are missing) |
+| Data API | `src/api/appClient.js` wraps `src/api/localStorageEngine.js` (despite the filename, it routes to Supabase in cloud mode; entity→table mapping in `src/api/entityMetadata.js`) |
+| Auth | Supabase email OTP (code-only, no magic link — links break the iOS PWA). Sign-in vs signup split via `shouldCreateUser`. `src/lib/AuthContext.jsx` + `src/components/auth/AuthGate.jsx` |
 | State | `useState` / `useMemo` / `useEffect` in components |
 | Persistent page state | `usePageState(key, default)` — sessionStorage, survives nav but clears on tab close |
 | AI assistant | `src/components/AIAssistant/` — floating button + panel |
@@ -37,8 +43,10 @@
 
 ## Data layer — complete reference
 
-### Storage keys
-All data stored as `localStorage.getItem("musician_os_<EntityName>")` — JSON arrays.
+### Storage
+**Cloud mode (production + local dev with `.env`):** every entity reads/writes its Supabase table (`work_events`, `documents`, `clients`, …) with the signed-in user's `user_id`. Unknown fields go into a `payload` JSONB column (`splitRecord`/`hydrateRow` in `localStorageEngine.js`). Data syncs across devices. Schema: `supabase/migrations/20260410_backend_first_launch.sql`.
+
+**Preview mode (Supabase env vars missing):** data stored as `localStorage.getItem("musician_os_<EntityName>")` — JSON arrays, device-local.
 
 ### `localStorageEngine.js` — CRUD API
 ```js
@@ -473,7 +481,7 @@ Other buttons: "Load Sample Events (47 gigs)" from CSV, "Load Sample Invoices (2
 - **Don't use bash `grep`/`find`** — use the Grep/Glob tools
 - **Don't add emojis to source code**
 - **Don't create README/docs files** unless explicitly asked
-- **Don't add a backend** — everything is localStorage, that's intentional
+- **Don't say data is localStorage-only** — production syncs everything to Supabase; localStorage is only the preview-mode fallback
 - **Don't use `any` TypeScript types** — the `.ts` files use proper types
 - **Don't duplicate state** — use `usePageState` for filter/sort/view state that should survive navigation
 - **Don't put the status pill inside the invoice card** — it lives only in the nav bar
