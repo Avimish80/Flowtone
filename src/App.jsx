@@ -6,6 +6,7 @@ import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import AuthGate from '@/components/auth/AuthGate';
+import OnboardingGate from '@/components/onboarding/OnboardingGate';
 import { useEffect } from 'react';
 import { saveGmailTokens } from '@/lib/gmailClient';
 
@@ -23,6 +24,7 @@ const AuthenticatedApp = () => {
   if (!authReady || !isAuthenticated || !hasAccess) return <AuthGate />;
 
   return (
+    <OnboardingGate>
     <Routes>
       <Route path="/" element={
         <LayoutWrapper currentPageName={mainPageKey}>
@@ -42,6 +44,7 @@ const AuthenticatedApp = () => {
       ))}
       <Route path="*" element={<PageNotFound />} />
     </Routes>
+    </OnboardingGate>
   );
 };
 

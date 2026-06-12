@@ -1,6 +1,7 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { askAI } from "@/api/aiClient";
 import { appClient } from "@/api/appClient";
+import { getAssistantProfile } from "@/lib/assistantProfile";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -45,12 +46,15 @@ async function buildContext() {
       .slice(0, 10)
       .map((s) => ({ date: s.date, duration_minutes: s.duration_minutes }));
 
+    const assistantProfile = await getAssistantProfile().catch(() => null);
+
     return {
       today: now.toISOString().slice(0, 10),
       upcomingEvents,
       clients,
       practiceGoals,
       recentSessions,
+      assistantProfile,
     };
   } catch (err) {
     console.warn("useAIAssistant: failed to build context", err);
@@ -230,17 +234,36 @@ async function executeAction(action) {
 
 // ─── Hook ───────────────────────────────────────────────────────────────────
 
+const DEFAULT_GREETING =
+  "Hey! I'm your Flowtone Assistant. Ask me anything — I can create events, log practice, add clients, or help you stay on top of your work. 🎵";
+
+function personalGreeting(profile) {
+  if (!profile?.user_name) return DEFAULT_GREETING;
+  const aiName = profile.assistant_name ? `I'm ${profile.assistant_name}` : "I'm your assistant";
+  return `Hey ${profile.user_name}! ${aiName} — ask me anything. I can create events, log practice, add clients, or help you stay on top of your work.`;
+}
+
 export function useAIAssistant() {
-  const [messages, setMessages] = useState([
-    makeMessage(
-      "assistant",
-      "Hey! I'm your Flowtone Assistant. Ask me anything — I can create events, log practice, add clients, or help you stay on top of your work. 🎵"
-    ),
-  ]);
+  const [messages, setMessages] = useState([makeMessage("assistant", DEFAULT_GREETING)]);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   // pendingNavigate: { page, params } — set when AI returns NAVIGATE action
   const [pendingNavigate, setPendingNavigate] = useState(null);
+
+  // Personalize the greeting once the assistant profile loads —
+  // only if the user hasn't started chatting yet
+  useEffect(() => {
+    getAssistantProfile()
+      .then((profile) => {
+        if (!profile?.user_name) return;
+        setMessages((prev) =>
+          prev.length === 1 && prev[0].role === "assistant"
+            ? [makeMessage("assistant", personalGreeting(profile))]
+            : prev
+        );
+      })
+      .catch(() => {});
+  }, []);
 
   const sendMessage = useCallback(
     async (text) => {
@@ -345,12 +368,7 @@ export function useAIAssistant() {
   );
 
   const clearHistory = useCallback(() => {
-    setMessages([
-      makeMessage(
-        "assistant",
-        "Chat cleared. How can I help you?"
-      ),
-    ]);
+    setMessages([makeMessage("assistant", "Chat cleared. How can I help you?")]);
     setPendingNavigate(null);
   }, []);
 

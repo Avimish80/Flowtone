@@ -1100,5 +1100,6 @@ export const appClient = {
     lockDocument,
     unlockDocument,
     buildClientMap,
+    ensureSingletonEntity,
   },
 };

@@ -130,6 +130,21 @@ export default function Layout({ children, currentPageName }) {
     clearPendingNavigate,
   } = useAIAssistant();
 
+  // Onboarding "Ask the assistant" handoff — open the panel and send the prefilled message once
+  useEffect(() => {
+    let prefill = null;
+    try {
+      prefill = sessionStorage.getItem("flowtone_onboarding_prefill");
+      if (prefill) sessionStorage.removeItem("flowtone_onboarding_prefill");
+    } catch {
+      return;
+    }
+    if (prefill) {
+      openPanel();
+      sendMessage(prefill);
+    }
+  }, []);
+
   let sectionLabel = currentPageName in SECTION_LABELS ? SECTION_LABELS[currentPageName] : currentPageName;
   if (currentPageName === "DocumentDetail") {
     const params = new URLSearchParams(location.search);

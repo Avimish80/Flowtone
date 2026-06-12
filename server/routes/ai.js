@@ -16,6 +16,31 @@ function getClient() {
 }
 
 // ─── Build the Flowtone system prompt with injected context ─────────
+function buildIdentitySection(assistantProfile) {
+  if (!assistantProfile?.assistant_name && !assistantProfile?.user_name) return '';
+
+  const lines = [];
+  if (assistantProfile.assistant_name) {
+    lines.push(`- Your name is "${assistantProfile.assistant_name}". Refer to yourself by this name, never as "Flowtone Assistant".`);
+  }
+  if (assistantProfile.user_name) {
+    lines.push(`- The musician's name is "${assistantProfile.user_name}". Address them by name naturally — warm, not robotic, not in every single message.`);
+  }
+  if (assistantProfile.profession) {
+    lines.push(`- They work as a ${assistantProfile.profession}. Tailor your tone and examples to their work.`);
+  }
+  if (assistantProfile.language && assistantProfile.language !== 'English') {
+    lines.push(`- LANGUAGE: ALWAYS write the "message" field in ${assistantProfile.language}, even if the musician writes in another language — unless they explicitly ask you to switch. JSON keys, action "type" values, and data field names MUST stay in English; dates stay YYYY-MM-DD.`);
+  }
+
+  return `
+────────────────────────────────────────────
+YOUR IDENTITY
+────────────────────────────────────────────
+${lines.join('\n')}
+`;
+}
+
 function buildSystemPrompt(context = {}) {
   const {
     today = new Date().toISOString().slice(0, 10),
@@ -23,6 +48,7 @@ function buildSystemPrompt(context = {}) {
     clients = [],
     practiceGoals = [],
     recentSessions = [],
+    assistantProfile = null,
   } = context;
 
   return `You are Flowtone Assistant — a personal AI co-pilot built into Flowtone, a professional organizer app for musicians. You help musicians manage their schedule, clients, invoices, practice sessions, and music library.
@@ -170,6 +196,7 @@ SHOW_INFO — display formatted information to the musician
   }
 }
 
+${buildIdentitySection(assistantProfile)}
 ────────────────────────────────────────────
 RULES
 ────────────────────────────────────────────
@@ -286,11 +313,11 @@ router.post('/chat', async (req, res) => {
 // Returns: { greeting, items: [{ text, type, entity_id, entity_type }] }
 router.post('/briefing', async (req, res) => {
   try {
-    const { today, timeOfDay = 'morning', name, todayEvents = [], overdueInvoices = [], noInvoiceEvents = [] } = req.body;
+    const { today, timeOfDay = 'morning', name, language = 'English', assistantName = '', todayEvents = [], overdueInvoices = [], noInvoiceEvents = [] } = req.body;
 
     const client = getClient();
 
-    const prompt = `You are generating a briefing for ${name ? name : 'a professional musician'} using Flowtone, their business management app. It is currently the ${timeOfDay}.
+    const prompt = `You are generating a briefing for ${name ? name : 'a professional musician'} using Flowtone, their business management app. It is currently the ${timeOfDay}.${assistantName ? ` You are their personal assistant, named "${assistantName}".` : ''}${language !== 'English' ? `\nIMPORTANT: Write the "greeting" and every "text" value in ${language}. Keep "type", "entity_id", and "entity_type" values in English.` : ''}
 
 Return ONLY valid JSON — no markdown, no prose outside the JSON:
 {

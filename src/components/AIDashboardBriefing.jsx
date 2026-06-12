@@ -6,18 +6,10 @@ import { isPreviewModeEnabled } from "@/lib/supabaseClient";
 import { useAuth } from "@/lib/AuthContext";
 import { Sparkles, X } from "lucide-react";
 import { isPast, parseISO } from "date-fns";
+import { getAssistantProfile, getCachedProfileSync, deriveFallbackName, DEFAULT_LANGUAGE } from "@/lib/assistantProfile";
 
 function buildNavUrl(address) {
   return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}&travelmode=driving`;
-}
-
-function getFirstName(user) {
-  const meta = user?.user_metadata;
-  const full = meta?.full_name || meta?.name || "";
-  if (full) return full.split(" ")[0];
-  const email = user?.email || "";
-  const prefix = email.split("@")[0].split(".")[0];
-  return prefix.charAt(0).toUpperCase() + prefix.slice(1);
 }
 
 function getTimeOfDay() {
@@ -30,7 +22,10 @@ function getTimeOfDay() {
 export function AIDashboardBriefing({ events = [], documents = [] }) {
   const today = new Date().toISOString().slice(0, 10);
   const timeOfDay = getTimeOfDay();
-  const cacheKey = `flowtone_briefing_${today}_${timeOfDay}`;
+  // Profile cache is warm: OnboardingGate loads it before any page mounts
+  const profile = getCachedProfileSync();
+  const language = profile?.language || DEFAULT_LANGUAGE;
+  const cacheKey = `flowtone_briefing_${today}_${timeOfDay}_${language}`;
   const dismissKey = `flowtone_briefing_dismissed_${today}`;
 
   const [briefing, setBriefing] = useState(() => {
@@ -96,7 +91,9 @@ export function AIDashboardBriefing({ events = [], documents = [] }) {
       body: JSON.stringify({
         today,
         timeOfDay,
-        name: getFirstName(user),
+        name: profile?.user_name || deriveFallbackName(user),
+        language,
+        assistantName: profile?.assistant_name || "",
         todayEvents,
         overdueInvoices,
         noInvoiceEvents,

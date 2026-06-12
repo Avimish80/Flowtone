@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { appClient } from "@/api/appClient";
 import { useAuth } from "@/lib/AuthContext";
-import { Check, Mail, Navigation, Bell, DollarSign, Building2, Hash, ChevronDown, ChevronUp, Upload, X, Palette, Download, Upload as UploadIcon, LogOut } from "lucide-react";
+import { Check, Mail, Navigation, Bell, DollarSign, Building2, Hash, ChevronDown, ChevronUp, Upload, X, Palette, Download, Upload as UploadIcon, LogOut, Sparkles } from "lucide-react";
+import { getAssistantProfile, DEFAULT_ASSISTANT_NAME, DEFAULT_LANGUAGE } from "@/lib/assistantProfile";
+import { LANGUAGE_OPTIONS } from "@/components/onboarding/onboardingScript";
 import { TEMPLATE_DEFS, generateInvoiceHTML } from "@/lib/invoiceTemplates";
 import { registerPush, unregisterPush, isPushActive, schedulePushNotifications, sendTestPush } from "@/lib/pushManager";
 import { DEFAULT_PREFS } from "@/lib/notificationPrefs";
@@ -196,6 +198,8 @@ export default function AppSettings() {
       }
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
+      // Refresh the assistant profile module cache (AI chat + briefing read it)
+      getAssistantProfile({ fresh: true }).catch(() => {});
       // Re-schedule notifications with latest settings (if push is active)
       if (pushActive) {
         reschedule(settings).catch(() => {});
@@ -351,6 +355,55 @@ export default function AppSettings() {
         </section>
 
         {/* Finance */}
+        {/* AI Assistant */}
+        <section>
+          <SectionHeader icon={Sparkles} label="Assistant" sectionKey="assistant" />
+          {openSections.has("assistant") && (
+            <div className="bg-gray-800 rounded-xl p-4 space-y-4">
+              <p className="text-xs text-gray-500">Personalize how the AI assistant talks to you.</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={labelCls}>Your Name</label>
+                  <input
+                    className={inputCls}
+                    placeholder="Your name"
+                    value={settings.assistant_profile?.user_name || ""}
+                    onChange={e => onChange("assistant_profile", { ...(settings.assistant_profile || {}), user_name: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>Assistant Name</label>
+                  <input
+                    className={inputCls}
+                    placeholder={DEFAULT_ASSISTANT_NAME}
+                    value={settings.assistant_profile?.assistant_name || ""}
+                    onChange={e => onChange("assistant_profile", { ...(settings.assistant_profile || {}), assistant_name: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>Language</label>
+                  <select
+                    className={inputCls}
+                    value={settings.assistant_profile?.language || DEFAULT_LANGUAGE}
+                    onChange={e => onChange("assistant_profile", { ...(settings.assistant_profile || {}), language: e.target.value })}
+                  >
+                    {LANGUAGE_OPTIONS.map(l => <option key={l}>{l}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className={labelCls}>What You Do</label>
+                  <input
+                    className={inputCls}
+                    placeholder="e.g. Guitarist"
+                    value={settings.assistant_profile?.profession || ""}
+                    onChange={e => onChange("assistant_profile", { ...(settings.assistant_profile || {}), profession: e.target.value })}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
+
         <section>
           <SectionHeader icon={DollarSign} label="Finance" sectionKey="finance" />
           {openSections.has("finance") && (
