@@ -304,7 +304,7 @@ export default function WorkEventDetail() {
           )}
           <button
             onClick={handleSave}
-            disabled={saving}
+            disabled={saving || loading}
             className={`px-4 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-all ${
               savedFlash
                 ? "bg-green-600 text-white"
