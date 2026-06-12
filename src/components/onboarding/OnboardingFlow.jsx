@@ -28,13 +28,16 @@ export default function OnboardingFlow({ onFinish }) {
   const [saving, setSaving] = useState(false);
 
   const answersRef = useRef({});
-  const messagesEndRef = useRef(null);
+  const scrollRef = useRef(null);
 
   const step = STEPS[stepIndex];
 
+  // Scroll the messages container directly — scrollIntoView can scroll the
+  // whole page on iOS with the keyboard open, hiding the latest messages
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, typing, showActions]);
+    const el = scrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [messages, typing, showActions, inputEnabled]);
 
   // Step engine: type, reveal the bubble, then advance or wait for input
   useEffect(() => {
@@ -136,7 +139,7 @@ export default function OnboardingFlow({ onFinish }) {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-4">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain px-4 py-4">
         {messages.map((msg) =>
           msg.role === "user" ? (
             <UserBubble key={msg.id}>{msg.content}</UserBubble>
@@ -160,7 +163,6 @@ export default function OnboardingFlow({ onFinish }) {
             ))}
           </div>
         )}
-        <div ref={messagesEndRef} />
       </div>
 
       {/* Input */}

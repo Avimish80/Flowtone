@@ -1,11 +1,10 @@
 import { API_BASE_URL } from "@/lib/apiBase";
-import { getSupabaseClient, isSupabaseConfigured } from "@/lib/supabaseClient";
+import { getSessionSafe, isSupabaseConfigured } from "@/lib/supabaseClient";
 
 async function getAccessToken() {
   if (!isSupabaseConfigured) return null;
-  const supabase = getSupabaseClient();
-  const { data } = await supabase.auth.getSession();
-  return data.session?.access_token || null;
+  const session = await getSessionSafe();
+  return session?.access_token || null;
 }
 
 export async function flowtoneFetch(path, options = {}) {

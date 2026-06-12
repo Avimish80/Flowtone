@@ -1,5 +1,5 @@
 import { ENTITY_COLUMNS, ENTITY_CONFIG } from "@/api/entityMetadata";
-import { getSupabaseClient, isPreviewModeEnabled, isSupabaseConfigured } from "@/lib/supabaseClient";
+import { getSupabaseClient, getSessionSafe, isPreviewModeEnabled, isSupabaseConfigured } from "@/lib/supabaseClient";
 
 function generateId() {
   return crypto.randomUUID();
@@ -77,8 +77,7 @@ async function requireSupabase() {
   }
 
   const supabase = getSupabaseClient();
-  const { data } = await supabase.auth.getSession();
-  const session = data.session;
+  const session = await getSessionSafe();
 
   if (!session?.user) {
     throw new Error("Authentication required");
