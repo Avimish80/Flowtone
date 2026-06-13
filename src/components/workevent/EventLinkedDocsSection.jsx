@@ -17,12 +17,15 @@ const statusColors = {
 export default function EventLinkedDocsSection({ event, estimate, invoice, onCreateInvoiceFromEstimate, creatingInvoice }) {
   const [syncing, setSyncing] = useState(false);
   const [synced, setSynced] = useState(!!event.google_calendar_event_id);
+  const [notConnected, setNotConnected] = useState(false);
 
   const handleSyncCalendar = async () => {
     if (!event.id || !event.date) return;
     setSyncing(true);
+    setNotConnected(false);
     const res = await appClient.functions.invoke('syncToGoogleCalendar', { event_id: event.id });
     if (res.data?.success) setSynced(true);
+    else if (res.data?.skipped || res.data?.reason === 'not_connected') setNotConnected(true);
     setSyncing(false);
   };
 
@@ -76,6 +79,13 @@ export default function EventLinkedDocsSection({ event, estimate, invoice, onCre
               <><CalendarDays className="w-4 h-4" /> Add to Google Calendar</>
             )}
           </button>
+          {notConnected && (
+            <p className="text-xs text-gray-500 mt-1.5 text-center">
+              Connect Google Calendar in{" "}
+              <Link to={createPageUrl("AppSettings")} className="text-indigo-400 hover:text-indigo-300">Settings</Link>{" "}
+              to sync.
+            </p>
+          )}
         </div>
       )}
 

@@ -1,13 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { appClient } from "@/api/appClient";
 import { useAuth } from "@/lib/AuthContext";
-import { Check, Mail, Navigation, Bell, Banknote, Building2, ChevronDown, ChevronUp, Upload, X, Download, Upload as UploadIcon, LogOut, Sparkles } from "lucide-react";
+import { Check, Mail, Navigation, Bell, Banknote, Building2, CalendarDays, RefreshCw, ChevronDown, ChevronUp, Upload, X, Download, Upload as UploadIcon, LogOut, Sparkles } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
 import { getAssistantProfile, DEFAULT_ASSISTANT_NAME, DEFAULT_LANGUAGE } from "@/lib/assistantProfile";
 import { LANGUAGE_OPTIONS } from "@/components/onboarding/onboardingScript";
 import { TEMPLATE_DEFS, generateInvoiceHTML } from "@/lib/invoiceTemplates";
 import { registerPush, unregisterPush, isPushActive, schedulePushNotifications, sendTestPush } from "@/lib/pushManager";
 import { DEFAULT_PREFS } from "@/lib/notificationPrefs";
 import { isGmailConnected, getGmailEmail, connectGmail, disconnectGmail } from "@/lib/gmailClient";
+import { connectCalendar, getCalendarStatus, syncNow as calendarSyncNow, setSyncEnabled as setCalendarSyncEnabled, disconnectCalendar } from "@/lib/calendarClient";
 import SmartCSVImport from "@/components/SmartCSVImport";
 import { exportFullApp, downloadCSV } from "@/lib/csvExport";
 import { generateBusyMusicianData } from "@/lib/busyMusicianTestData";
@@ -33,6 +35,12 @@ export default function AppSettings() {
   // ── Gmail state ───────────────────────────────────────────────────
   const [gmailConnected, setGmailConnected] = useState(false);
   const [gmailEmail, setGmailEmail] = useState('');
+
+  // ── Calendar state ────────────────────────────────────────────────
+  const [calStatus, setCalStatus] = useState({ connected: false });
+  const [calBusy, setCalBusy] = useState(false);
+  const [calSyncing, setCalSyncing] = useState(false);
+  const [calMsg, setCalMsg] = useState('');
 
   // ── CSV Import state ──────────────────────────────────────────────
   const [showCSVImport, setShowCSVImport] = useState(false);
@@ -85,10 +93,72 @@ export default function AppSettings() {
     // Check Gmail connection status
     setGmailConnected(isGmailConnected());
     setGmailEmail(getGmailEmail());
+
+    // Handle the Google Calendar OAuth return, then load its status
+    const hash = window.location.hash;
+    if (hash.includes("calendar=connected") || hash.includes("calendar=error")) {
+      setOpenSections(new Set(["calendar"]));
+      setCalMsg(hash.includes("calendar=connected")
+        ? "Google Calendar connected."
+        : "Couldn't connect Google Calendar. Please try again.");
+      window.history.replaceState(null, "", window.location.pathname + window.location.search);
+    }
+    getCalendarStatus().then(setCalStatus).catch(() => {});
   }, []);
 
   const onChange = (field, value) => setSettings(prev => ({ ...prev, [field]: value }));
   const onProfileChange = (field, value) => setProfile(prev => ({ ...prev, [field]: value }));
+
+  // ── Calendar helpers ───────────────────────────────────────────────
+  const handleConnectCalendar = async () => {
+    setCalBusy(true);
+    setCalMsg("");
+    try {
+      await connectCalendar(); // redirects to Google
+    } catch {
+      setCalMsg("Couldn't start Google sign-in.");
+      setCalBusy(false);
+    }
+  };
+
+  const handleDisconnectCalendar = async () => {
+    setCalBusy(true);
+    try {
+      await disconnectCalendar();
+      setCalStatus({ connected: false });
+      setCalMsg("");
+    } catch {
+      setCalMsg("Couldn't disconnect.");
+    }
+    setCalBusy(false);
+  };
+
+  const handleCalendarSyncNow = async () => {
+    setCalSyncing(true);
+    setCalMsg("");
+    try {
+      const r = await calendarSyncNow();
+      if (r.skipped) {
+        setCalMsg("Sync is turned off.");
+      } else {
+        setCalStatus(s => ({ ...s, last_synced_at: r.last_synced_at }));
+        setCalMsg(`Synced — ${r.pushed} sent, ${r.pulled} received.`);
+      }
+    } catch {
+      setCalMsg("Sync failed. Please try again.");
+    }
+    setCalSyncing(false);
+  };
+
+  const handleCalendarToggle = async () => {
+    const next = !calStatus.sync_enabled;
+    setCalStatus(s => ({ ...s, sync_enabled: next }));
+    try {
+      await setCalendarSyncEnabled(next);
+    } catch {
+      setCalStatus(s => ({ ...s, sync_enabled: !next })); // revert on failure
+    }
+  };
 
   // ── Push helpers ───────────────────────────────────────────────────
 
@@ -706,6 +776,82 @@ export default function AppSettings() {
                     <Mail className="w-4 h-4" />
                     Connect Gmail
                   </button>
+                </>
+              )}
+            </div>
+          )}
+        </section>
+
+        {/* Calendar */}
+        <section>
+          <SectionHeader icon={CalendarDays} label="Calendar" sectionKey="calendar" />
+          {openSections.has("calendar") && (
+            <div className="bg-gray-800 rounded-xl p-4 space-y-4">
+              {calStatus.connected ? (
+                <>
+                  {/* Connected account */}
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-green-900/40 flex items-center justify-center flex-shrink-0">
+                      <Check className="w-4 h-4 text-green-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-green-400">Connected</p>
+                      <p className="text-xs text-gray-400 truncate">{calStatus.email}</p>
+                    </div>
+                    <button
+                      onClick={handleDisconnectCalendar}
+                      disabled={calBusy}
+                      className="text-xs text-red-400 hover:text-red-300 underline underline-offset-2 flex-shrink-0 disabled:opacity-50"
+                    >
+                      Disconnect
+                    </button>
+                  </div>
+
+                  {/* Sync toggle */}
+                  <div className="flex items-center justify-between gap-3 border-t border-gray-700 pt-4">
+                    <div className="min-w-0">
+                      <p className="text-sm text-gray-200">Sync gigs to my calendar</p>
+                      <p className="text-xs text-gray-500 mt-0.5">Two-way with your “{calStatus.calendar_summary || "Flowtone Gigs"}” calendar.</p>
+                    </div>
+                    <Toggle on={!!calStatus.sync_enabled} onClick={handleCalendarToggle} />
+                  </div>
+
+                  {/* Sync now */}
+                  <div>
+                    <button
+                      onClick={handleCalendarSyncNow}
+                      disabled={calSyncing || !calStatus.sync_enabled}
+                      className="w-full py-2.5 rounded-xl text-sm font-medium border border-gray-700 text-gray-300 hover:text-white hover:border-gray-500 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      <RefreshCw className={`w-4 h-4 ${calSyncing ? "animate-spin" : ""}`} />
+                      {calSyncing ? "Syncing…" : "Sync now"}
+                    </button>
+                    <p className="text-xs text-gray-500 text-center mt-2">
+                      {calMsg
+                        ? calMsg
+                        : calStatus.last_synced_at
+                          ? `Last synced ${formatDistanceToNow(new Date(calStatus.last_synced_at), { addSuffix: true })}`
+                          : "Not synced yet"}
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="text-xs text-gray-400 leading-relaxed">
+                    Two-way sync with Google Calendar. Gigs you create here appear in your calendar, and gigs you add to your “Flowtone Gigs” calendar appear here.
+                  </p>
+                  <p className="text-[11px] text-gray-500 leading-relaxed">
+                    On iPhone, add your Google account in the Calendar app to see gigs there.
+                  </p>
+                  <button
+                    onClick={handleConnectCalendar}
+                    disabled={calBusy}
+                    className="w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white transition-colors disabled:opacity-50"
+                  >
+                    <CalendarDays className="w-4 h-4" />
+                    Connect Google Calendar
+                  </button>
+                  {calMsg && <p className="text-xs text-gray-500 text-center">{calMsg}</p>}
                 </>
               )}
             </div>
