@@ -93,7 +93,17 @@
       "Bash(ipconfig getifaddr:*)",
       "Bash(cat \"/Users/avimishali/Documents/Code/defiant-harmony-flow-app \\(1\\)/server/.env\")",
       "Bash(curl -s -X POST http://localhost:3001/api/ai/chat -H \"Content-Type: application/json\" -d '{\"\"\"\"messages\"\"\"\":[{\"\"\"\"role\"\"\"\":\"\"\"\"user\"\"\"\",\"\"\"\"content\"\"\"\":\"\"\"\"hello\"\"\"\"}],\"\"\"\"context\"\"\"\":{\"\"\"\"today\"\"\"\":\"\"\"\"2026-03-24\"\"\"\",\"\"\"\"upcomingEvents\"\"\"\":[],\"\"\"\"clients\"\"\"\":[],\"\"\"\"practiceGoals\"\"\"\":[],\"\"\"\"recentSessions\"\"\"\":[]}}')",
-      "WebSearch"
+      "WebSearch",
+      "Bash(npm run *)",
+      "Bash(curl -s https://flowtone-production.up.railway.app/api/health)",
+      "Bash(curl -s -o /dev/null -w \"Vercel: %{http_code}\" https://flowtone.vercel.app)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(git commit *)",
+      "mcp__claude_ai_Gmail__search_threads",
+      "mcp__claude_ai_Gmail__get_thread",
+      "Bash(git check-ignore *)"
     ]
   }
 }

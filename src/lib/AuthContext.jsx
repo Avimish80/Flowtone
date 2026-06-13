@@ -114,20 +114,30 @@ export const AuthProvider = ({ children }) => {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, nextSession) => {
+    } = supabase.auth.onAuthStateChange((event, nextSession) => {
       if (!mounted) return;
 
       setSession(nextSession || null);
       setUser(nextSession?.user || null);
+      setAuthReady(true);
 
-      if (nextSession) {
-        await refreshAccess(nextSession);
-      } else {
+      if (!nextSession) {
         setAccessState(null);
         setAuthError(null);
+        return;
       }
 
-      if (mounted) setAuthReady(true);
+      // Re-check billing access only on a genuine sign-in, not on every silent
+      // TOKEN_REFRESHED tick (the initial load is handled by getSession above).
+      // And never await a Supabase call inside this callback: it runs while
+      // GoTrue holds its auth lock, so awaiting here deadlocks the lock and
+      // hangs every data call — the iOS PWA "stuck loading after a couple of
+      // minutes" bug. Defer the work outside the lock with setTimeout(0).
+      if (event === "SIGNED_IN") {
+        setTimeout(() => {
+          if (mounted) void refreshAccess(nextSession);
+        }, 0);
+      }
     });
 
     return () => {

@@ -1,12 +1,15 @@
 import { useState, useEffect, useMemo } from "react";
 import { appClient } from "@/api/appClient";
 import { Link } from "react-router-dom";
-import { createPageUrl } from "@/utils";
+import { createPageUrl, formatMoney } from "@/utils";
 import {
-  CalendarDays, ChevronRight, MapPin, Clock, Navigation, Car, Bus, AlertCircle, Plus, Mic2, Users
+  CalendarDays, ChevronRight, MapPin, Clock, Navigation, Car, AlertCircle, Plus, Mic2, Users
 } from "lucide-react";
 import { format, isToday, isTomorrow, parseISO, isPast, startOfDay, addDays, differenceInDays, differenceInHours, differenceInMinutes } from "date-fns";
 import { AIDashboardBriefing } from "@/components/AIDashboardBriefing";
+import { useAuth } from "@/lib/AuthContext";
+import { isPreviewModeEnabled } from "@/lib/supabaseClient";
+import { getCachedProfileSync, deriveFallbackName } from "@/lib/assistantProfile";
 
 function buildNavUrl(address, app = "google_maps") {
   const encoded = encodeURIComponent(address);
@@ -14,13 +17,19 @@ function buildNavUrl(address, app = "google_maps") {
   return `https://www.google.com/maps/dir/?api=1&destination=${encoded}&travelmode=driving`;
 }
 
-function buildUberUrl(address) {
-  return `https://m.uber.com/ul/?action=setPickup&pickup=my_location&dropoff[formatted_address]=${encodeURIComponent(address)}`;
-}
-
 /** Parse a YYYY-MM-DD string as LOCAL midnight (avoids UTC-shift in BST) */
 function parseLocalDate(dateStr) {
   return new Date(dateStr + "T00:00:00");
+}
+
+function isEventDone(event, now) {
+  if (event.status === "completed") return true;
+  const time = event.end_time || event.start_time;
+  if (!time) return false;
+  const [h, m] = time.split(":").map(Number);
+  const end = parseLocalDate(event.date);
+  end.setHours(h || 0, m || 0, 0, 0);
+  return end < now;
 }
 
 function getCountdown(dateStr, timeStr) {
@@ -52,6 +61,8 @@ export default function Dashboard() {
   const [clients, setClients] = useState([]);
   const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+  const profile = getCachedProfileSync();
 
   const clientMap = useMemo(() => Object.fromEntries(clients.map(c => [c.id, c])), [clients]);
 
@@ -81,11 +92,23 @@ export default function Dashboard() {
       return (a.start_time || "").localeCompare(b.start_time || "");
     });
 
-  const nextGig = upcoming[0] || null;
+  // First event that isn't already done — finished events shouldn't sit in "Next Up"
+  const nextGig = upcoming.find(e => !isEventDone(e, now)) || null;
   const weekEvents = upcoming.filter(e => {
     const d = parseLocalDate(e.date);
-    return d <= addDays(now, 7);
+    return d <= addDays(now, 7) && e.id !== nextGig?.id;
   });
+
+  const todayStr = format(now, "yyyy-MM-dd");
+  const todayEvents = events.filter(e => e.date === todayStr && e.status !== "cancelled");
+  const doneTodayCount = todayEvents.filter(e => isEventDone(e, now)).length;
+  const hour = now.getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  // Preview mode's stub user would derive "Flowtone" — show no name instead
+  const fallbackName = isPreviewModeEnabled() ? "" : deriveFallbackName(user);
+  const firstName = (profile?.user_name || fallbackName || "").trim();
+  const nextGigFee = nextGig ? Number(nextGig.total_price ?? nextGig.base_price) || 0 : 0;
+  const showDrive = Boolean(nextGig && nextGig.date === todayStr && nextGig.location_address);
 
   const invoices = documents.filter(d => d.document_type === "invoice");
   const overdueInvoices = invoices.filter(i =>
@@ -108,108 +131,113 @@ export default function Dashboard() {
   return (
     <div className="p-4 max-w-xl mx-auto space-y-5">
 
-      {/* ── AI Briefing ── */}
-      <AIDashboardBriefing events={events} documents={documents} />
-
-      {/* ── Next Gig Hero ── */}
-      {nextGig ? (
-        <div className="bg-gradient-to-br from-indigo-900/80 to-gray-900 rounded-2xl p-5 border border-indigo-700/30">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold uppercase tracking-wider text-indigo-300">Next Up</span>
-            <span className="text-xs bg-indigo-600/40 text-indigo-200 px-2.5 py-0.5 rounded-full font-medium">
-              {getCountdown(nextGig.date, nextGig.start_time)}
-            </span>
-          </div>
-
-          <Link to={createPageUrl(`WorkEventDetail?id=${nextGig.id}`)} className="block mb-4">
-            <h2 className="text-xl font-bold text-white mb-1">{nextGig.title || "Untitled Gig"}</h2>
-            <div className="flex items-center gap-3 text-sm text-gray-300 flex-wrap">
-              <span className="flex items-center gap-1">
-                <CalendarDays className="w-3.5 h-3.5 text-indigo-400" />
-                {getDayLabel(nextGig.date)}
-              </span>
-              {nextGig.start_time && (
-                <span className="flex items-center gap-1">
-                  <Clock className="w-3.5 h-3.5 text-indigo-400" />
-                  {nextGig.start_time}{nextGig.end_time ? "–" + nextGig.end_time : ""}
-                </span>
-              )}
-              {clientMap[nextGig.client_id] && (
-                <span className="flex items-center gap-1">
-                  <Users className="w-3.5 h-3.5 text-indigo-400" />
-                  {clientMap[nextGig.client_id].name}
-                </span>
-              )}
-            </div>
-            {nextGig.location_address && (
-              <p className="flex items-center gap-1 mt-2 text-xs text-gray-400">
-                <MapPin className="w-3 h-3 flex-shrink-0" />
-                <span className="truncate">{nextGig.location_address}</span>
-              </p>
-            )}
-          </Link>
-
-          {/* Navigation buttons — only show if there's an address */}
-          {nextGig.location_address && (
-            <div className="grid grid-cols-3 gap-2">
-              <a
-                href={buildNavUrl(nextGig.location_address, navApp)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white rounded-xl py-2.5 flex flex-col items-center gap-0.5 text-xs font-medium transition-colors"
-              >
-                <Car className="w-5 h-5" />
-                Drive
-              </a>
-              <a
-                href={buildUberUrl(nextGig.location_address)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="bg-gray-700/60 hover:bg-gray-600 text-white rounded-xl py-2.5 flex flex-col items-center gap-0.5 text-xs font-medium transition-colors border border-gray-600/50"
-              >
-                <Navigation className="w-5 h-5" />
-                Taxi
-              </a>
-              <a
-                href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(nextGig.location_address)}&travelmode=transit`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="bg-gray-700/60 hover:bg-gray-600 text-white rounded-xl py-2.5 flex flex-col items-center gap-0.5 text-xs font-medium transition-colors border border-gray-600/50"
-              >
-                <Bus className="w-5 h-5" />
-                Transit
-              </a>
-            </div>
-          )}
+      {/* ── Hero: greeting + Next Up in one card ── */}
+      <div className="bg-gradient-to-br from-indigo-900/80 to-gray-900 rounded-2xl border border-indigo-700/30 overflow-hidden">
+        <div className="px-5 pt-4 pb-3.5">
+          <h1 className="text-lg font-semibold text-white">
+            {greeting}{firstName ? `, ${firstName}` : ""}
+          </h1>
+          <p className="text-xs text-indigo-200/70 mt-0.5">
+            {todayEvents.length > 0
+              ? `${doneTodayCount} of ${todayEvents.length} complete today`
+              : format(now, "EEEE d MMMM")}
+          </p>
         </div>
-      ) : (
-        <div className="bg-gray-800 rounded-2xl p-8 text-center">
-          <Mic2 className="w-10 h-10 text-gray-600 mx-auto mb-3" />
-          <p className="text-gray-400 text-sm mb-3">No upcoming gigs</p>
+
+        {nextGig ? (
+          <div className="border-t border-indigo-700/30 p-5">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-semibold uppercase tracking-wider text-indigo-300">Next Up</span>
+              <span className="text-xs bg-indigo-600/40 text-indigo-200 px-2.5 py-0.5 rounded-full font-medium">
+                {getCountdown(nextGig.date, nextGig.start_time)}
+              </span>
+            </div>
+
+            <Link to={createPageUrl(`WorkEventDetail?id=${nextGig.id}`)} className="block mb-4">
+              <h2 className="text-xl font-bold text-white mb-1">{nextGig.title || "Untitled Gig"}</h2>
+              <div className="flex items-center gap-3 text-sm text-gray-300 flex-wrap">
+                <span className="flex items-center gap-1">
+                  <CalendarDays className="w-3.5 h-3.5 text-indigo-400" />
+                  {getDayLabel(nextGig.date)}
+                </span>
+                {nextGig.start_time && (
+                  <span className="flex items-center gap-1">
+                    <Clock className="w-3.5 h-3.5 text-indigo-400" />
+                    {nextGig.start_time}{nextGig.end_time ? "–" + nextGig.end_time : ""}
+                  </span>
+                )}
+                {clientMap[nextGig.client_id] && (
+                  <span className="flex items-center gap-1">
+                    <Users className="w-3.5 h-3.5 text-indigo-400" />
+                    {clientMap[nextGig.client_id].name}
+                  </span>
+                )}
+                {nextGigFee > 0 && (
+                  <span className="font-medium text-gray-200">
+                    {formatMoney(nextGigFee, nextGig.currency || settings?.currency).replace(/\.00$/, "")}
+                  </span>
+                )}
+              </div>
+              {nextGig.location_address && (
+                <p className="flex items-center gap-1 mt-2 text-xs text-gray-400">
+                  <MapPin className="w-3 h-3 flex-shrink-0" />
+                  <span className="truncate">{nextGig.location_address}</span>
+                </p>
+              )}
+            </Link>
+
+            {/* Directions always when there's an address; Drive Mode only for today's gig */}
+            {nextGig.location_address && (
+              <div className={`grid gap-2 ${showDrive ? "grid-cols-2" : "grid-cols-1"}`}>
+                <a
+                  href={buildNavUrl(nextGig.location_address, navApp)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white rounded-xl py-2.5 flex items-center justify-center gap-1.5 text-xs font-medium transition-colors"
+                >
+                  <Navigation className="w-4 h-4" />
+                  Directions
+                </a>
+                {showDrive && (
+                  <Link
+                    to={createPageUrl("DrivingMode")}
+                    className="bg-gray-700/60 hover:bg-gray-600 text-white rounded-xl py-2.5 flex items-center justify-center gap-1.5 text-xs font-medium transition-colors border border-gray-600/50"
+                  >
+                    <Car className="w-4 h-4" />
+                    Drive
+                  </Link>
+                )}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="border-t border-indigo-700/30 p-6 text-center">
+            <Mic2 className="w-8 h-8 text-gray-500 mx-auto mb-2" />
+            <p className="text-gray-400 text-sm mb-3">No upcoming gigs</p>
+            <Link
+              to={createPageUrl("WorkEventDetail")}
+              className="inline-flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm px-4 py-2 rounded-lg font-medium transition-colors"
+            >
+              <Plus className="w-4 h-4" /> Add Event
+            </Link>
+          </div>
+        )}
+      </div>
+
+      {/* ── New event (minimal) ── */}
+      {nextGig && (
+        <div className="flex justify-end -mt-2">
           <Link
             to={createPageUrl("WorkEventDetail")}
-            className="inline-flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm px-4 py-2 rounded-lg font-medium transition-colors"
+            className="text-gray-500 hover:text-gray-300 text-xs flex items-center gap-1 transition-colors"
           >
-            <Plus className="w-4 h-4" /> Add Event
+            <Plus className="w-3 h-3" /> New event
           </Link>
         </div>
       )}
 
-      {/* ── Quick Actions ── */}
-      <div className="grid grid-cols-3 gap-3">
-        <Link to={createPageUrl("WorkEventDetail")} className="bg-indigo-600 hover:bg-indigo-500 rounded-xl p-3 flex flex-col items-center gap-1.5 transition-colors">
-          <Plus className="w-5 h-5" />
-          <span className="text-xs font-medium">New Event</span>
-        </Link>
-        <Link to={createPageUrl("CalendarView")} className="bg-gray-800 hover:bg-gray-700 rounded-xl p-3 flex flex-col items-center gap-1.5 transition-colors">
-          <CalendarDays className="w-5 h-5 text-indigo-400" />
-          <span className="text-xs font-medium">Calendar</span>
-        </Link>
-        <Link to={createPageUrl("DrivingMode")} className="bg-gray-800 hover:bg-gray-700 rounded-xl p-3 flex flex-col items-center gap-1.5 transition-colors">
-          <Car className="w-5 h-5 text-indigo-400" />
-          <span className="text-xs font-medium">Drive Mode</span>
-        </Link>
-      </div>
+      {/* ── AI Briefing ── */}
+      <AIDashboardBriefing events={events} documents={documents} />
 
       {/* ── Overdue Alert ── */}
       {overdueCount > 0 && (
@@ -238,13 +266,13 @@ export default function Dashboard() {
           <h2 className="font-semibold text-gray-200 text-sm uppercase tracking-wider">This Week</h2>
           <Link to={createPageUrl("WorkEvents")} className="text-xs text-indigo-400">See all</Link>
         </div>
-        {weekEvents.length <= (nextGig ? 1 : 0) ? (
+        {weekEvents.length === 0 ? (
           <div className="bg-gray-800/50 rounded-xl p-5 text-center text-gray-500 text-sm">
             No more events this week
           </div>
         ) : (
           <div className="space-y-2">
-            {weekEvents.slice(nextGig ? 1 : 0).map(event => {
+            {weekEvents.map(event => {
               const clientName = clientMap[event.client_id]?.name;
               return (
                 <Link key={event.id} to={createPageUrl(`WorkEventDetail?id=${event.id}`)} className="block">

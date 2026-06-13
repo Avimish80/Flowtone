@@ -6,6 +6,12 @@
       "runtimeExecutable": "npx",
       "runtimeArgs": ["vite"],
       "autoPort": true
+    },
+    {
+      "name": "preview-local",
+      "runtimeExecutable": "env",
+      "runtimeArgs": ["VITE_SUPABASE_URL=", "VITE_SUPABASE_ANON_KEY=", "npx", "vite", "--port", "3001", "--strictPort"],
+      "port": 3001
     }
   ]
 }

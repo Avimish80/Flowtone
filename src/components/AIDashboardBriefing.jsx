@@ -6,7 +6,7 @@ import { isPreviewModeEnabled } from "@/lib/supabaseClient";
 import { useAuth } from "@/lib/AuthContext";
 import { Sparkles, X } from "lucide-react";
 import { isPast, parseISO } from "date-fns";
-import { getAssistantProfile, getCachedProfileSync, deriveFallbackName, DEFAULT_LANGUAGE } from "@/lib/assistantProfile";
+import { getCachedProfileSync, deriveFallbackName, DEFAULT_LANGUAGE, DEFAULT_ASSISTANT_NAME } from "@/lib/assistantProfile";
 
 function buildNavUrl(address) {
   return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}&travelmode=driving`;
@@ -150,9 +150,12 @@ export function AIDashboardBriefing({ events = [], documents = [] }) {
     <div className="rounded-2xl border border-gray-700/40 bg-gray-900/60 overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700/30">
+        {/* Greeting lives in the Dashboard hero now — header is just the assistant's name */}
         <div className="flex items-center gap-2 min-w-0">
           <Sparkles className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0" />
-          <span className="text-sm font-medium text-gray-200 truncate">{briefing.greeting}</span>
+          <span className="text-sm font-medium text-gray-200 truncate">
+            {profile?.assistant_name || DEFAULT_ASSISTANT_NAME}
+          </span>
         </div>
         <button
           onClick={() => {

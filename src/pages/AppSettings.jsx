@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { appClient } from "@/api/appClient";
 import { useAuth } from "@/lib/AuthContext";
-import { Check, Mail, Navigation, Bell, Banknote, Building2, Hash, ChevronDown, ChevronUp, Upload, X, Palette, Download, Upload as UploadIcon, LogOut, Sparkles } from "lucide-react";
+import { Check, Mail, Navigation, Bell, Banknote, Building2, ChevronDown, ChevronUp, Upload, X, Download, Upload as UploadIcon, LogOut, Sparkles } from "lucide-react";
 import { getAssistantProfile, DEFAULT_ASSISTANT_NAME, DEFAULT_LANGUAGE } from "@/lib/assistantProfile";
 import { LANGUAGE_OPTIONS } from "@/components/onboarding/onboardingScript";
 import { TEMPLATE_DEFS, generateInvoiceHTML } from "@/lib/invoiceTemplates";
@@ -11,7 +11,7 @@ import { isGmailConnected, getGmailEmail, connectGmail, disconnectGmail } from "
 import SmartCSVImport from "@/components/SmartCSVImport";
 import { exportFullApp, downloadCSV } from "@/lib/csvExport";
 import { generateBusyMusicianData } from "@/lib/busyMusicianTestData";
-import NotificationPrefsEditor from "@/components/NotificationPrefsEditor";
+import NotificationPrefsEditor, { Toggle } from "@/components/NotificationPrefsEditor";
 
 export default function AppSettings() {
   const { logout, user, isPreviewMode } = useAuth();
@@ -27,6 +27,8 @@ export default function AppSettings() {
   const [pushActive, setPushActive] = useState(false);
   const [pushLoading, setPushLoading] = useState(false);
   const [pushError, setPushError] = useState("");
+  const [testResult, setTestResult] = useState("");
+  const [diagOpen, setDiagOpen] = useState(false);
 
   // ── Gmail state ───────────────────────────────────────────────────
   const [gmailConnected, setGmailConnected] = useState(false);
@@ -177,6 +179,45 @@ export default function AppSettings() {
       if (prev.has(key)) return new Set(); // tap same = close
       return new Set([key]);
     });
+  };
+
+  const openTemplatePreview = (templateId) => {
+    const sampleDoc = {
+      document_type: "invoice", document_number: "INV-0001",
+      title: "Sample Invoice", status: "sent",
+      currency: "GBP",
+      line_items: [
+        { description: "Performance — Evening Event", quantity: 1, unit_price: 800, total: 800 },
+        { description: "Travel expenses", quantity: 1, unit_price: 50, total: 50 },
+      ],
+      subtotal: 850, total: 850, discount_amount: 0, tax_amount: 0, tax_rate: 0,
+      due_date: new Date(Date.now() + 14*86400000).toISOString().slice(0,10),
+      notes: "Thank you for booking. Please transfer within 14 days.",
+    };
+    const sampleProfile = {
+      business_name: profile?.business_name || "Your Name",
+      address: profile?.address || "London, UK",
+      email: profile?.email || "you@example.com",
+      phone: profile?.phone || "",
+      website: profile?.website || "",
+      payment_instructions: profile?.payment_instructions || "Bank transfer preferred.",
+    };
+    const html = generateInvoiceHTML(sampleDoc, sampleProfile, settings, templateId);
+    const blob = new Blob([html], { type: "text/html" });
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank");
+  };
+
+  const handleTestPush = async () => {
+    setTestResult("Sending…");
+    const result = await sendTestPush();
+    if (result.success) {
+      setTestResult("Sent — it should arrive in a few seconds.");
+    } else if (result.reason === "not_subscribed") {
+      setTestResult("Not subscribed — turn notifications off and on again.");
+    } else {
+      setTestResult("Failed: " + (result.reason || "unknown error"));
+    }
   };
 
   const handleSave = async () => {
@@ -354,7 +395,6 @@ export default function AppSettings() {
           )}
         </section>
 
-        {/* Finance */}
         {/* AI Assistant */}
         <section>
           <SectionHeader icon={Sparkles} label="Assistant" sectionKey="assistant" />
@@ -432,27 +472,81 @@ export default function AppSettings() {
                   </select>
                 </div>
               </div>
-            </div>
-          )}
-        </section>
 
-        {/* Document Numbering */}
-        <section>
-          <SectionHeader icon={Hash} label="Document Numbering" sectionKey="numbering" />
-          {openSections.has("numbering") && (
-            <div className="bg-gray-800 rounded-xl p-4 space-y-4">
-              <p className="text-xs text-gray-500">Configure auto-numbering for invoices.</p>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className={labelCls}>Invoice Prefix</label>
-                  <input className={inputCls} value={settings.invoice_number_prefix || "INV-"} onChange={e => onChange("invoice_number_prefix", e.target.value)} />
+              {/* Invoice numbering */}
+              <div className="border-t border-gray-700 pt-4">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Invoice Numbering</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className={labelCls}>Prefix</label>
+                    <input className={inputCls} value={settings.invoice_number_prefix || "INV-"} onChange={e => onChange("invoice_number_prefix", e.target.value)} />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Next Number</label>
+                    <input type="number" min="1" className={inputCls} value={settings.invoice_number_next || 1} onChange={e => onChange("invoice_number_next", parseInt(e.target.value) || 1)} />
+                  </div>
                 </div>
-                <div>
-                  <label className={labelCls}>Next Invoice #</label>
-                  <input type="number" min="1" className={inputCls} value={settings.invoice_number_next || 1} onChange={e => onChange("invoice_number_next", parseInt(e.target.value) || 1)} />
-                </div>
+                <p className="text-xs text-gray-600 mt-2">Next invoice: {settings.invoice_number_prefix || "INV-"}{String(settings.invoice_number_next || 1).padStart(4, "0")}</p>
               </div>
-              <p className="text-xs text-gray-600">Preview: {settings.invoice_number_prefix || "INV-"}{String(settings.invoice_number_next || 1).padStart(4, "0")}</p>
+
+              {/* Invoice template */}
+              <div className="border-t border-gray-700 pt-4">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Invoice Template</p>
+                <div className="flex gap-2.5">
+                  {TEMPLATE_DEFS.map(t => {
+                    const isActive = (settings.invoice_template || 1) === t.id;
+                    const thumb = {
+                      1: { hdr: "#e2e8f0", hdrText: "#475569", accent: "#475569", line: "#cbd5e1" },
+                      2: { hdr: "#4f46e5", hdrText: "#fff",    accent: "#4f46e5", line: "#e0e7ff" },
+                      3: { hdr: "#0f172a", hdrText: "#e2e8f0", accent: "#0f172a", line: "#f1f5f9" },
+                      4: { hdr: "#fff",    hdrText: "#111827", accent: "#374151", line: "#e5e7eb" },
+                      5: { hdr: "#4c1d95", hdrText: "#ede9fe", accent: "#7c3aed", line: "#ddd6fe" },
+                    }[t.id];
+                    return (
+                      <button
+                        key={t.id}
+                        onClick={() => onChange("invoice_template", t.id)}
+                        className={`rounded-md transition-all ${
+                          isActive ? "ring-2 ring-indigo-500 ring-offset-2 ring-offset-gray-800" : "opacity-60 hover:opacity-100"
+                        }`}
+                        aria-label={t.name}
+                      >
+                        <svg width="44" height="57" viewBox="0 0 40 52" fill="none" className="rounded-md">
+                          <rect width="40" height="52" fill="white" rx="2"/>
+                          <rect width="40" height="13" fill={thumb.hdr} rx="2"/>
+                          <rect x="0" y="11" width="40" height="2" fill={thumb.hdr}/>
+                          <rect x="3" y="3" width="18" height="3" fill={thumb.hdrText} opacity="0.9" rx="1"/>
+                          <rect x="3" y="7" width="10" height="1.5" fill={thumb.hdrText} opacity="0.5" rx="1"/>
+                          <rect x="3" y="16" width="16" height="2" fill={thumb.accent} opacity="0.5" rx="1"/>
+                          <rect x="3" y="20" width="11" height="1.5" fill={thumb.accent} opacity="0.3" rx="1"/>
+                          <rect x="3" y="27" width="34" height="1.2" fill={thumb.line} rx="1"/>
+                          <rect x="3" y="30.5" width="34" height="1.2" fill={thumb.line} rx="1"/>
+                          <rect x="3" y="34" width="34" height="1.2" fill={thumb.line} rx="1"/>
+                          <rect x="3" y="37.5" width="34" height="1.2" fill={thumb.line} rx="1"/>
+                          <rect x="22" y="44" width="15" height="2" fill={thumb.accent} opacity="0.6" rx="1"/>
+                        </svg>
+                      </button>
+                    );
+                  })}
+                </div>
+                {(() => {
+                  const active = TEMPLATE_DEFS.find(t => t.id === (settings.invoice_template || 1)) || TEMPLATE_DEFS[0];
+                  return (
+                    <div className="flex items-center justify-between gap-3 mt-3">
+                      <div className="min-w-0">
+                        <p className="text-sm text-white">{active.name}</p>
+                        <p className="text-xs text-gray-500 leading-snug">{active.desc}</p>
+                      </div>
+                      <button
+                        onClick={() => openTemplatePreview(active.id)}
+                        className="text-gray-500 hover:text-gray-300 text-xs flex-shrink-0 transition-colors"
+                      >
+                        Preview
+                      </button>
+                    </div>
+                  );
+                })()}
+              </div>
             </div>
           )}
         </section>
@@ -482,151 +576,56 @@ export default function AppSettings() {
           )}
         </section>
 
-        {/* Invoice Templates */}
-        <section>
-          <SectionHeader icon={Palette} label="Invoice Templates" sectionKey="templates" />
-          {openSections.has("templates") && (
-            <div className="bg-gray-800 rounded-xl p-4 space-y-3">
-              <p className="text-xs text-gray-500">Choose the design used when printing or emailing invoices. Tap Preview to see how it looks.</p>
-              <div className="grid grid-cols-1 gap-2">
-                {TEMPLATE_DEFS.map(t => {
-                  const isActive = (settings.invoice_template || 1) === t.id;
-                  // Thumbnail colours per template
-                  const thumb = {
-                    1: { hdr: "#e2e8f0", hdrText: "#475569", accent: "#475569", line: "#cbd5e1" },
-                    2: { hdr: "#4f46e5", hdrText: "#fff",    accent: "#4f46e5", line: "#e0e7ff" },
-                    3: { hdr: "#0f172a", hdrText: "#e2e8f0", accent: "#0f172a", line: "#f1f5f9" },
-                    4: { hdr: "#fff",    hdrText: "#111827", accent: "#374151", line: "#e5e7eb" },
-                    5: { hdr: "#4c1d95", hdrText: "#ede9fe", accent: "#7c3aed", line: "#ddd6fe" },
-                  }[t.id];
-                  return (
-                  <div
-                    key={t.id}
-                    className={`flex items-center gap-3 px-3 py-3 rounded-xl border transition-colors ${
-                      isActive ? "border-indigo-500 bg-indigo-600/10" : "border-gray-700 bg-gray-900"
-                    }`}
-                  >
-                    {/* SVG thumbnail */}
-                    <button onClick={() => onChange("invoice_template", t.id)} className="flex-shrink-0">
-                      <svg width="40" height="52" viewBox="0 0 40 52" fill="none" className="rounded shadow-sm">
-                        <rect width="40" height="52" fill="white" rx="2"/>
-                        <rect width="40" height="13" fill={thumb.hdr} rx="2"/>
-                        <rect x="0" y="11" width="40" height="2" fill={thumb.hdr}/>
-                        <rect x="3" y="3" width="18" height="3" fill={thumb.hdrText} opacity="0.9" rx="1"/>
-                        <rect x="3" y="7" width="10" height="1.5" fill={thumb.hdrText} opacity="0.5" rx="1"/>
-                        <rect x="3" y="16" width="16" height="2" fill={thumb.accent} opacity="0.5" rx="1"/>
-                        <rect x="3" y="20" width="11" height="1.5" fill={thumb.accent} opacity="0.3" rx="1"/>
-                        <rect x="3" y="27" width="34" height="1.2" fill={thumb.line} rx="1"/>
-                        <rect x="3" y="30.5" width="34" height="1.2" fill={thumb.line} rx="1"/>
-                        <rect x="3" y="34" width="34" height="1.2" fill={thumb.line} rx="1"/>
-                        <rect x="3" y="37.5" width="34" height="1.2" fill={thumb.line} rx="1"/>
-                        <rect x="22" y="44" width="15" height="2" fill={thumb.accent} opacity="0.6" rx="1"/>
-                      </svg>
-                    </button>
-                    {/* Info */}
-                    <button onClick={() => onChange("invoice_template", t.id)} className="flex-1 text-left min-w-0">
-                      <p className={`text-sm font-medium ${isActive ? "text-indigo-400" : "text-white"}`}>{t.name}</p>
-                      <p className="text-xs text-gray-500 leading-snug mt-0.5">{t.desc}</p>
-                    </button>
-                    {/* Preview button */}
-                    <button
-                      onClick={() => {
-                        const sampleDoc = {
-                          document_type: "invoice", document_number: "INV-0001",
-                          title: "Sample Invoice", status: "sent",
-                          currency: "GBP",
-                          line_items: [
-                            { description: "Performance — Evening Event", quantity: 1, unit_price: 800, total: 800 },
-                            { description: "Travel expenses", quantity: 1, unit_price: 50, total: 50 },
-                          ],
-                          subtotal: 850, total: 850, discount_amount: 0, tax_amount: 0, tax_rate: 0,
-                          due_date: new Date(Date.now() + 14*86400000).toISOString().slice(0,10),
-                          notes: "Thank you for booking. Please transfer within 14 days.",
-                        };
-                        const sampleProfile = {
-                          business_name: profile?.business_name || "Your Name",
-                          address: profile?.address || "London, UK",
-                          email: profile?.email || "you@example.com",
-                          phone: profile?.phone || "",
-                          website: profile?.website || "",
-                          payment_instructions: profile?.payment_instructions || "Bank transfer preferred.",
-                        };
-                        const html = generateInvoiceHTML(sampleDoc, sampleProfile, settings, t.id);
-                        const blob = new Blob([html], { type: "text/html" });
-                        const url = URL.createObjectURL(blob);
-                        window.open(url, "_blank");
-                      }}
-                      className="flex-shrink-0 px-2.5 py-1.5 rounded-lg text-xs text-gray-400 border border-gray-700 hover:border-gray-500 hover:text-white transition-colors"
-                    >
-                      Preview
-                    </button>
-                    {isActive && <Check className="w-4 h-4 text-indigo-400 flex-shrink-0" />}
-                  </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </section>
-
         {/* Notifications */}
         <section>
           <SectionHeader icon={Bell} label="Notifications" sectionKey="notifications" />
           {openSections.has("notifications") && (
-            <div className="bg-gray-800 rounded-xl p-4 space-y-4">
+            <div className="bg-gray-800 rounded-xl p-4 space-y-5">
 
-              {/* Status + Enable/Disable */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-400 uppercase tracking-wide">Status</span>
-                  {pushActive ? (
-                    <span className="flex items-center gap-1 text-xs font-semibold text-green-400 bg-green-900/40 px-2 py-0.5 rounded-full">
-                      <span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block" /> Active
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-1 text-xs font-semibold text-gray-500 bg-gray-700 px-2 py-0.5 rounded-full">
-                      <span className="w-1.5 h-1.5 rounded-full bg-gray-500 inline-block" /> Off
-                    </span>
-                  )}
+              {/* Master toggle */}
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm text-gray-200">Push notifications</p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    {pushLoading
+                      ? (pushActive ? "Turning off…" : "Turning on…")
+                      : pushActive ? "Active on this device" : "Off"}
+                  </p>
                 </div>
-                <button
-                  onClick={pushActive ? handleDisablePush : handleEnablePush}
+                <Toggle
+                  on={pushActive}
                   disabled={pushLoading}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors disabled:opacity-50 ${
-                    pushActive
-                      ? "bg-gray-700 hover:bg-gray-600 text-gray-200 border border-gray-600"
-                      : "bg-indigo-600 hover:bg-indigo-500 text-white"
-                  }`}
-                >
-                  <Bell className="w-3.5 h-3.5" />
-                  {pushLoading
-                    ? pushActive ? "Disabling…" : "Enabling…"
-                    : pushActive ? "Disable" : "Enable"}
-                </button>
+                  onClick={pushActive ? handleDisablePush : handleEnablePush}
+                />
               </div>
 
-              {/* Mode selector */}
+              {pushError && (
+                <p className="text-xs text-red-400 bg-red-900/30 rounded-lg px-3 py-2">{pushError}</p>
+              )}
+
+              {/* Level — stacked rows */}
               <div>
-                <label className={labelCls}>Intensity</label>
-                <div className="grid grid-cols-3 gap-2">
+                <label className={labelCls}>Level</label>
+                <div className="rounded-xl border border-gray-700 divide-y divide-gray-700 overflow-hidden">
                   {[
-                    { key: "minimal",  label: "Minimal",  desc: "Money + live gig alerts" },
-                    { key: "standard", label: "Standard", desc: "Money + day-before reminders" },
-                    { key: "full",     label: "Full",     desc: "Everything — customisable" },
+                    { key: "minimal",  label: "Minimal",  desc: "Money and live gig alerts only" },
+                    { key: "standard", label: "Standard", desc: "Money, plus day-before reminders" },
+                    { key: "full",     label: "Full",     desc: "Everything — customise below" },
                   ].map(({ key, label, desc }) => {
                     const active = (settings.notification_level || "standard") === key;
                     return (
                       <button
                         key={key}
                         onClick={() => handleLevelChange(key)}
-                        className={`flex flex-col items-start px-3 py-2.5 rounded-xl text-left transition-colors border ${
-                          active
-                            ? "bg-indigo-600/20 border-indigo-500 text-white"
-                            : "bg-gray-900 border-gray-700 text-gray-400 hover:text-white"
+                        className={`w-full flex items-center justify-between gap-3 px-3.5 py-3 text-left transition-colors ${
+                          active ? "bg-indigo-600/15" : "bg-gray-900 hover:bg-gray-900/60"
                         }`}
                       >
-                        <span className="text-sm font-semibold leading-tight">{label}</span>
-                        <span className={`text-[10px] mt-0.5 leading-snug ${active ? "text-indigo-300" : "text-gray-600"}`}>{desc}</span>
+                        <div>
+                          <p className={`text-sm ${active ? "text-white font-medium" : "text-gray-300"}`}>{label}</p>
+                          <p className="text-xs text-gray-500 mt-0.5">{desc}</p>
+                        </div>
+                        {active && <Check className="w-4 h-4 text-indigo-400 flex-shrink-0" />}
                       </button>
                     );
                   })}
@@ -635,43 +634,42 @@ export default function AppSettings() {
 
               {/* Full mode: per-notification prefs editor */}
               {(settings.notification_level || "standard") === "full" && (
+                <NotificationPrefsEditor
+                  prefs={settings.notification_prefs || DEFAULT_PREFS.full}
+                  onChange={handlePrefChange}
+                />
+              )}
+
+              {/* Test */}
+              {pushActive && (
                 <div>
-                  <p className="text-xs text-gray-400 mb-1">Customise exactly which notifications fire and when:</p>
-                  <NotificationPrefsEditor
-                    prefs={settings.notification_prefs || DEFAULT_PREFS.full}
-                    onChange={handlePrefChange}
-                  />
+                  <button
+                    onClick={handleTestPush}
+                    className="w-full py-2.5 rounded-xl text-sm font-medium border border-gray-700 text-gray-300 hover:text-white hover:border-gray-500 transition-colors"
+                  >
+                    Send test notification
+                  </button>
+                  {testResult && (
+                    <p className="text-xs text-gray-500 text-center mt-2">{testResult}</p>
+                  )}
                 </div>
               )}
 
-              {/* Error */}
-              {pushError && (
-                <p className="text-xs text-red-400 bg-red-900/30 rounded-lg px-3 py-2">{pushError}</p>
-              )}
-
-              {/* Test button */}
-              {pushActive && (
+              {/* Diagnostics — tucked away */}
+              <div>
                 <button
-                  onClick={async () => {
-                    const result = await sendTestPush();
-                    if (result.success) {
-                      alert("✅ Test notification sent! You should receive it in ~5 seconds.");
-                    } else if (result.reason === "not_subscribed") {
-                      alert("❌ Not subscribed. Tap Disable then Enable to re-subscribe.");
-                    } else {
-                      alert("❌ Failed: " + (result.reason || "unknown error"));
-                    }
-                  }}
-                  className="w-full py-2 rounded-xl text-sm font-medium bg-teal-900/40 hover:bg-teal-900/60 text-teal-300 border border-teal-700/40 transition-colors"
+                  onClick={() => setDiagOpen(o => !o)}
+                  className="text-[11px] text-gray-600 hover:text-gray-400 transition-colors"
                 >
-                  🔔 Send Test Notification
+                  {diagOpen ? "Hide diagnostics" : "Diagnostics"}
                 </button>
-              )}
-
-              <div className="text-[10px] text-gray-600 space-y-1">
-                <p>🔧 Push API: {'PushManager' in window ? '✅ Available' : '❌ Not available (install as PWA)'}</p>
-                <p>🔔 Permission: {typeof Notification !== 'undefined' ? Notification.permission : 'unknown'}</p>
-                <p>📱 Standalone: {window.matchMedia('(display-mode: standalone)').matches ? '✅ Yes (PWA)' : '⚠️ No (browser)'}</p>
+                {diagOpen && (
+                  <div className="text-[11px] text-gray-600 space-y-0.5 mt-1.5">
+                    <p>Push API: {'PushManager' in window ? "available" : "not available — install as PWA"}</p>
+                    <p>Permission: {typeof Notification !== 'undefined' ? Notification.permission : "unknown"}</p>
+                    <p>Display: {window.matchMedia('(display-mode: standalone)').matches ? "standalone (PWA)" : "browser tab"}</p>
+                  </div>
+                )}
               </div>
             </div>
           )}
