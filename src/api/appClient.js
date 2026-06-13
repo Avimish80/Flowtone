@@ -2,6 +2,7 @@ import { createLocalEntity } from "@/api/localStorageEngine";
 import { ENTITY_DEFAULTS } from "@/api/entityMetadata";
 import { PREVIEW_USER } from "@/lib/previewMode";
 import { getSupabaseClient, isPreviewModeEnabled } from "@/lib/supabaseClient";
+import { syncNow } from "@/lib/calendarClient";
 import { format } from "date-fns";
 
 // ─── Entity Registry ───────────────────────────────────────────────
@@ -383,14 +384,16 @@ const fnCreateRecurringEvents = async ({ event_id }) => {
   };
 };
 
-const fnSyncToGoogleCalendar = async ({ event_id }) => {
-  const found = await entities.WorkEvent.filter({ id: event_id });
-  const event = found?.[0];
-  if (!event) return { data: { success: false, error: "Event not found" } };
-  await entities.WorkEvent.update(event.id, {
-    google_calendar_event_id: `local-gcal-${crypto.randomUUID()}`,
-  });
-  return { data: { success: true } };
+const fnSyncToGoogleCalendar = async () => {
+  // Real two-way sync now runs server-side over the whole calendar; a single
+  // event is pushed as part of that. Returns success only when actually synced
+  // (not skipped because the calendar is disconnected).
+  try {
+    const result = await syncNow();
+    return { data: { success: !result.skipped, ...result } };
+  } catch (err) {
+    return { data: { success: false, error: err.message } };
+  }
 };
 
 // ─── PDF Generation & Sending ──────────────────────────────────────

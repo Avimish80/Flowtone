@@ -11,6 +11,7 @@ import AIAssistantButton from "@/components/AIAssistant/AIAssistantButton";
 import AIAssistantPanel from "@/components/AIAssistant/AIAssistantPanel";
 import { useAIAssistant } from "@/components/AIAssistant/useAIAssistant";
 import { isPushActive, schedulePushNotifications, reRegisterSubscription } from "@/lib/pushManager";
+import { maybeSyncOnOpen } from "@/lib/calendarClient";
 import { appClient } from "@/api/appClient";
 
 const primaryNav = [
@@ -116,6 +117,11 @@ export default function Layout({ children, currentPageName }) {
         });
       });
     });
+  }, []);
+
+  // Silent two-way calendar sync on app open (no-op unless connected; throttled)
+  useEffect(() => {
+    maybeSyncOnOpen();
   }, []);
 
   const {

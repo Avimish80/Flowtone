@@ -6,6 +6,7 @@ import cors from 'cors';
 import aiRoutes from './routes/ai.js';
 import pushRoutes from './routes/push.js';
 import gmailRoutes from './routes/gmail.js';
+import calendarRoutes from './routes/calendar.js';
 import billingRoutes, { handleStripeWebhook } from './routes/billing.js';
 import meRoutes from './routes/me.js';
 import { requireAuthenticatedUser } from './lib/auth.js';
@@ -66,6 +67,7 @@ app.use(express.json());
 app.use('/api/ai', requireAuthenticatedUser, aiRoutes);
 app.use('/api/push', pushRoutes);
 app.use('/api/gmail', gmailRoutes);
+app.use('/api/calendar', calendarRoutes);
 app.use('/api/billing', billingRoutes);
 app.use('/api/me', meRoutes);
 
