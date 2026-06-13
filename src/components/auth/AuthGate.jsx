@@ -50,6 +50,60 @@ function FeatureList() {
   );
 }
 
+function BrandSplash({ caption = "Tuning your workspace" }) {
+  return (
+    <div className="relative min-h-screen overflow-hidden bg-[#030712] text-white">
+      <style>{`
+        @keyframes ft-eq      { 0%,100% { transform: scaleY(0.22); } 50% { transform: scaleY(1); } }
+        @keyframes ft-breathe { 0%,100% { transform: scale(1); opacity: 0.5; } 50% { transform: scale(1.18); opacity: 0.9; } }
+        @keyframes ft-float   { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+        @keyframes ft-drift   { 0% { transform: translate(-8%, -6%) rotate(0deg); } 50% { transform: translate(8%, 6%) rotate(180deg); } 100% { transform: translate(-8%, -6%) rotate(360deg); } }
+        @media (prefers-reduced-motion: reduce) { .ft-anim { animation: none !important; } }
+      `}</style>
+
+      {/* Drifting aurora glow */}
+      <div className="pointer-events-none absolute inset-0">
+        <div className="ft-anim absolute left-1/2 top-1/3 h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-indigo-600/30 blur-[120px]" style={{ animation: "ft-drift 20s ease-in-out infinite" }} />
+        <div className="ft-anim absolute left-1/4 top-1/2 h-[320px] w-[320px] rounded-full bg-fuchsia-600/20 blur-[120px]" style={{ animation: "ft-drift 26s ease-in-out infinite reverse" }} />
+        <div className="ft-anim absolute right-1/4 top-1/4 h-[280px] w-[280px] rounded-full bg-sky-500/20 blur-[120px]" style={{ animation: "ft-drift 30s ease-in-out infinite" }} />
+      </div>
+
+      <div className="relative z-10 flex min-h-screen flex-col items-center justify-center gap-8 px-6">
+        {/* Glowing logo orb */}
+        <div className="ft-anim relative" style={{ animation: "ft-float 4s ease-in-out infinite" }}>
+          <div className="ft-anim absolute inset-0 rounded-[28px] bg-indigo-500/40 blur-2xl" style={{ animation: "ft-breathe 3s ease-in-out infinite" }} />
+          <div className="relative flex h-20 w-20 items-center justify-center rounded-[28px] border border-white/10 bg-gradient-to-br from-indigo-500/90 to-fuchsia-500/80 shadow-2xl shadow-indigo-900/50">
+            <Music2 className="h-9 w-9 text-white" />
+          </div>
+        </div>
+
+        {/* Equalizer */}
+        <div className="flex h-10 items-end gap-1.5">
+          {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+            <span
+              key={i}
+              className="ft-anim w-1.5 rounded-full bg-gradient-to-t from-indigo-500 to-fuchsia-400"
+              style={{
+                height: "100%",
+                transformOrigin: "bottom",
+                animation: `ft-eq ${0.9 + (i % 3) * 0.25}s ease-in-out ${i * 0.12}s infinite`,
+              }}
+            />
+          ))}
+        </div>
+
+        {/* Wordmark */}
+        <div className="flex flex-col items-center gap-2">
+          <p className="bg-gradient-to-r from-indigo-200 via-white to-fuchsia-200 bg-clip-text text-2xl font-bold tracking-[0.3em] text-transparent">
+            FLOWTONE
+          </p>
+          <p className="text-[11px] font-medium uppercase tracking-[0.25em] text-gray-500">{caption}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AuthGate() {
   const {
     authReady,
@@ -117,16 +171,7 @@ export default function AuthGate() {
   };
 
   if (!authReady) {
-    return (
-      <ScreenFrame>
-        <Panel>
-          <div className="flex flex-col items-center gap-4 px-6 py-12">
-            <Loader2 className="h-7 w-7 animate-spin text-indigo-300" />
-            <p className="text-sm text-gray-400">Checking your Flowtone account…</p>
-          </div>
-        </Panel>
-      </ScreenFrame>
-    );
+    return <BrandSplash />;
   }
 
   if (authError?.type === "config_error") {
@@ -302,6 +347,13 @@ export default function AuthGate() {
   }
 
   if (hasAccess) return null;
+
+  // Authenticated, but the access check hasn't resolved yet (the Supabase
+  // INITIAL_SESSION event flips authReady before the billing fetch returns).
+  // Show the branded splash instead of flashing the paywall on every cold open.
+  if (!accessState || isLoadingAccess) {
+    return <BrandSplash caption="Almost there" />;
+  }
 
   return (
     <ScreenFrame>
