@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Sparkles } from "lucide-react";
 import { isPreviewModeEnabled } from "@/lib/supabaseClient";
 import { getAssistantProfile, isOnboarded } from "@/lib/assistantProfile";
+import { loadPreferredCurrency } from "@/lib/currencyCache";
 import OnboardingFlow from "./OnboardingFlow";
 
 export default function OnboardingGate({ children }) {
@@ -20,8 +21,10 @@ export default function OnboardingGate({ children }) {
       return;
     }
 
-    getAssistantProfile()
-      .then((profile) => setStatus(isOnboarded(profile) ? "done" : "needed"))
+    // Warm the preferred-currency cache before any screen paints, so amounts
+    // render with the user's chosen symbol from the first frame.
+    Promise.all([getAssistantProfile(), loadPreferredCurrency()])
+      .then(([profile]) => setStatus(isOnboarded(profile) ? "done" : "needed"))
       .catch((err) => {
         // Fail open — a network blip must never lock the user out
         console.warn("OnboardingGate: could not load profile", err);

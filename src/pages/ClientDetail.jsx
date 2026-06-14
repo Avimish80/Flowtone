@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { appClient } from "@/api/appClient";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
+import { getPreferredCurrency } from "@/lib/currencyCache";
 import { ArrowLeft, Save, Trash2, Plus, X, AlertTriangle, AlertCircle, CheckCircle2 } from "lucide-react";
 import { useGoBack } from "@/hooks/useGoBack";
 import ClientFinancialSummary from "../components/client/ClientFinancialSummary";
@@ -17,7 +18,7 @@ export default function ClientDetail() {
 
   const [client, setClient] = useState({
     name: "", client_type: "other", emails: [], phones: [],
-    default_currency: "GBP", default_payment_terms_days: 30,
+    default_currency: getPreferredCurrency(), default_payment_terms_days: 30,
     email_filter_tag: "none", has_late_payment_history: false, notes: ""
   });
   const [loading, setLoading] = useState(!!id);

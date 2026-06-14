@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { appClient } from "@/api/appClient";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl, currencySymbol } from "@/utils";
+import { getPreferredCurrency } from "@/lib/currencyCache";
 import { useGoBack } from "@/hooks/useGoBack";
 import {
   ArrowLeft, Save, Trash2, Plus, X, AlertTriangle, Send, CheckCircle2,
@@ -33,7 +34,7 @@ export default function DocumentDetail() {
     client_id: "",
     client_email: "",
     status: "draft",
-    currency: "GBP",
+    currency: getPreferredCurrency(),
     line_items: [],
     subtotal: 0,
     total: 0,
@@ -109,14 +110,8 @@ export default function DocumentDetail() {
       appClient.entities.AppSettings.list(),
     ]).then(([profiles, settingsArr]) => {
       setBizProfile(profiles[0] || null);
-      const s = settingsArr[0] || null;
-      setAppSettings(s);
+      setAppSettings(settingsArr[0] || null);
       setGmailConnected(isGmailConnected());
-      // For new documents, default currency to the user's preferred currency
-      if (isNew && s) {
-        const preferred = s.currency || s.default_currency;
-        if (preferred) setDoc(prev => ({ ...prev, currency: preferred }));
-      }
     }).catch(() => {});
   }, []);
 
@@ -280,7 +275,7 @@ export default function DocumentDetail() {
         client_type: newClientForm.client_type,
         emails: newClientForm.email.trim() ? [newClientForm.email.trim()] : [],
         phones: [],
-        default_currency: "GBP",
+        default_currency: getPreferredCurrency(),
         default_payment_terms_days: 30,
       });
       setClients(prev => [...prev, created]);
@@ -310,7 +305,7 @@ export default function DocumentDetail() {
         client_id: newEventForm.client_id || "",
         event_type: "Gig",
         status: "lead",
-        currency: doc.currency || "GBP",
+        currency: doc.currency || getPreferredCurrency(),
         base_price: fee,
         total_price: fee,
       };

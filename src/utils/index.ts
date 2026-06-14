@@ -1,3 +1,5 @@
+import { getPreferredCurrency } from "@/lib/currencyCache";
+
 export function createPageUrl(pageName: string) {
     return '/' + pageName.replace(/ /g, '-');
 }
@@ -11,8 +13,8 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
 };
 
 export function currencySymbol(code?: string | null): string {
-    if (!code) return "£";
-    return CURRENCY_SYMBOLS[code] || code;
+    const resolved = code || getPreferredCurrency();
+    return CURRENCY_SYMBOLS[resolved] || resolved;
 }
 
 export function formatMoney(amount: number | null | undefined, currency?: string | null): string {

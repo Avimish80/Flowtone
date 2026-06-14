@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { appClient } from "@/api/appClient";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
+import { getPreferredCurrency } from "@/lib/currencyCache";
 import { useGoBack } from "@/hooks/useGoBack";
 import { format } from "date-fns";
 import {
@@ -41,7 +42,7 @@ export default function WorkEventDetail() {
   const [event, setEvent] = useState({
     title: "", event_type: prefilledType || "Gig", status: "lead",
     date: prefilledDate || "",
-    currency: "GBP", base_price: 0, adjustments: [], total_price: 0,
+    currency: getPreferredCurrency(), base_price: 0, adjustments: [], total_price: 0,
     equipment_checklist: [], base_price_locked: false,
     ...(prefilledLinkedGig ? { linked_gig_id: prefilledLinkedGig } : {}),
   });
@@ -73,19 +74,10 @@ export default function WorkEventDetail() {
   );
 
   useEffect(() => {
-    const promises = [
-      appClient.entities.Client.list(),
-      appClient.entities.AppSettings.list(),
-    ];
+    const promises = [appClient.entities.Client.list()];
     if (id) promises.push(appClient.entities.WorkEvent.filter({ id }));
-    Promise.all(promises).then(async ([cls, settingsArr, evts]) => {
+    Promise.all(promises).then(async ([cls, evts]) => {
       setClients(cls);
-      // For new events, default to the user's preferred currency
-      if (!id && settingsArr?.[0]) {
-        const s = settingsArr[0];
-        const preferred = s.currency || s.default_currency;
-        if (preferred) setEvent(prev => ({ ...prev, currency: preferred }));
-      }
       if (evts && evts[0]) {
         const e = evts[0];
         if (e.status === "confirmed" || e.status === "completed") e.base_price_locked = true;
@@ -176,7 +168,7 @@ export default function WorkEventDetail() {
             work_event_id: created.id,
             is_standalone: false,
             status: "draft",
-            currency: created.currency || "GBP",
+            currency: created.currency || getPreferredCurrency(),
             line_items: fee > 0 ? [{ description: created.event_type || "Performance", quantity: 1, unit_price: fee, total: fee }] : [],
             subtotal: fee,
             total: fee,

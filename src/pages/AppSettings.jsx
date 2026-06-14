@@ -4,6 +4,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { Check, Mail, Navigation, Bell, Banknote, Building2, CalendarDays, RefreshCw, ChevronDown, ChevronUp, Upload, X, Download, Upload as UploadIcon, LogOut, Sparkles } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { getAssistantProfile, DEFAULT_ASSISTANT_NAME, DEFAULT_LANGUAGE } from "@/lib/assistantProfile";
+import { setPreferredCurrency } from "@/lib/currencyCache";
 import { LANGUAGE_OPTIONS } from "@/components/onboarding/onboardingScript";
 import { TEMPLATE_DEFS, generateInvoiceHTML } from "@/lib/invoiceTemplates";
 import { registerPush, unregisterPush, isPushActive, schedulePushNotifications, sendTestPush } from "@/lib/pushManager";
@@ -113,6 +114,8 @@ export default function AppSettings() {
       if (field === "currency") update.default_currency = value;
       return update;
     });
+    // Keep the app-wide currency in sync so every screen updates immediately
+    if (field === "default_currency" || field === "currency") setPreferredCurrency(value);
   };
   const onProfileChange = (field, value) => setProfile(prev => ({ ...prev, [field]: value }));
 

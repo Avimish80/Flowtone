@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from "react";
 import { askAI } from "@/api/aiClient";
 import { appClient } from "@/api/appClient";
 import { getAssistantProfile } from "@/lib/assistantProfile";
+import { getPreferredCurrency } from "@/lib/currencyCache";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -199,7 +200,7 @@ async function executeAction(action) {
         title: data.title || "New Invoice",
         client_id: data.client_id || "",
         status,
-        currency: data.currency || "GBP",
+        currency: data.currency || getPreferredCurrency(),
         line_items: lineItems,
         subtotal,
         total: subtotal,

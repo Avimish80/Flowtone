@@ -10,6 +10,7 @@ import {
   DEFAULT_ASSISTANT_NAME,
   DEFAULT_LANGUAGE,
 } from "@/lib/assistantProfile";
+import { setPreferredCurrency } from "@/lib/currencyCache";
 import { STEPS } from "./onboardingScript";
 import { AssistantBubble, UserBubble, TypingBubble } from "./OnboardingBubbles";
 import OnboardingInput from "./OnboardingInput";
@@ -98,6 +99,7 @@ export default function OnboardingFlow({ onFinish }) {
         currency: a.currency,
         default_currency: a.currency,
       });
+      setPreferredCurrency(a.currency);
     }
 
     const businessName = a.business_name || a.user_name;
