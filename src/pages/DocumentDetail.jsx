@@ -432,7 +432,9 @@ export default function DocumentDetail() {
         const created = await appClient.entities.Document.create(dataToSave);
         await appClient.helpers.logDocumentActivity(created.id, "created", null, "draft");
 
-        navigate(createPageUrl(`DocumentDetail?id=${created.id}`));
+        // Replace, not push — so Back from the saved invoice returns to the
+        // list instead of the now-blank "new invoice" page.
+        navigate(createPageUrl(`DocumentDetail?id=${created.id}`), { replace: true });
         return;
       }
     } catch (err) {
@@ -717,10 +719,11 @@ export default function DocumentDetail() {
     } catch { return ""; }
   };
 
-  // Save then navigate back
-  const handleGoBack = async () => {
+  // Navigate back immediately; the autosave runs in the background so a slow
+  // or hanging network request can never trap the user on this page.
+  const handleGoBack = () => {
     if (id && doc.title?.trim() && !doc.is_locked) {
-      try { await appClient.entities.Document.update(id, doc); } catch {}
+      appClient.entities.Document.update(id, doc).catch(() => {});
     }
     goBack();
   };
