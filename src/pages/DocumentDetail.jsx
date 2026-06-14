@@ -431,7 +431,7 @@ export default function DocumentDetail() {
         const created = await appClient.entities.Document.create(dataToSave);
         await appClient.helpers.logDocumentActivity(created.id, "created", null, "draft");
 
-        navigate(createPageUrl(`DocumentDetail?id=${created.id}`));
+        navigate(createPageUrl(`DocumentDetail?id=${created.id}`), { replace: true });
         return;
       }
     } catch (err) {
