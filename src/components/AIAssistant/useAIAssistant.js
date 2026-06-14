@@ -21,12 +21,15 @@ async function buildContext() {
     const in30Days = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
     const ago7Days = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-    const [allEvents, allClients, allGoals, allSessions] = await Promise.all([
+    const [allEvents, allClients, allGoals, allSessions, settingsArr] = await Promise.all([
       appClient.entities.WorkEvent.list().catch(() => []),
       appClient.entities.Client.list().catch(() => []),
       appClient.entities.PracticeGoal.list().catch(() => []),
       appClient.entities.PracticeSession.list().catch(() => []),
+      appClient.entities.AppSettings.list().catch(() => []),
     ]);
+    const settings = settingsArr?.[0];
+    const preferredCurrency = settings?.currency || settings?.default_currency || "GBP";
 
     const upcomingEvents = allEvents
       .filter((e) => { if (!e.date) return false; const d = new Date(e.date); return d >= now && d <= in30Days; })
@@ -55,6 +58,7 @@ async function buildContext() {
       practiceGoals,
       recentSessions,
       assistantProfile,
+      preferredCurrency,
     };
   } catch (err) {
     console.warn("useAIAssistant: failed to build context", err);

@@ -73,10 +73,19 @@ export default function WorkEventDetail() {
   );
 
   useEffect(() => {
-    const promises = [appClient.entities.Client.list()];
+    const promises = [
+      appClient.entities.Client.list(),
+      appClient.entities.AppSettings.list(),
+    ];
     if (id) promises.push(appClient.entities.WorkEvent.filter({ id }));
-    Promise.all(promises).then(async ([cls, evts]) => {
+    Promise.all(promises).then(async ([cls, settingsArr, evts]) => {
       setClients(cls);
+      // For new events, default to the user's preferred currency
+      if (!id && settingsArr?.[0]) {
+        const s = settingsArr[0];
+        const preferred = s.currency || s.default_currency;
+        if (preferred) setEvent(prev => ({ ...prev, currency: preferred }));
+      }
       if (evts && evts[0]) {
         const e = evts[0];
         if (e.status === "confirmed" || e.status === "completed") e.base_price_locked = true;

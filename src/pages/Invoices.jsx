@@ -50,6 +50,7 @@ export default function Invoices() {
   const [selected, setSelected] = useState(new Set());
   const [deleting, setDeleting] = useState(false);
   const [taxYearStartMonth, setTaxYearStartMonth] = useState(4);
+  const [preferredCurrency, setPreferredCurrency] = useState(null);
   const [showYearDropdown, setShowYearDropdown] = useState(false);
 
   const clientMap = useMemo(() => {
@@ -67,6 +68,7 @@ export default function Invoices() {
       setClients(cls);
       const s = settingsArr[0];
       if (s?.tax_year_start_month) setTaxYearStartMonth(s.tax_year_start_month);
+      if (s) setPreferredCurrency(s.currency || s.default_currency || null);
       setLoading(false);
     });
   };
@@ -176,7 +178,7 @@ export default function Invoices() {
   // ── Always-visible overview (all invoices, ignores year/status filter) ──
   const overview = useMemo(() => {
     const sum = (arr) => arr.reduce((s, i) => s + (i.total ?? i.subtotal ?? 0), 0);
-    const cs = currencySymbol();
+    const cs = currencySymbol(preferredCurrency);
     const fmt = (n) => {
       if (n >= 10000) return cs + (n / 1000).toFixed(1).replace(/\.0$/, "") + "k";
       return cs + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
@@ -187,7 +189,7 @@ export default function Invoices() {
     const drafts     = invoices.filter(i => i.status === "draft");
     const cancelled  = invoices.filter(i => i.status === "cancelled");
     return { overdue, sent, paid, drafts, cancelled, sum, fmt };
-  }, [invoices]);
+  }, [invoices, preferredCurrency]);
 
   return (
     <div className="p-4 max-w-xl mx-auto">

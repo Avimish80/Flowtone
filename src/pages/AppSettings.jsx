@@ -106,7 +106,14 @@ export default function AppSettings() {
     getCalendarStatus().then(setCalStatus).catch(() => {});
   }, []);
 
-  const onChange = (field, value) => setSettings(prev => ({ ...prev, [field]: value }));
+  const onChange = (field, value) => {
+    setSettings(prev => {
+      const update = { ...prev, [field]: value };
+      if (field === "default_currency") update.currency = value;
+      if (field === "currency") update.default_currency = value;
+      return update;
+    });
+  };
   const onProfileChange = (field, value) => setProfile(prev => ({ ...prev, [field]: value }));
 
   // ── Calendar helpers ───────────────────────────────────────────────
@@ -521,7 +528,7 @@ export default function AppSettings() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={labelCls}>Default Currency</label>
-                  <select className={inputCls} value={settings.default_currency || "GBP"} onChange={e => onChange("default_currency", e.target.value)}>
+                  <select className={inputCls} value={settings.currency || settings.default_currency || "GBP"} onChange={e => onChange("default_currency", e.target.value)}>
                     {["GBP", "USD", "EUR", "AUD", "CAD"].map(c => <option key={c}>{c}</option>)}
                   </select>
                 </div>

@@ -109,8 +109,14 @@ export default function DocumentDetail() {
       appClient.entities.AppSettings.list(),
     ]).then(([profiles, settingsArr]) => {
       setBizProfile(profiles[0] || null);
-      setAppSettings(settingsArr[0] || null);
+      const s = settingsArr[0] || null;
+      setAppSettings(s);
       setGmailConnected(isGmailConnected());
+      // For new documents, default currency to the user's preferred currency
+      if (isNew && s) {
+        const preferred = s.currency || s.default_currency;
+        if (preferred) setDoc(prev => ({ ...prev, currency: preferred }));
+      }
     }).catch(() => {});
   }, []);
 

@@ -49,6 +49,7 @@ function buildSystemPrompt(context = {}) {
     practiceGoals = [],
     recentSessions = [],
     assistantProfile = null,
+    preferredCurrency = "GBP",
   } = context;
 
   return `You are Flowtone Assistant — a personal AI co-pilot built into Flowtone, a professional organizer app for musicians. You help musicians manage their schedule, clients, invoices, practice sessions, and music library.
@@ -85,7 +86,7 @@ CREATE_EVENT — schedule a new gig, lesson, session, rehearsal, etc.
     "status": "lead|confirmed|completed|cancelled (default: lead)",
     "location_address": "full venue address or venue name (optional)",
     "base_price": number (optional),
-    "currency": "GBP|USD|EUR (default: GBP)",
+    "currency": "${preferredCurrency} (musician's preferred currency — use this unless they explicitly ask for a different one)",
     "client_id": "string (optional, match from clients list)",
     "client_name": "string (optional — set this INSTEAD of client_id when the client is new and being created in this same response)",
     "notes": "string (optional)"
@@ -147,7 +148,7 @@ CREATE_INVOICE — create a new invoice for a client
     ],
     "due_date": "YYYY-MM-DD or omit",
     "notes": "optional notes",
-    "currency": "GBP",
+    "currency": "${preferredCurrency}",
     "status": "draft|sent|paid (default draft; use 'paid' only if the musician says it was already paid)"
   }
 }
@@ -221,6 +222,7 @@ MUSICIAN'S DATA
 ────────────────────────────────────────────
 
 TODAY: ${today}
+PREFERRED CURRENCY: ${preferredCurrency} — always use this currency when creating events, invoices, or mentioning amounts, unless the musician explicitly specifies a different one.
 
 UPCOMING EVENTS (next 30 days):
 ${JSON.stringify(upcomingEvents, null, 2)}

@@ -32,6 +32,7 @@ export default function ClientFinancialSummary({ clientId }) {
 
   const totalEarned = invoices.filter(i => i.status === "paid").reduce((s, i) => s + (i.total || i.subtotal || 0), 0);
   const totalOutstanding = invoices.filter(i => i.status === "sent").reduce((s, i) => s + (i.total || i.subtotal || 0), 0);
+  const clientCurrency = invoices[0]?.currency || estimates[0]?.currency || null;
 
   if (loading) return <div className="h-20 bg-gray-800 rounded-xl animate-pulse" />;
 
@@ -40,11 +41,11 @@ export default function ClientFinancialSummary({ clientId }) {
       <div className="grid grid-cols-2 gap-3">
         <div className="bg-gray-800 rounded-xl p-3">
           <p className="text-xs text-gray-500 mb-1">Total Earned</p>
-          <p className="text-lg font-bold text-green-400">{currencySymbol()}{totalEarned.toFixed(2)}</p>
+          <p className="text-lg font-bold text-green-400">{currencySymbol(clientCurrency)}{totalEarned.toFixed(2)}</p>
         </div>
         <div className="bg-gray-800 rounded-xl p-3">
           <p className="text-xs text-gray-500 mb-1">Outstanding</p>
-          <p className="text-lg font-bold text-yellow-400">{currencySymbol()}{totalOutstanding.toFixed(2)}</p>
+          <p className="text-lg font-bold text-yellow-400">{currencySymbol(clientCurrency)}{totalOutstanding.toFixed(2)}</p>
         </div>
       </div>
 
