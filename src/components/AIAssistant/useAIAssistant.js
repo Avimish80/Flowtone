@@ -13,31 +13,109 @@ function makeMessage(role, content, extra = {}) {
   return { id: uid(), role, content, timestamp: new Date().toISOString(), ...extra };
 }
 
+// Build a short, human label for a place from a Nominatim result.
+function shortPlaceLabel(r) {
+  const a = r.address || {};
+  const name =
+    a.amenity || a.building || a.shop || a.tourism || a.leisure ||
+    (r.display_name || "").split(",")[0];
+  const area = a.city || a.town || a.village || a.suburb || a.county || "";
+  return [name, area].filter(Boolean).join(", ") || (r.display_name || "Location");
+}
+
 // ─── Context builder — returns a structured object for the server ────────────
 
+const EMPTY_CONTEXT = () => ({
+  today: new Date().toISOString().slice(0, 10),
+  counts: {}, events: [], clients: [], invoices: [],
+  practiceGoals: [], recentSessions: [], equipment: [], settings: {},
+});
+
+// Build a comprehensive snapshot of the musician's real data so the AI can
+// see — and act on — anything: past + upcoming events with full detail, every
+// invoice/estimate, full client records, equipment, goals, and settings.
 async function buildContext() {
   try {
     const now = new Date();
-    const in30Days = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-    const ago7Days = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const todayStr = now.toISOString().slice(0, 10);
+    const day = 24 * 60 * 60 * 1000;
+    const windowPast = new Date(now.getTime() - 180 * day);
+    const windowFuture = new Date(now.getTime() + 365 * day);
+    const ago7Days = new Date(now.getTime() - 7 * day);
 
-    const [allEvents, allClients, allGoals, allSessions] = await Promise.all([
-      appClient.entities.WorkEvent.list().catch(() => []),
-      appClient.entities.Client.list().catch(() => []),
-      appClient.entities.PracticeGoal.list().catch(() => []),
-      appClient.entities.PracticeSession.list().catch(() => []),
-    ]);
+    const [allEvents, allClients, allGoals, allSessions, allDocs, allEquipment, settingsList] =
+      await Promise.all([
+        appClient.entities.WorkEvent.list().catch(() => []),
+        appClient.entities.Client.list().catch(() => []),
+        appClient.entities.PracticeGoal.list().catch(() => []),
+        appClient.entities.PracticeSession.list().catch(() => []),
+        appClient.entities.Document.list().catch(() => []),
+        appClient.entities.Equipment.list().catch(() => []),
+        appClient.entities.AppSettings.list().catch(() => []),
+      ]);
 
-    const upcomingEvents = allEvents
-      .filter((e) => { if (!e.date) return false; const d = new Date(e.date); return d >= now && d <= in30Days; })
-      .sort((a, b) => new Date(a.date) - new Date(b.date))
-      .slice(0, 20)
-      .map((e) => ({ id: e.id, title: e.title, date: e.date, event_type: e.event_type, status: e.status, client_id: e.client_id }));
+    const clientNameById = {};
+    allClients.forEach((c) => { clientNameById[c.id] = c.name; });
 
-    const clients = allClients.map((c) => ({ id: c.id, name: c.name }));
+    // Events — wide window, full useful detail. Cap at 200, biased to the
+    // window around today so the AI can still find what the user references.
+    const EVENT_CAP = 200;
+    const inWindow = allEvents
+      .filter((e) => e.date)
+      .filter((e) => { const d = new Date(e.date); return d >= windowPast && d <= windowFuture; })
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
+    let windowed = inWindow;
+    if (inWindow.length > EVENT_CAP) {
+      const future = inWindow.filter((e) => e.date >= todayStr);
+      const past = inWindow.filter((e) => e.date < todayStr).reverse();
+      windowed = [...future.slice(0, EVENT_CAP - 40), ...past.slice(0, 40)]
+        .sort((a, b) => new Date(a.date) - new Date(b.date));
+    }
+    const events = windowed.map((e) => ({
+      id: e.id, title: e.title, date: e.date,
+      start: e.start_time || undefined, end: e.end_time || undefined,
+      type: e.event_type, status: e.status,
+      client_id: e.client_id || undefined,
+      client: e.client_id ? clientNameById[e.client_id] : undefined,
+      location: e.location_address || undefined,
+      price: e.total_price || e.base_price || undefined,
+      currency: e.currency || undefined,
+      recurring: e.is_recurring || undefined,
+      past: e.date < todayStr || undefined,
+    }));
+
+    const clients = allClients.map((c) => ({
+      id: c.id, name: c.name, type: c.client_type || undefined,
+      emails: c.emails?.length ? c.emails : undefined,
+      phones: c.phones?.length ? c.phones : undefined,
+      city: c.city || undefined,
+      default_fee: c.default_fee || undefined,
+      currency: c.default_currency || undefined,
+      late_payer: c.late_payment_flag || undefined,
+    }));
+
+    // Invoices + estimates — most recent first, capped.
+    const DOC_CAP = 150;
+    const invoices = allDocs
+      .slice()
+      .sort((a, b) => new Date(b.created_at || b.due_date || 0) - new Date(a.created_at || a.due_date || 0))
+      .slice(0, DOC_CAP)
+      .map((d) => ({
+        id: d.id,
+        number: d.document_number || d.invoice_number || undefined,
+        kind: d.document_type || "invoice",
+        title: d.title, status: d.status,
+        client_id: d.client_id || undefined,
+        client: d.client_id ? clientNameById[d.client_id] : (d.client_name || undefined),
+        total: d.total ?? d.subtotal ?? undefined,
+        currency: d.currency || undefined,
+        due_date: d.due_date || undefined,
+        paid_date: d.paid_date || undefined,
+        event_id: d.work_event_id || undefined,
+      }));
 
     const practiceGoals = allGoals
-      .filter((g) => g.status !== "completed" && g.status !== "abandoned")
+      .filter((g) => !g.completed && g.status !== "completed" && g.status !== "abandoned")
       .map((g) => ({ id: g.id, title: g.title, category: g.category }));
 
     const recentSessions = allSessions
@@ -46,19 +124,31 @@ async function buildContext() {
       .slice(0, 10)
       .map((s) => ({ date: s.date, duration_minutes: s.duration_minutes }));
 
+    const equipment = allEquipment.slice(0, 60).map((eq) => ({ id: eq.id, name: eq.name, category: eq.category }));
+
+    const s = settingsList[0] || {};
+    const settings = {
+      currency: s.currency || s.default_currency || "GBP",
+      invoice_prefix: s.invoice_number_prefix || undefined,
+      invoice_next: s.invoice_number_next || undefined,
+    };
+
     const assistantProfile = await getAssistantProfile().catch(() => null);
 
     return {
-      today: now.toISOString().slice(0, 10),
-      upcomingEvents,
-      clients,
-      practiceGoals,
-      recentSessions,
+      today: todayStr,
+      counts: {
+        events_total: allEvents.length, events_shown: events.length,
+        clients_total: allClients.length,
+        invoices_total: allDocs.length, invoices_shown: invoices.length,
+      },
+      events, clients, invoices,
+      practiceGoals, recentSessions, equipment, settings,
       assistantProfile,
     };
   } catch (err) {
     console.warn("useAIAssistant: failed to build context", err);
-    return { today: new Date().toISOString().slice(0, 10), upcomingEvents: [], clients: [], practiceGoals: [], recentSessions: [] };
+    return EMPTY_CONTEXT();
   }
 }
 
@@ -221,6 +311,71 @@ async function executeAction(action) {
       };
     }
 
+    case "UPDATE_CLIENT": {
+      if (!data.id) return { success: false, type, label: "Which client should I update?" };
+      const { id, ...patch } = data;
+      await appClient.entities.Client.update(id, patch);
+      return {
+        success: true, type,
+        label: `Updated client${data.name ? ": " + data.name : ""}`,
+        entityId: id, page: "ClientDetail",
+        navigate: { page: "ClientDetail", params: { id } },
+      };
+    }
+
+    case "DELETE_EVENT": {
+      if (!data.id) return { success: false, type, label: "Which event should I delete?" };
+      await appClient.entities.WorkEvent.delete(data.id);
+      return { success: true, type, label: `Deleted event${data.title ? ": " + data.title : ""}` };
+    }
+
+    case "DELETE_CLIENT": {
+      if (!data.id) return { success: false, type, label: "Which client should I delete?" };
+      await appClient.entities.Client.delete(data.id);
+      return { success: true, type, label: `Deleted client${data.name ? ": " + data.name : ""}` };
+    }
+
+    case "UPDATE_INVOICE": {
+      if (!data.id) return { success: false, type, label: "Which invoice should I update?" };
+      const { id, ...patch } = data;
+      const todayStr = new Date().toISOString().slice(0, 10);
+      // Auto-stamp the matching date when a status change implies one.
+      if (patch.status === "paid" && patch.paid_date == null) patch.paid_date = todayStr;
+      if (patch.status === "sent" && patch.sent_date == null) patch.sent_date = todayStr;
+      await appClient.entities.Document.update(id, patch);
+      return {
+        success: true, type,
+        label: `Updated invoice${patch.status ? " → " + patch.status : ""}`,
+        entityId: id, page: "DocumentDetail",
+        navigate: { page: "DocumentDetail", params: { id } },
+      };
+    }
+
+    case "DELETE_INVOICE": {
+      if (!data.id) return { success: false, type, label: "Which invoice should I delete?" };
+      await appClient.entities.Document.delete(data.id);
+      return { success: true, type, label: `Deleted invoice${data.title ? ": " + data.title : ""}` };
+    }
+
+    case "RECORD_PAYMENT": {
+      const documentId = data.document_id || data.invoice_id;
+      if (!documentId) return { success: false, type, label: "Which invoice was paid?" };
+      await appClient.helpers.recordPayment({
+        document_id: documentId,
+        amount: Number(data.amount) || 0,
+        payment_date: data.payment_date || new Date().toISOString().slice(0, 10),
+        payment_method: data.payment_method || "",
+        reference: data.reference || "",
+        notes: data.notes || "",
+      });
+      return {
+        success: true, type,
+        label: `Recorded payment${data.amount ? ": " + data.amount : ""}`,
+        entityId: documentId, page: "DocumentDetail",
+        navigate: { page: "DocumentDetail", params: { id: documentId } },
+      };
+    }
+
     case "NAVIGATE": {
       return {
         success: true,
@@ -243,12 +398,12 @@ async function executeAction(action) {
 // ─── Hook ───────────────────────────────────────────────────────────────────
 
 const DEFAULT_GREETING =
-  "Hey! I'm your Flowtone Assistant. Ask me anything — I can create events, log practice, add clients, or help you stay on top of your work. 🎵";
+  "Hey! I'm your Flowtone Assistant. Ask me anything about your gigs, clients and invoices — I can create, find, update or cancel events and invoices, add clients, record payments, look up venues, and keep your schedule in order.";
 
 function personalGreeting(profile) {
   if (!profile?.user_name) return DEFAULT_GREETING;
   const aiName = profile.assistant_name ? `I'm ${profile.assistant_name}` : "I'm your assistant";
-  return `Hey ${profile.user_name}! ${aiName} — ask me anything. I can create events, log practice, add clients, or help you stay on top of your work.`;
+  return `Hey ${profile.user_name}! ${aiName} — ask me anything about your gigs, clients and invoices. I can create, find, update or cancel events and invoices, add clients, record payments, and look up venues.`;
 }
 
 export function useAIAssistant() {
@@ -321,23 +476,30 @@ export function useAIAssistant() {
             if (batchClientIds[key]) action.data.client_id = batchClientIds[key];
           }
 
-          // Handle LOCATION_SEARCH inline (no executeAction needed)
+          // Handle LOCATION_SEARCH inline — render tappable options the user
+          // picks from; the chosen address flows back so the AI can finish.
           if (action.type === "LOCATION_SEARCH") {
             try {
               const query = encodeURIComponent(action.data?.query || "");
               const resp = await fetch(
-                `https://nominatim.openstreetmap.org/search?format=json&limit=3&q=${query}`,
+                `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=5&q=${query}`,
                 { headers: { "User-Agent": "Flowtone/1.0" } }
               );
               const results = await resp.json();
-              if (results && results.length > 0) {
-                const locationMsg = results.map((r) => `📍 ${r.display_name}`).join("\n");
-                setMessages((prev) => [...prev, makeMessage("assistant", locationMsg)]);
+              if (Array.isArray(results) && results.length > 0) {
+                const locations = results.slice(0, 5).map((r) => ({
+                  label: shortPlaceLabel(r),
+                  address: r.display_name,
+                }));
+                setMessages((prev) => [
+                  ...prev,
+                  makeMessage("locations", "Tap the right place:", { locations }),
+                ]);
               } else {
-                setMessages((prev) => [...prev, makeMessage("assistant", "Couldn't find that location. Try being more specific.")]);
+                setMessages((prev) => [...prev, makeMessage("assistant", "I couldn't find that place. Could you give me the area or a postcode?")]);
               }
             } catch {
-              setMessages((prev) => [...prev, makeMessage("assistant", "Couldn't find that location. Try being more specific.")]);
+              setMessages((prev) => [...prev, makeMessage("assistant", "I couldn't search for that location just now — you can paste the address and I'll use it.")]);
             }
             continue;
           }

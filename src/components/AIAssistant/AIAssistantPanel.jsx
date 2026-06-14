@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { X, Trash2, Send, Sparkles, ExternalLink, Mic, AlertCircle } from "lucide-react";
+import { X, Trash2, Send, Sparkles, ExternalLink, Mic, AlertCircle, MapPin } from "lucide-react";
 import { useSpeechInput } from "@/hooks/useSpeechInput";
 import { createPageUrl } from "@/utils";
 
@@ -72,6 +72,34 @@ function ActionCard({ message, navigate, onClose }) {
             <ExternalLink className="w-3 h-3" />
           </button>
         )}
+      </div>
+    </div>
+  );
+}
+
+function LocationCard({ message, onPick }) {
+  const locations = message.locations || [];
+  if (!locations.length) return null;
+  return (
+    <div className="flex items-start gap-2.5 mb-3">
+      <div className="flex-shrink-0 w-7 h-7 rounded-full bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center">
+        <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+      </div>
+      <div className="max-w-[85%] w-full space-y-1.5">
+        <p className="text-[11px] text-gray-500 px-1">{message.content || "Tap the right place:"}</p>
+        {locations.map((loc, i) => (
+          <button
+            key={i}
+            onClick={() => onPick(loc.address)}
+            className="w-full text-left flex items-start gap-2 bg-gray-800/70 hover:bg-gray-700 border border-gray-700/60 rounded-xl px-3 py-2 transition-colors"
+          >
+            <MapPin className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0 mt-0.5" />
+            <span className="min-w-0">
+              <span className="block text-sm text-white truncate">{loc.label}</span>
+              <span className="block text-[11px] text-gray-400 truncate">{loc.address}</span>
+            </span>
+          </button>
+        ))}
       </div>
     </div>
   );
@@ -270,6 +298,14 @@ export default function AIAssistantPanel({
             if (msg.role === "action")
               return (
                 <ActionCard key={msg.id} message={msg} navigate={navigate} onClose={onClose} />
+              );
+            if (msg.role === "locations")
+              return (
+                <LocationCard
+                  key={msg.id}
+                  message={msg}
+                  onPick={(addr) => sendMessage(`Use this location for the event: ${addr}`)}
+                />
               );
             return null;
           })}

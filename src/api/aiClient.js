@@ -5,7 +5,7 @@ import { flowtoneJson } from "@/lib/flowtoneApi";
  * Authenticated: flowtoneJson attaches the Supabase access token.
  *
  * @param {Array<{ role: 'user' | 'assistant', content: string }>} messages
- * @param {object} [context] - Structured context object: { today, upcomingEvents, clients, practiceGoals, recentSessions, assistantProfile }
+ * @param {object} [context] - Structured context: { today, counts, events, clients, invoices, practiceGoals, recentSessions, equipment, settings, assistantProfile }
  * @returns {Promise<{ message: string, actions: array, action: object|null }>} Parsed AI response.
  */
 export async function askAI(messages, context = {}) {
