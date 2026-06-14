@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { X, Trash2, Send, Sparkles, ExternalLink, Mic } from "lucide-react";
+import { X, Trash2, Send, Sparkles, ExternalLink, Mic, AlertCircle } from "lucide-react";
 import { useSpeechInput } from "@/hooks/useSpeechInput";
 import { createPageUrl } from "@/utils";
 
@@ -31,6 +31,7 @@ function AssistantBubble({ message }) {
 
 function ActionCard({ message, navigate, onClose }) {
   const action = message.action || {};
+  const isError = action.type === "ERROR";
   const page = action.navigate?.page || action.page;
 
   const handleView = () => {
@@ -45,12 +46,24 @@ function ActionCard({ message, navigate, onClose }) {
 
   return (
     <div className="mb-3">
-      <div className="flex items-center justify-between bg-teal-900/40 border border-teal-700/50 rounded-xl px-4 py-2.5 shadow">
+      <div
+        className={`flex items-center justify-between border rounded-xl px-4 py-2.5 shadow ${
+          isError
+            ? "bg-amber-900/30 border-amber-700/50"
+            : "bg-teal-900/40 border-teal-700/50"
+        }`}
+      >
         <div className="flex items-center gap-2 min-w-0">
-          <span className="text-teal-400 text-base leading-none flex-shrink-0">✓</span>
-          <span className="text-teal-100 text-sm truncate">{message.content}</span>
+          {isError ? (
+            <AlertCircle className="w-4 h-4 text-amber-400 flex-shrink-0" />
+          ) : (
+            <span className="text-teal-400 text-base leading-none flex-shrink-0">✓</span>
+          )}
+          <span className={`text-sm truncate ${isError ? "text-amber-100" : "text-teal-100"}`}>
+            {message.content}
+          </span>
         </div>
-        {page && action.type !== "ERROR" && (
+        {page && !isError && (
           <button
             onClick={handleView}
             className="flex-shrink-0 ml-3 flex items-center gap-1 text-xs text-teal-400 hover:text-teal-200 transition-colors font-medium"

@@ -133,17 +133,25 @@ async function executeAction(action) {
         }
       }
 
-      // Create all events
+      // Create all events. Use the real column names the rest of the app
+      // reads: base_price/total_price for the fee, recurrence_id/_index to
+      // group the series. client_id is omitted when blank (the data layer
+      // would otherwise have to coerce "" → null on a uuid column).
       const seriesId = Math.random().toString(36).slice(2);
+      const price = Number(fee) || 0;
+      let index = 0;
       for (const date of dates) {
         await appClient.entities.WorkEvent.create({
           title, event_type: event_type || "Lesson", date,
           start_time: start_time || "", end_time: end_time || "",
           status: status || "confirmed",
           location_address: location_address || "",
-          fee: fee || 0, client_id: client_id || "", notes: notes || "",
-          is_recurring: true, recurring_series_id: seriesId,
+          base_price: price, total_price: price,
+          notes: notes || "",
+          ...(client_id ? { client_id } : {}),
+          is_recurring: true, recurrence_id: seriesId, recurrence_index: index,
         });
+        index += 1;
       }
 
       return {
@@ -297,9 +305,21 @@ export function useAIAssistant() {
         const assistantMsg = makeMessage("assistant", aiMessage);
         setMessages((prev) => [...prev, assistantMsg]);
 
+        // Track clients created during THIS turn so a follow-up event,
+        // invoice, or recurring series that names a brand-new client (which
+        // has no id yet when the AI builds the action) still links to them.
+        const batchClientIds = {};
+
         // Execute every action, in order
         for (const action of actions) {
           if (!action || !action.type) continue;
+
+          // Resolve a client referenced by name (e.g. one created earlier in
+          // this same turn) to its real id before the action runs.
+          if (action.data && !action.data.client_id && action.data.client_name) {
+            const key = String(action.data.client_name).toLowerCase().trim();
+            if (batchClientIds[key]) action.data.client_id = batchClientIds[key];
+          }
 
           // Handle LOCATION_SEARCH inline (no executeAction needed)
           if (action.type === "LOCATION_SEARCH") {
@@ -325,6 +345,11 @@ export function useAIAssistant() {
           try {
             const result = await executeAction(action);
             if (result) {
+              // Remember a newly created client so later actions this turn can link to it.
+              if (action.type === "CREATE_CLIENT" && result.entityId && action.data?.name) {
+                batchClientIds[String(action.data.name).toLowerCase().trim()] = result.entityId;
+              }
+
               // Only an explicit NAVIGATE request moves the user away.
               // Created records stay in chat as a green card with a View link.
               if (result.type === "NAVIGATE" && result.navigate) {
@@ -344,10 +369,12 @@ export function useAIAssistant() {
               }
             }
           } catch (actionErr) {
+            // Log the real error for debugging, but never surface raw
+            // database/internal messages to the musician.
             console.error("useAIAssistant: action failed", actionErr);
             const errMsg = makeMessage(
               "action",
-              `Something went wrong: ${actionErr.message || "Unknown error"}`,
+              "I couldn't finish that one — please try again, or tell me a bit more.",
               { action: { type: "ERROR" } }
             );
             setMessages((prev) => [...prev, errMsg]);

@@ -55,6 +55,15 @@ function hydrateRow(row) {
   };
 }
 
+// Nullable uuid foreign-key columns. Postgres rejects "" on a uuid column
+// ("invalid input syntax for type uuid"), so blank ids must become null —
+// otherwise creating an event/invoice/etc. with no linked record crashes.
+const UUID_FK_COLUMNS = new Set([
+  "client_id", "work_event_id", "linked_gig_id", "document_id",
+  "converted_from_id", "practice_goal_id", "practice_session_id",
+  "goal_id", "linked_entity_id",
+]);
+
 function splitRecord(entityName, record = {}) {
   const knownColumns = ENTITY_COLUMNS[entityName];
   const payload = {};
@@ -62,7 +71,9 @@ function splitRecord(entityName, record = {}) {
 
   for (const [key, value] of Object.entries(record)) {
     if (knownColumns.has(key)) {
-      row[key] = value;
+      row[key] = UUID_FK_COLUMNS.has(key) && (value === "" || value === undefined)
+        ? null
+        : value;
     } else {
       payload[key] = value;
     }
