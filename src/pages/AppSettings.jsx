@@ -934,33 +934,26 @@ export default function AppSettings() {
           )}
         </section>
 
-        {/* Data */}
+        {/* Backup & Restore */}
         <section>
-          <SectionHeader icon={Download} label="Data" sectionKey="data" />
+          <SectionHeader icon={Download} label="Backup & Restore" sectionKey="data" />
           {openSections.has("data") && (
             <div className="bg-gray-800 rounded-xl p-4 space-y-2">
-
-              {/* ── Backup & Restore ── */}
-              <DataSubSection label="Backup & Restore">
-                <div className="space-y-2 pt-1">
-                  <button
-                    onClick={() => setShowCSVImport(true)}
-                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-gray-700 hover:bg-gray-600 text-gray-200 transition-colors"
-                  >
-                    <UploadIcon className="w-4 h-4" />
-                    Restore from Backup
-                  </button>
-                  <button
-                    onClick={async () => { const csv = await exportFullApp(appClient); downloadCSV("flowtone-backup.csv", csv); }}
-                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-indigo-600 hover:bg-indigo-500 text-white transition-colors"
-                  >
-                    <Download className="w-4 h-4" />
-                    Export Full App Backup
-                  </button>
-                  <p className="text-[11px] text-gray-600 text-center">Saves everything — clients, events, invoices, practice, equipment</p>
-                </div>
-              </DataSubSection>
-
+              <button
+                onClick={() => setShowCSVImport(true)}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-gray-700 hover:bg-gray-600 text-gray-200 transition-colors"
+              >
+                <UploadIcon className="w-4 h-4" />
+                Restore from Backup
+              </button>
+              <button
+                onClick={async () => { const csv = await exportFullApp(appClient); downloadCSV("flowtone-backup.csv", csv); }}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-indigo-600 hover:bg-indigo-500 text-white transition-colors"
+              >
+                <Download className="w-4 h-4" />
+                Export Full App Backup
+              </button>
+              <p className="text-[11px] text-gray-600 text-center">Saves everything — clients, events, invoices, practice, equipment</p>
             </div>
           )}
         </section>
