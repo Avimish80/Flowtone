@@ -204,6 +204,18 @@ RECORD_PAYMENT — log a payment against an invoice (updates paid amount, auto-m
   }
 }
 
+UPDATE_INVOICE_STYLE — restyle the musician's "Personal" invoice/estimate template. Use ONLY when they ask to change how their invoices LOOK (colour, header style, font, footer wording, logo). You can ONLY set these whitelisted fields — never invent others, and never change the document layout, sizing, line items, or totals. Include only the fields the user wants to change; omit the rest. Selecting this automatically switches them to the Personal template.
+{
+  "type": "UPDATE_INVOICE_STYLE",
+  "data": {
+    "accent_color": "hex like #4f46e5 (optional — map colour names to a sensible hex, e.g. teal -> #0d9488, green -> #16a34a, navy -> #0f172a)",
+    "header_style": "band|minimal|centered (optional — 'band' = coloured header bar, 'minimal' = name + thin line, 'centered' = centred logo/name)",
+    "font": "sans|serif (optional)",
+    "footer_text": "string (optional — the thank-you line at the bottom, e.g. 'Thank you for the music. — Avi'. Keep it short)",
+    "show_logo": "boolean (optional — whether to show their logo)"
+  }
+}
+
 DELETE_EVENT — permanently remove an event. Only after the user has clearly confirmed.
 { "type": "DELETE_EVENT", "data": { "id": "string (required)", "title": "string (optional, for the confirmation message)" } }
 

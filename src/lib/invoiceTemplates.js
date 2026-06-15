@@ -6,7 +6,7 @@
  */
 
 function fmt(sym, amount) {
-  return `${sym}${(Number(amount) || 0).toFixed(2)}`;
+  return `${sym}${(Number(amount) || 0).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 function fmtDate(str) {
@@ -15,7 +15,76 @@ function fmtDate(str) {
   catch { return str; }
 }
 
-function lineItemsTable(items, sym, tableStyle = "classic") {
+// Modern type + global niceties shared by every template.
+// Inter loads for on-screen/print preview; system stack is the email/offline fallback.
+function headStyles() {
+  return `
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+  :root { --ink:#0f172a; --muted:#64748b; --faint:#94a3b8; --hair:#e8ecf3; }
+  * { box-sizing:border-box; margin:0; padding:0; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  body { font-family:'Inter','Helvetica Neue',Arial,sans-serif; color:var(--ink);
+    background:#fff; -webkit-font-smoothing:antialiased; }
+  .num { font-variant-numeric:tabular-nums; }`;
+}
+
+// Big, friendly "Amount Due / Total" closing line + thank-you note.
+function thankYouFooter(accent, profile, text) {
+  const name = profile?.contact_name || profile?.business_name || "";
+  const line = (text && String(text).trim()) || "Thank you for the music.";
+  return `<div style="margin-top:44px;padding-top:22px;border-top:1px solid var(--hair);
+    display:flex;justify-content:space-between;align-items:baseline;gap:16px;flex-wrap:wrap;">
+    <div style="font-size:17px;font-weight:700;color:${accent};letter-spacing:-0.2px;">${esc(line)}</div>
+    <div style="font-size:11px;color:var(--faint);">${name ? "— " + esc(name) : ""}</div>
+  </div>`;
+}
+
+// Escape user-entered text (footer line) so it can't inject markup.
+function esc(s) {
+  return String(s == null ? "" : s)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+// ── Personal template config: the ONLY things that may vary ──────────
+// Everything else (A4 shape, line-item table, totals, bill-to/from,
+// payment block) is fixed. Both the Finance editor and the AI action
+// run their input through sanitizeCustom() so values stay on the rails.
+export const HEADER_STYLES = ["band", "minimal", "centered"];
+export const FONT_CHOICES = ["sans", "serif"];
+export const ACCENT_PRESETS = ["#4f46e5", "#0f172a", "#0d9488", "#b91c1c", "#c2410c", "#7c3aed", "#be185d"];
+
+export const DEFAULT_CUSTOM = {
+  accent_color: "#4f46e5",
+  header_style: "band",
+  font: "sans",
+  footer_text: "Thank you for the music.",
+  show_logo: true,
+};
+
+const HEX_RE = /^#[0-9a-fA-F]{6}$/;
+
+export function sanitizeCustom(raw) {
+  const r = raw && typeof raw === "object" ? raw : {};
+  const accent = typeof r.accent_color === "string" && HEX_RE.test(r.accent_color.trim())
+    ? r.accent_color.trim().toLowerCase() : DEFAULT_CUSTOM.accent_color;
+  return {
+    accent_color: accent,
+    header_style: HEADER_STYLES.includes(r.header_style) ? r.header_style : DEFAULT_CUSTOM.header_style,
+    font: FONT_CHOICES.includes(r.font) ? r.font : DEFAULT_CUSTOM.font,
+    footer_text: typeof r.footer_text === "string" ? r.footer_text.slice(0, 160) : DEFAULT_CUSTOM.footer_text,
+    show_logo: r.show_logo === undefined ? true : !!r.show_logo,
+  };
+}
+
+// Diagonal PAID stamp, only when the doc is settled.
+function paidStamp(doc) {
+  if (doc.status !== "paid") return "";
+  return `<div style="position:absolute;top:48px;right:48px;transform:rotate(-14deg);
+    border:3px solid #16a34a;color:#16a34a;font-weight:900;font-size:22px;letter-spacing:3px;
+    padding:6px 18px;border-radius:10px;opacity:0.85;font-family:'Inter',sans-serif;">PAID</div>`;
+}
+
+function lineItemsTable(items, sym, tableStyle = "classic", accent = "#4f46e5") {
   const rows = (items || []).map(item => {
     const total = (item.quantity || 0) * (item.unit_price || 0);
     return `<tr>
@@ -77,6 +146,15 @@ function lineItemsTable(items, sym, tableStyle = "classic") {
       </style>`,
   };
 
+  styles.personal = `
+    <style>
+      .items-table th { background:color-mix(in srgb, ${accent} 10%, white); color:${accent};
+        font-size:11px; text-transform:uppercase; letter-spacing:.05em; padding:10px 14px; text-align:left; }
+      .items-table th.num, .items-table td.num { text-align:right; }
+      .items-table td { padding:11px 14px; border-bottom:1px solid #eef2f7; color:#1e293b; }
+      .items-table tr:last-child td { border-bottom:none; }
+    </style>`;
+
   return `${styles[tableStyle] || styles.classic}
   <table class="items-table" style="${baseStyles}">
     <thead>
@@ -91,27 +169,33 @@ function lineItemsTable(items, sym, tableStyle = "classic") {
   </table>`;
 }
 
-function totalsBlock(doc, sym, alignRight = true) {
-  const align = alignRight ? "margin-left:auto;" : "";
-  const rows = [];
-  rows.push(`<tr><td>Subtotal</td><td>${fmt(sym, doc.subtotal)}</td></tr>`);
-  if (doc.discount_amount > 0)
-    rows.push(`<tr><td>Discount</td><td>−${fmt(sym, doc.discount_amount)}</td></tr>`);
-  if (doc.tax_amount > 0)
-    rows.push(`<tr style="color:#64748b"><td>Tax (${doc.tax_rate || 0}%)</td><td>${fmt(sym, doc.tax_amount)}</td></tr>`);
+function totalsBlock(doc, sym, accent = "#4f46e5") {
+  const isInvoice = doc.document_type === "invoice";
+  const isPaid = doc.status === "paid";
+  const minorRow = (label, val, extra = "") =>
+    `<div style="display:flex;justify-content:space-between;gap:32px;font-size:13px;color:var(--muted);padding:3px 0;${extra}">
+      <span>${label}</span><span class="num">${val}</span></div>`;
+
+  const minor = [minorRow("Subtotal", fmt(sym, doc.subtotal))];
+  if (doc.discount_amount > 0) minor.push(minorRow("Discount", "−" + fmt(sym, doc.discount_amount)));
+  if (doc.tax_amount > 0) minor.push(minorRow(`Tax (${doc.tax_rate || 0}%)`, fmt(sym, doc.tax_amount)));
+
+  const totalLabel = isPaid ? "Amount Paid" : isInvoice ? "Amount Due" : "Total";
+  const heroColor = isPaid ? "#16a34a" : accent;
+  const heroBg = isPaid ? "rgba(22,163,74,0.08)" : `color-mix(in srgb, ${accent} 7%, white)`;
+  const heroBorder = isPaid ? "rgba(22,163,74,0.25)" : `color-mix(in srgb, ${accent} 22%, white)`;
 
   return `
-  <table style="border-collapse:collapse;font-size:13px;${align}margin-top:16px;min-width:220px;">
-    ${rows.join("")}
-    <tr style="font-size:16px;font-weight:700;border-top:2px solid #0f172a;">
-      <td style="padding-top:8px;">Total</td>
-      <td style="padding-top:8px;text-align:right;">${fmt(sym, doc.total || doc.subtotal)}</td>
-    </tr>
-    ${doc.status === "paid" ? `<tr style="color:#16a34a;font-size:12px;">
-      <td style="padding-top:4px;">Paid${doc.paid_date ? ` on ${fmtDate(doc.paid_date)}` : ""}</td>
-      <td></td>
-    </tr>` : ""}
-  </table>`;
+  <div style="margin-left:auto;margin-top:16px;min-width:280px;max-width:320px;">
+    ${minor.join("")}
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:24px;
+      margin-top:12px;padding:14px 18px;border-radius:14px;
+      background:${heroBg};border:1px solid ${heroBorder};">
+      <span style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:${heroColor};">${totalLabel}</span>
+      <span class="num" style="font-size:26px;font-weight:800;letter-spacing:-0.5px;color:${heroColor};">${fmt(sym, doc.total || doc.subtotal)}</span>
+    </div>
+    ${isPaid && doc.paid_date ? `<div style="text-align:right;font-size:11px;color:#16a34a;margin-top:6px;">Settled on ${fmtDate(doc.paid_date)}</div>` : ""}
+  </div>`;
 }
 
 function paymentBlock(profile) {
@@ -123,8 +207,8 @@ function paymentBlock(profile) {
   if (profile?.bank_iban) lines.push(`IBAN: ${profile.bank_iban}`);
   if (profile?.payment_instructions) lines.push(profile.payment_instructions);
   if (!lines.length) return "";
-  return `<div style="margin-top:24px;padding:14px 16px;background:#f8fafc;border-radius:8px;font-size:12px;color:#475569;line-height:1.7;border:1px solid #e2e8f0;">
-    <strong style="color:#1e293b;font-size:11px;text-transform:uppercase;letter-spacing:.05em;">Payment Details</strong><br>
+  return `<div style="margin-top:24px;padding:16px 18px;background:#f8fafc;border-radius:12px;font-size:12px;color:#475569;line-height:1.7;border:1px solid #eef2f7;">
+    <strong style="color:#1e293b;font-size:10px;text-transform:uppercase;letter-spacing:.08em;">Payment Details</strong><br>
     ${lines.join("<br>")}
   </div>`;
 }
@@ -147,14 +231,15 @@ function templateClassic(doc, profile, settings) {
   return `<!DOCTYPE html><html><head><meta charset="utf-8">
 <title>${typeLabel} ${doc.document_number || ""}</title>
 <style>
-  * { box-sizing:border-box; margin:0; padding:0; }
-  body { font-family:'Helvetica Neue',Arial,sans-serif; color:#1e293b; background:#fff; padding:40px 48px; max-width:800px; margin:0 auto; }
-  @media print { body { padding:20px; } }
+  ${headStyles()}
+  body { padding:48px; max-width:800px; margin:0 auto; position:relative; }
+  @media print { body { padding:24px; } }
   .header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:40px; }
   .from { font-size:12px; color:#64748b; line-height:1.6; }
   .from strong { display:block; font-size:16px; color:#0f172a; margin-bottom:4px; }
   .meta-right { text-align:right; }
-  .doc-type { font-size:28px; font-weight:800; letter-spacing:-0.5px; color:#0f172a; }
+  .doc-type { font-size:30px; font-weight:900; letter-spacing:-1px;
+    background:linear-gradient(135deg,#4f46e5,#7c3aed); -webkit-background-clip:text; background-clip:text; color:transparent; }
   .doc-number { font-size:13px; color:#64748b; margin-top:4px; }
   .meta-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:12px; font-size:12px; }
   .meta-grid span { color:#64748b; } .meta-grid strong { color:#1e293b; }
@@ -167,6 +252,7 @@ function templateClassic(doc, profile, settings) {
   .notes strong { color:#1e293b; }
 </style></head><body>
 
+${paidStamp(doc)}
 <div class="header">
   <div>
     ${logoTag(profile?.logo)}
@@ -200,11 +286,13 @@ function templateClassic(doc, profile, settings) {
 
 ${lineItemsTable(doc.line_items, sym, "classic")}
 
-<div class="footer">${totalsBlock(doc, sym, true)}</div>
+<div class="footer">${totalsBlock(doc, sym, "#4f46e5")}</div>
 
 ${paymentBlock(profile)}
 
 ${doc.notes ? `<div class="notes"><strong>Notes</strong><br>${doc.notes}</div>` : ""}
+
+${thankYouFooter("#4f46e5", profile)}
 
 </body></html>`;
 }
@@ -220,18 +308,18 @@ function templateModern(doc, profile, settings) {
   return `<!DOCTYPE html><html><head><meta charset="utf-8">
 <title>${typeLabel} ${doc.document_number || ""}</title>
 <style>
-  * { box-sizing:border-box; margin:0; padding:0; }
-  body { font-family:'Helvetica Neue',Arial,sans-serif; color:#1e293b; background:#fff; max-width:800px; margin:0 auto; }
+  ${headStyles()}
+  body { max-width:800px; margin:0 auto; }
   @media print { body { margin:0; } }
-  .accent-bar { height:8px; background:linear-gradient(90deg,#4f46e5,#818cf8); }
-  .main { padding:40px 48px; }
+  .accent-bar { height:10px; background:linear-gradient(90deg,#4f46e5,#818cf8,#c084fc); }
+  .main { padding:44px 48px; position:relative; }
   @media print { .main { padding:24px; } }
   .header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:36px; }
   .from { font-size:12px; color:#64748b; line-height:1.7; }
-  .biz-name { font-size:18px; font-weight:700; color:#0f172a; margin-bottom:6px; }
+  .biz-name { font-size:19px; font-weight:800; color:#0f172a; margin-bottom:6px; letter-spacing:-0.3px; }
   .right-block { text-align:right; }
-  .doc-badge { display:inline-block; background:#4f46e5; color:#fff; font-size:12px; font-weight:600;
-    text-transform:uppercase; letter-spacing:.08em; padding:5px 14px; border-radius:20px; }
+  .doc-badge { display:inline-block; background:linear-gradient(135deg,#4f46e5,#7c3aed); color:#fff; font-size:12px; font-weight:700;
+    text-transform:uppercase; letter-spacing:.1em; padding:6px 16px; border-radius:20px; }
   .doc-number { color:#64748b; font-size:13px; margin-top:8px; }
   .meta { font-size:12px; color:#64748b; margin-top:8px; line-height:1.8; }
   .meta strong { color:#1e293b; }
@@ -248,6 +336,7 @@ function templateModern(doc, profile, settings) {
 
 <div class="accent-bar"></div>
 <div class="main">
+  ${paidStamp(doc)}
   <div class="header">
     <div>
       ${logoTag(profile?.logo, 52)}
@@ -278,11 +367,13 @@ function templateModern(doc, profile, settings) {
 
   ${lineItemsTable(doc.line_items, sym, "modern")}
 
-  <div class="footer-row">${totalsBlock(doc, sym, true)}</div>
+  <div class="footer-row">${totalsBlock(doc, sym, "#4f46e5")}</div>
 
   ${paymentBlock(profile)}
 
   ${doc.notes ? `<div class="notes"><strong>Notes</strong><br>${doc.notes}</div>` : ""}
+
+  ${thankYouFooter("#4f46e5", profile)}
 </div>
 </body></html>`;
 }
@@ -298,16 +389,16 @@ function templateBold(doc, profile, settings) {
   return `<!DOCTYPE html><html><head><meta charset="utf-8">
 <title>${typeLabel} ${doc.document_number || ""}</title>
 <style>
-  * { box-sizing:border-box; margin:0; padding:0; }
-  body { font-family:'Helvetica Neue',Arial,sans-serif; color:#1e293b; background:#fff; max-width:800px; margin:0 auto; }
+  ${headStyles()}
+  body { max-width:800px; margin:0 auto; position:relative; }
   @media print { body { margin:0; } }
-  .header { background:#0f172a; padding:36px 48px; display:flex; justify-content:space-between; align-items:center; }
+  .header { background:linear-gradient(120deg,#0f172a 0%,#1e1b4b 60%,#312e81 100%); padding:40px 48px; display:flex; justify-content:space-between; align-items:center; }
   @media print { .header { padding:24px; } }
   .biz { color:#fff; }
-  .biz-name { font-size:20px; font-weight:700; margin-bottom:4px; }
+  .biz-name { font-size:21px; font-weight:800; margin-bottom:4px; letter-spacing:-0.3px; }
   .biz-detail { font-size:11px; color:#94a3b8; line-height:1.7; }
   .doc-meta { text-align:right; }
-  .doc-type { font-size:32px; font-weight:900; letter-spacing:-1px; color:#fff; }
+  .doc-type { font-size:34px; font-weight:900; letter-spacing:-1.5px; color:#fff; }
   .doc-number { font-size:13px; color:#94a3b8; margin-top:4px; }
   .doc-dates { font-size:11px; color:#94a3b8; margin-top:8px; line-height:1.8; }
   .doc-dates strong { color:#e2e8f0; }
@@ -324,6 +415,7 @@ function templateBold(doc, profile, settings) {
   .notes strong { color:#0f172a; }
 </style></head><body>
 
+${paidStamp(doc)}
 <div class="header">
   <div class="biz">
     ${profile?.logo ? `<img src="${profile.logo}" alt="logo" style="max-height:48px;max-width:160px;object-fit:contain;filter:brightness(0)invert(1);display:block;margin-bottom:10px;">` : ""}
@@ -362,11 +454,13 @@ function templateBold(doc, profile, settings) {
 
   ${lineItemsTable(doc.line_items, sym, "bold")}
 
-  <div class="footer-row">${totalsBlock(doc, sym, true)}</div>
+  <div class="footer-row">${totalsBlock(doc, sym, "#4f46e5")}</div>
 
   ${paymentBlock(profile)}
 
   ${doc.notes ? `<div class="notes"><strong>Notes</strong><br>${doc.notes}</div>` : ""}
+
+  ${thankYouFooter("#4f46e5", profile)}
 </div>
 </body></html>`;
 }
@@ -382,12 +476,12 @@ function templateMinimal(doc, profile, settings) {
   return `<!DOCTYPE html><html><head><meta charset="utf-8">
 <title>${typeLabel} ${doc.document_number || ""}</title>
 <style>
-  * { box-sizing:border-box; margin:0; padding:0; }
-  body { font-family:Georgia,'Times New Roman',serif; color:#1e293b; background:#fff;
-    padding:56px 64px; max-width:800px; margin:0 auto; }
+  ${headStyles()}
+  body { font-family:Georgia,'Times New Roman',serif; color:#1e293b;
+    padding:56px 64px; max-width:800px; margin:0 auto; position:relative; }
   @media print { body { padding:32px; } }
   .header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:48px; }
-  .biz-name { font-size:22px; font-weight:700; letter-spacing:-0.5px; color:#0f172a; margin-bottom:6px; }
+  .biz-name { font-size:24px; font-weight:700; letter-spacing:-0.5px; color:#0f172a; margin-bottom:6px; }
   .biz-detail { font-size:12px; color:#64748b; line-height:1.8; font-family:'Helvetica Neue',sans-serif; }
   .doc-right { text-align:right; font-family:'Helvetica Neue',sans-serif; }
   .doc-type { font-size:13px; text-transform:uppercase; letter-spacing:.12em; color:#94a3b8; margin-bottom:4px; }
@@ -405,6 +499,7 @@ function templateMinimal(doc, profile, settings) {
   .notes strong { color:#0f172a; }
 </style></head><body>
 
+${paidStamp(doc)}
 <div class="header">
   <div>
     ${logoTag(profile?.logo, 48)}
@@ -433,13 +528,15 @@ ${doc.client_email ? `<div class="bill-email">${doc.client_email}</div>` : ""}
 
 ${lineItemsTable(doc.line_items, sym, "minimal")}
 
-<div class="totals" style="display:flex;justify-content:flex-end;">${totalsBlock(doc, sym, true)}</div>
+<div class="totals" style="display:flex;justify-content:flex-end;">${totalsBlock(doc, sym, "#0f172a")}</div>
 
 <hr class="rule-light">
 
 ${paymentBlock(profile)}
 
 ${doc.notes ? `<div class="notes"><strong>Notes</strong><br>${doc.notes}</div>` : ""}
+
+${thankYouFooter("#0f172a", profile)}
 
 </body></html>`;
 }
@@ -455,13 +552,12 @@ function templateStudio(doc, profile, settings) {
   return `<!DOCTYPE html><html><head><meta charset="utf-8">
 <title>${typeLabel} ${doc.document_number || ""}</title>
 <style>
-  * { box-sizing:border-box; margin:0; padding:0; }
-  body { font-family:'Helvetica Neue',Arial,sans-serif; color:#1e293b; background:#fff;
-    max-width:800px; margin:0 auto; }
+  ${headStyles()}
+  body { max-width:800px; margin:0 auto; position:relative; }
   @media print { body { margin:0; } }
   .header {
-    background:linear-gradient(135deg,#1e1b4b 0%,#312e81 50%,#4c1d95 100%);
-    padding:40px 48px; position:relative; overflow:hidden;
+    background:linear-gradient(135deg,#1e1b4b 0%,#4c1d95 55%,#7c3aed 100%);
+    padding:44px 48px; position:relative; overflow:hidden;
   }
   @media print { .header { padding:24px; } }
   .header::before {
@@ -491,6 +587,7 @@ function templateStudio(doc, profile, settings) {
   .notes strong { color:#1e293b; }
 </style></head><body>
 
+${paidStamp(doc)}
 <div class="header">
   <div class="header-inner">
     <div>
@@ -530,11 +627,113 @@ function templateStudio(doc, profile, settings) {
 
   ${lineItemsTable(doc.line_items, sym, "studio")}
 
-  <div class="footer-row" style="margin-top:16px;">${totalsBlock(doc, sym, true)}</div>
+  <div class="footer-row" style="margin-top:16px;">${totalsBlock(doc, sym, "#7c3aed")}</div>
 
   ${paymentBlock(profile)}
 
   ${doc.notes ? `<div class="notes"><strong>Notes</strong><br>${doc.notes}</div>` : ""}
+
+  ${thankYouFooter("#7c3aed", profile)}
+</div>
+</body></html>`;
+}
+
+// ──────────────────────────────────────────────────────────────────────
+//  TEMPLATE 6 — PERSONAL (user/AI-customisable within fixed rails)
+// ──────────────────────────────────────────────────────────────────────
+function templatePersonal(doc, profile, settings) {
+  const sym = CURRENCIES[doc.currency] || doc.currency + " ";
+  const c = sanitizeCustom(settings?.invoice_custom);
+  const isInvoice = doc.document_type === "invoice";
+  const typeLabel = isInvoice ? "Invoice" : "Estimate";
+  const accent = c.accent_color;
+  const headFont = c.font === "serif" ? "Georgia,'Times New Roman',serif" : "'Inter','Helvetica Neue',Arial,sans-serif";
+  const showLogo = c.show_logo && !!profile?.logo;
+
+  const fromLines = `
+    ${profile?.address_line_1 ? profile.address_line_1 + "<br>" : ""}
+    ${profile?.city ? profile.city + (profile?.postcode ? " " + profile.postcode : "") + "<br>" : ""}
+    ${profile?.email || ""}`;
+
+  // Header — three presets, identity only (dates live in the bill row)
+  let header;
+  if (c.header_style === "band") {
+    header = `
+    <div style="background:linear-gradient(120deg, ${accent}, color-mix(in srgb, ${accent} 55%, #000));
+      padding:40px 48px;display:flex;justify-content:space-between;align-items:center;gap:24px;">
+      <div style="color:#fff;">
+        ${showLogo ? `<img src="${profile.logo}" alt="logo" style="max-height:46px;max-width:160px;object-fit:contain;filter:brightness(0) invert(1);display:block;margin-bottom:10px;">` : ""}
+        <div style="font-family:${headFont};font-size:21px;font-weight:800;letter-spacing:-0.3px;">${profile?.business_name || ""}</div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.82);line-height:1.7;margin-top:4px;">${fromLines}</div>
+      </div>
+      <div style="text-align:right;color:#fff;">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.12em;opacity:0.85;">${typeLabel}</div>
+        <div style="font-size:26px;font-weight:800;letter-spacing:-0.5px;">${doc.document_number || ""}</div>
+      </div>
+    </div>`;
+  } else if (c.header_style === "centered") {
+    header = `
+    <div style="padding:48px 48px 0;text-align:center;">
+      ${showLogo ? `<img src="${profile.logo}" alt="logo" style="max-height:50px;max-width:200px;object-fit:contain;margin:0 auto 12px;display:block;">` : ""}
+      <div style="font-family:${headFont};font-size:24px;font-weight:800;letter-spacing:-0.4px;color:#0f172a;">${profile?.business_name || ""}</div>
+      <div style="font-size:12px;text-transform:uppercase;letter-spacing:.14em;color:${accent};font-weight:600;margin-top:6px;">${typeLabel} · ${doc.document_number || ""}</div>
+      <div style="font-size:11px;color:#64748b;line-height:1.7;margin-top:8px;">${fromLines}</div>
+      <div style="height:3px;width:64px;margin:22px auto 0;background:${accent};border-radius:2px;"></div>
+    </div>`;
+  } else { // minimal
+    header = `
+    <div style="padding:48px 48px 0;display:flex;justify-content:space-between;align-items:flex-start;gap:24px;">
+      <div>
+        ${showLogo ? `<img src="${profile.logo}" alt="logo" style="max-height:46px;max-width:170px;object-fit:contain;display:block;margin-bottom:10px;">` : ""}
+        <div style="font-family:${headFont};font-size:22px;font-weight:800;letter-spacing:-0.4px;color:#0f172a;">${profile?.business_name || ""}</div>
+        <div style="font-size:11px;color:#64748b;line-height:1.7;margin-top:4px;">${fromLines}</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:12px;text-transform:uppercase;letter-spacing:.12em;color:${accent};font-weight:600;">${typeLabel}</div>
+        <div style="font-size:20px;font-weight:700;color:#0f172a;margin-top:2px;">${doc.document_number || ""}</div>
+      </div>
+    </div>
+    <div style="margin:22px 48px 0;height:3px;background:${accent};border-radius:2px;"></div>`;
+  }
+
+  const lbl = `font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:#94a3b8;`;
+  const billRow = `
+    <div style="display:flex;justify-content:space-between;gap:32px;margin-bottom:28px;flex-wrap:wrap;">
+      <div>
+        <div style="${lbl}">Billed To</div>
+        <div style="font-size:15px;font-weight:600;color:#0f172a;margin-top:4px;">${doc.client_name || doc.title || ""}</div>
+        ${doc.client_email ? `<div style="font-size:12px;color:#64748b;margin-top:2px;">${doc.client_email}</div>` : ""}
+      </div>
+      <div style="text-align:right;">
+        <div style="${lbl}">${isInvoice ? "Invoice Date" : "Date"}</div>
+        <div style="font-size:13px;color:#0f172a;margin-top:4px;">${fmtDate(doc.created_at || new Date().toISOString())}</div>
+        ${isInvoice && doc.due_date ? `<div style="${lbl}margin-top:8px;">Due</div><div style="font-size:13px;color:#0f172a;margin-top:4px;">${fmtDate(doc.due_date)}</div>` : ""}
+        ${!isInvoice && doc.valid_until ? `<div style="${lbl}margin-top:8px;">Valid Until</div><div style="font-size:13px;color:#0f172a;margin-top:4px;">${fmtDate(doc.valid_until)}</div>` : ""}
+      </div>
+    </div>`;
+
+  return `<!DOCTYPE html><html><head><meta charset="utf-8">
+<title>${typeLabel} ${doc.document_number || ""}</title>
+<style>
+  ${headStyles()}
+  body { max-width:800px; margin:0 auto; position:relative; }
+  @media print { body { margin:0; } }
+  .content { padding:36px 48px 44px; }
+  @media print { .content { padding:28px 24px; } [style*="120deg"], .band { padding:24px !important; } }
+  .notes { margin-top:24px; padding:14px 18px; background:#f8fafc; border-radius:12px;
+    font-size:12px; color:#64748b; line-height:1.6; border-left:3px solid ${accent}; }
+  .notes strong { color:#1e293b; }
+</style></head><body>
+
+${paidStamp(doc)}
+${header}
+<div class="content">
+  ${billRow}
+  ${lineItemsTable(doc.line_items, sym, "personal", accent)}
+  <div style="display:flex;justify-content:flex-end;">${totalsBlock(doc, sym, accent)}</div>
+  ${paymentBlock(profile)}
+  ${doc.notes ? `<div class="notes"><strong>Notes</strong><br>${doc.notes}</div>` : ""}
+  ${thankYouFooter(accent, profile, c.footer_text)}
 </div>
 </body></html>`;
 }
@@ -543,11 +742,12 @@ function templateStudio(doc, profile, settings) {
 //  PUBLIC API
 // ──────────────────────────────────────────────────────────────────────
 export const TEMPLATE_DEFS = [
-  { id: 1, name: "Classic",  desc: "Traditional layout — clean and professional" },
-  { id: 2, name: "Modern",   desc: "Indigo accent bar — fresh and contemporary" },
-  { id: 3, name: "Bold",     desc: "Dark header band — strong and striking" },
-  { id: 4, name: "Minimal",  desc: "Ultra-clean — serif type, no decoration" },
-  { id: 5, name: "Studio",   desc: "Deep purple gradient — made for musicians" },
+  { id: 1, name: "Classic",  desc: "Clean and professional, with a gradient title" },
+  { id: 2, name: "Modern",   desc: "Vivid accent bar — fresh and contemporary" },
+  { id: 3, name: "Bold",     desc: "Deep gradient header — strong and striking" },
+  { id: 4, name: "Minimal",  desc: "Ultra-clean serif — quiet and refined" },
+  { id: 5, name: "Studio",   desc: "Purple gradient with a music motif — made for musicians" },
+  { id: 6, name: "Personal", desc: "Your own — set colour, header, font and footer (or ask the AI)" },
 ];
 
 /**
@@ -558,7 +758,7 @@ export const TEMPLATE_DEFS = [
  * @returns {string} complete HTML
  */
 export function generateInvoiceHTML(doc, profile, settings, templateId = 1) {
-  const fns = { 1: templateClassic, 2: templateModern, 3: templateBold, 4: templateMinimal, 5: templateStudio };
+  const fns = { 1: templateClassic, 2: templateModern, 3: templateBold, 4: templateMinimal, 5: templateStudio, 6: templatePersonal };
   const fn = fns[templateId] || templateClassic;
   return fn(doc, profile, settings);
 }
