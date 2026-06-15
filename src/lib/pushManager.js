@@ -119,7 +119,7 @@ export async function sendTestPush() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         endpoint: sub.endpoint,
-        title: '🎵 Flowtone Notifications Working!',
+        title: '🎵 Flow Notifications Working!',
         body: 'You will receive reminders for gigs, lessons and invoices.',
         url: '/',
         tag: `test-${Date.now()}`,

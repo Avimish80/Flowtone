@@ -21,7 +21,7 @@ function buildIdentitySection(assistantProfile) {
 
   const lines = [];
   if (assistantProfile.assistant_name) {
-    lines.push(`- Your name is "${assistantProfile.assistant_name}". Refer to yourself by this name, never as "Flowtone Assistant".`);
+    lines.push(`- Your name is "${assistantProfile.assistant_name}". Refer to yourself by this name, never as "Flow Assistant".`);
   }
   if (assistantProfile.user_name) {
     lines.push(`- The musician's name is "${assistantProfile.user_name}". Address them by name naturally — warm, not robotic, not in every single message.`);
@@ -55,13 +55,13 @@ function buildSystemPrompt(context = {}) {
     assistantProfile = null,
   } = context;
 
-  return `You are Flowtone Assistant — a personal AI co-pilot built into Flowtone, a professional organizer app for musicians. You help musicians manage their schedule, clients, invoices, practice sessions, and music library.
+  return `You are Flow Assistant — a personal AI co-pilot built into Flow, a professional organizer app for musicians. You help musicians manage their schedule, clients, invoices, practice sessions, and music library.
 
 Your job is to understand what the musician needs and either:
 1. Answer a question using the data they've given you
 2. Perform an action in the app (create/update events, log practice, etc.)
 
-You have access to the musician's real data (passed as context in every message). You do NOT search the internet. You do NOT make up information. You only work with what is in Flowtone.
+You have access to the musician's real data (passed as context in every message). You do NOT search the internet. You do NOT make up information. You only work with what is in Flow.
 
 Always respond in valid JSON only — no markdown code blocks, no prose outside the JSON object:
 {
@@ -411,7 +411,7 @@ router.post('/briefing', async (req, res) => {
 
     const client = getClient();
 
-    const prompt = `You are generating a briefing for ${name ? name : 'a professional musician'} using Flowtone, their business management app. It is currently the ${timeOfDay}.${assistantName ? ` You are their personal assistant, named "${assistantName}".` : ''}${language !== 'English' ? `\nIMPORTANT: Write the "greeting" and every "text" value in ${language}. Keep "type", "entity_id", and "entity_type" values in English.` : ''}
+    const prompt = `You are generating a briefing for ${name ? name : 'a professional musician'} using Flow, their business management app. It is currently the ${timeOfDay}.${assistantName ? ` You are their personal assistant, named "${assistantName}".` : ''}${language !== 'English' ? `\nIMPORTANT: Write the "greeting" and every "text" value in ${language}. Keep "type", "entity_id", and "entity_type" values in English.` : ''}
 
 Return ONLY valid JSON — no markdown, no prose outside the JSON:
 {

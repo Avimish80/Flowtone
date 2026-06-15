@@ -11,7 +11,7 @@ const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const CAL_BASE = 'https://www.googleapis.com/calendar/v3';
 
 export const CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar.app.created';
-export const FLOWTONE_CALENDAR_SUMMARY = 'Flowtone Gigs';
+export const FLOWTONE_CALENDAR_SUMMARY = 'Flow Gigs';
 export const SYNC_TIME_ZONE = 'Europe/London';
 
 /**

@@ -237,7 +237,7 @@ export default function OnboardingFlow({ onFinish }) {
           <div className="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-900/50">
             <Sparkles className="w-3.5 h-3.5 text-white" />
           </div>
-          <p className="text-sm font-semibold text-white">Flowtone</p>
+          <p className="text-sm font-semibold text-white">Flow</p>
         </div>
         <button
           onClick={() => finishWith({ skipped: true })}
@@ -347,7 +347,7 @@ export default function OnboardingFlow({ onFinish }) {
             disabled={saving}
           />
         ) : (
-          <p className="text-center text-[10px] text-gray-700 py-2">Flowtone · First-time setup</p>
+          <p className="text-center text-[10px] text-gray-700 py-2">Flow · First-time setup</p>
         )}
       </div>
     </div>

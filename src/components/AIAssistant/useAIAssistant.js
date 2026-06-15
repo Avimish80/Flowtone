@@ -443,7 +443,7 @@ async function executeAction(action) {
 // ─── Hook ───────────────────────────────────────────────────────────────────
 
 const DEFAULT_GREETING =
-  "Hey! I'm your Flowtone Assistant. Ask me anything about your gigs, clients and invoices — I can create, find, update or cancel events and invoices, add clients, record payments, look up venues, and keep your schedule in order.";
+  "Hey! I'm your Flow Assistant. Ask me anything about your gigs, clients and invoices — I can create, find, update or cancel events and invoices, add clients, record payments, look up venues, and keep your schedule in order.";
 
 function personalGreeting(profile) {
   if (!profile?.user_name) return DEFAULT_GREETING;

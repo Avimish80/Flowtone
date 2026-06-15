@@ -11,7 +11,7 @@ export const STEPS = [
   {
     id: "intro",
     type: "say",
-    text: () => "Hey, you made it! Welcome to Flowtone 🎉 I'm the AI living inside this app — think of me as your roadie, manager, and accountant rolled into one. Minus the attitude.",
+    text: () => "Hey, you made it! Welcome to Flow 🎉 I'm the AI living inside this app — think of me as your roadie, manager, and accountant rolled into one. Minus the attitude.",
   },
   {
     id: "user_name",

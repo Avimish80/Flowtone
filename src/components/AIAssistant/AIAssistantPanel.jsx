@@ -262,7 +262,7 @@ export default function AIAssistantPanel({
             </div>
             <div>
               <p className="text-sm font-semibold text-white leading-tight">
-                Flowtone Assistant
+                Flow Assistant
               </p>
               <p className="text-[10px] text-indigo-400 leading-tight">
                 AI-powered musician OS
@@ -395,7 +395,7 @@ export default function AIAssistantPanel({
           )}
           {!listening && (
             <p className="text-center text-[10px] text-gray-700 mt-1.5">
-              Flowtone AI · Your live account data
+              Flow AI · Your live account data
             </p>
           )}
         </div>
