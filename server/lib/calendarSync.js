@@ -11,7 +11,6 @@ import {
   ensureFlowtoneCalendar,
   insertEvent,
   patchEvent,
-  deleteEvent,
   listChanges,
   SYNC_TIME_ZONE,
 } from './googleCalendar.js';
@@ -33,11 +32,15 @@ function nextDay(dateStr) {
   return d.toISOString().slice(0, 10);
 }
 
+// Note: a Flowtone-cancelled gig stays VISIBLE in Google (status confirmed)
+// but its title is prefixed "CANCELLED: " — Google's own 'cancelled' status
+// hides/removes the event, which we reserve for a real delete.
 function mapStatusToGoogle(status) {
-  if (status === 'cancelled') return 'cancelled';
   if (status === 'lead') return 'tentative';
-  return 'confirmed'; // confirmed | completed
+  return 'confirmed'; // confirmed | completed | cancelled (kept visible, title-prefixed)
 }
+
+const CANCELLED_PREFIX = 'CANCELLED: ';
 
 function mapStatusFromGoogle(googleStatus) {
   if (googleStatus === 'cancelled') return 'cancelled';
@@ -49,19 +52,25 @@ function mapStatusFromGoogle(googleStatus) {
  * Flowtone work_event row → Google event body.
  * Handles timed and all-day events, and gigs that end after midnight.
  */
-export function workEventToGcal(event) {
+export function workEventToGcal(event, opts = {}) {
+  const cancelled = event.status === 'cancelled';
+  const title = event.title || '(untitled gig)';
   const body = {
-    summary: event.title || '(untitled gig)',
+    summary: (cancelled ? CANCELLED_PREFIX : '') + title,
     status: mapStatusToGoogle(event.status),
     extendedProperties: { private: { flowtoneId: event.id } },
   };
   if (event.location_address) body.location = event.location_address;
 
+  // Carry the Flowtone detail Google doesn't have, into the event description.
   const descParts = [];
   if (event.event_type) descParts.push(`Type: ${event.event_type}`);
+  if (opts.clientName) descParts.push(`Client: ${opts.clientName}`);
   const fee = event.total_price || event.base_price;
   if (fee) descParts.push(`Fee: ${event.currency || 'GBP'} ${fee}`);
-  if (event.notes) descParts.push(event.notes);
+  if (event.start_time) descParts.push(`Time: ${event.start_time}${event.end_time ? '–' + event.end_time : ''}`);
+  if (event.notes) descParts.push('', event.notes);
+  if (opts.appUrl) descParts.push('', `View in Flowtone: ${opts.appUrl}/WorkEventDetail?id=${event.id}`);
   if (descParts.length) body.description = descParts.join('\n');
 
   if (event.start_time) {
@@ -102,9 +111,16 @@ function isoToLondonParts(iso) {
  * Does not decide create-vs-update or notes policy — the engine applies that.
  */
 export function gcalToWorkEvent(gevent) {
+  let title = gevent.summary || '(untitled gig)';
+  let status = mapStatusFromGoogle(gevent.status);
+  // A "CANCELLED: " title (ours, or typed by the user in Google) means cancelled.
+  if (title.toUpperCase().startsWith(CANCELLED_PREFIX)) {
+    title = title.slice(CANCELLED_PREFIX.length).trim() || '(untitled gig)';
+    status = 'cancelled';
+  }
   const patch = {
-    title: gevent.summary || '(untitled gig)',
-    status: mapStatusFromGoogle(gevent.status),
+    title,
+    status,
     location_address: gevent.location || '',
     google_calendar_event_id: gevent.id,
   };
@@ -183,8 +199,16 @@ export async function runSyncForUser(userId) {
     .from('work_events').select('*').eq('user_id', userId);
   if (evErr) throw evErr;
 
+  // Client names + app URL enrich the Google event description on push.
+  const { data: clientRows } = await db
+    .from('clients').select('id, name').eq('user_id', userId);
+  const clientNameById = new Map((clientRows || []).map(c => [c.id, c.name]));
+  const appUrl = process.env.APP_PUBLIC_URL || '';
+  const pushOpts = (event) => ({ clientName: clientNameById.get(event.client_id) || '', appUrl });
+
   const lastSync = ms(creds.last_synced_at);
   const pushedGoogleIds = new Set();
+  const newBareGigs = []; // gigs created from Google with no Flowtone details
   let pushed = 0;
   let pulled = 0;
 
@@ -197,7 +221,7 @@ export async function runSyncForUser(userId) {
     // Brand-new local event → insert.
     if (!gid) {
       if (event.status === 'cancelled') continue; // nothing to create
-      const created = await insertEvent(token.accessToken, calendarId, workEventToGcal(event));
+      const created = await insertEvent(token.accessToken, calendarId, workEventToGcal(event, pushOpts(event)));
       await db.from('work_events').update({ google_calendar_event_id: created.id }).eq('id', event.id);
       pushedGoogleIds.add(created.id);
       pushed++;
@@ -209,15 +233,11 @@ export async function runSyncForUser(userId) {
     if (rem && ms(rem.updated) > ms(event.updated_at)) continue;
     if (!localChanged) continue;
 
-    if (event.status === 'cancelled') {
-      await deleteEvent(token.accessToken, calendarId, gid);
-      pushedGoogleIds.add(gid);
-      pushed++;
-      continue;
-    }
-
+    // A Flowtone cancel is NOT a delete: it patches Google (renaming the event
+    // "CANCELLED: …") and keeps it. Only an actual Delete removes it (handled
+    // by the client calling /api/calendar/event/:id at delete time).
     try {
-      await patchEvent(token.accessToken, calendarId, gid, workEventToGcal(event));
+      await patchEvent(token.accessToken, calendarId, gid, workEventToGcal(event, pushOpts(event)));
       pushedGoogleIds.add(gid);
       pushed++;
     } catch (err) {
@@ -259,12 +279,14 @@ export async function runSyncForUser(userId) {
         pulled++;
       }
     } else {
-      // A gig the user created directly in the Flowtone Gigs calendar.
+      // A gig the user created directly in Google — it has no Flowtone detail
+      // (client, fee, etc.). Flag it so the app can badge it and nudge the user.
       const { data: createdRows } = await db.from('work_events').insert({
         user_id: userId,
         event_type: 'Gig',
         currency: 'GBP',
         ...patch,
+        created_from_gcal: true,
       }).select('id').limit(1);
       const newId = createdRows?.[0]?.id;
       // Stamp the Google event with our id so future syncs match cleanly.
@@ -272,6 +294,7 @@ export async function runSyncForUser(userId) {
         await patchEvent(token.accessToken, calendarId, ge.id, {
           extendedProperties: { private: { flowtoneId: newId } },
         }).catch(() => {});
+        newBareGigs.push({ id: newId, title: patch.title, date: patch.date || '' });
       }
       pulled++;
     }
@@ -284,7 +307,7 @@ export async function runSyncForUser(userId) {
   if (remote.nextSyncToken) credUpdate.sync_token = remote.nextSyncToken;
   await db.from(CREDS_TABLE).update(credUpdate).eq('user_id', userId);
 
-  return { pushed, pulled, last_synced_at: nowIso };
+  return { pushed, pulled, last_synced_at: nowIso, new_bare_gigs: newBareGigs };
 }
 
 /**

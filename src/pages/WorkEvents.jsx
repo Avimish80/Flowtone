@@ -214,6 +214,9 @@ export default function WorkEvents() {
                     <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${statusColors[event.status]}`}>{STATUS_LABELS[event.status] || event.status}</span>
                     <span className="text-[10px] text-gray-500">{event.event_type}</span>
                     {event.is_recurring && <span className="text-[10px] text-indigo-400/70">{"\u21BB"}</span>}
+                    {event.created_from_gcal && !event.client_id && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full border font-medium bg-amber-900/30 text-amber-300 border-amber-700/40">Needs details</span>
+                    )}
                   </div>
                   <p className="font-semibold text-white truncate text-sm">{event.title}</p>
                   <div className="flex items-center gap-3 mt-0.5 text-xs text-gray-400">

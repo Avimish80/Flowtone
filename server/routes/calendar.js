@@ -6,6 +6,8 @@ import {
   exchangeCodeForTokens,
   fetchAccountEmail,
   ensureFlowtoneCalendar,
+  getFreshAccessToken,
+  deleteEvent,
   FLOWTONE_CALENDAR_SUMMARY,
 } from '../lib/googleCalendar.js';
 import { runSyncForUser } from '../lib/calendarSync.js';
@@ -85,6 +87,37 @@ router.post('/sync', requireAuthenticatedUser, async (req, res) => {
   } catch (err) {
     console.error('[calendar/sync]', err);
     res.status(500).json({ error: err.message || 'Sync failed' });
+  }
+});
+
+// ─── POST /api/calendar/delete-event ────────────────────────────────────────
+// Remove a single event from Google immediately. Called by the client when the
+// user deletes a gig in Flowtone, so a delete is a real delete (the sync engine
+// can't push a deletion after the local row is already gone). Best-effort: a
+// missing event or a disconnected calendar is treated as success.
+router.post('/delete-event', requireAuthenticatedUser, async (req, res) => {
+  try {
+    const googleId = req.body?.google_calendar_event_id;
+    if (!googleId || String(googleId).startsWith('local-')) {
+      return res.json({ ok: true, skipped: true });
+    }
+    const db = getSupabaseAdmin();
+    const { data: creds } = await db
+      .from(CREDS_TABLE).select('*').eq('user_id', req.flowtoneUser.id).maybeSingle();
+    if (!creds || !creds.refresh_token) return res.json({ ok: true, skipped: true });
+
+    const token = await getFreshAccessToken(creds);
+    const calendarId = await ensureFlowtoneCalendar(token.accessToken, creds.calendar_id);
+    try {
+      await deleteEvent(token.accessToken, calendarId, googleId);
+    } catch (err) {
+      // Already gone on Google's side → fine.
+      if (err.statusCode !== 404 && err.statusCode !== 410) throw err;
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[calendar/delete-event]', err);
+    res.status(500).json({ error: err.message || 'Failed to delete event' });
   }
 });
 
