@@ -129,6 +129,22 @@ function realGoogleId(event) {
   return id && !id.startsWith('local-') ? id : null;
 }
 
+/**
+ * A deletion in Google removes the Flowtone gig too — EXCEPT when it has
+ * linked invoices/estimates, where we keep it as a `cancelled` record so the
+ * financial paper trail isn't orphaned. Returns 'deleted' | 'cancelled'.
+ */
+async function removeLocalEvent(db, event) {
+  const { data: linkedDocs } = await db
+    .from('documents').select('id').eq('work_event_id', event.id).limit(1);
+  if (linkedDocs && linkedDocs.length) {
+    await db.from('work_events').update({ status: 'cancelled' }).eq('id', event.id);
+    return 'cancelled';
+  }
+  await db.from('work_events').delete().eq('id', event.id);
+  return 'deleted';
+}
+
 const ms = (v) => (v ? new Date(v).getTime() : 0);
 
 /**
@@ -205,9 +221,9 @@ export async function runSyncForUser(userId) {
       pushedGoogleIds.add(gid);
       pushed++;
     } catch (err) {
-      // Event was deleted on Google's side → reflect that locally.
+      // Event was deleted on Google's side → remove it locally too.
       if (err.statusCode === 404 || err.statusCode === 410) {
-        await db.from('work_events').update({ status: 'cancelled' }).eq('id', event.id);
+        await removeLocalEvent(db, event);
       } else {
         throw err;
       }
@@ -224,8 +240,11 @@ export async function runSyncForUser(userId) {
     const local = byGoogleId.get(ge.id) || (flowtoneId ? byFlowtoneId.get(flowtoneId) : null);
 
     if (ge.status === 'cancelled') {
+      // Deleted/cancelled in Google → delete the Flowtone gig (or keep it
+      // cancelled if it has linked invoices). Skip events the user already
+      // cancelled in Flowtone — those are an intentional kept record.
       if (local && local.status !== 'cancelled') {
-        await db.from('work_events').update({ status: 'cancelled' }).eq('id', local.id);
+        await removeLocalEvent(db, local);
         pulled++;
       }
       continue;
