@@ -5,7 +5,7 @@ import { useTheme } from "@/lib/ThemeContext";
 import {
   Music2, CalendarDays, CalendarRange, Users, Receipt,
   Package, Mail, Car, Settings, LayoutDashboard, MoreHorizontal, X, Sun, Moon,
-  Music, Dumbbell, FileText
+  Music, Dumbbell, FileText, Bell
 } from "lucide-react";
 import AIAssistantButton from "@/components/AIAssistant/AIAssistantButton";
 import AIAssistantPanel from "@/components/AIAssistant/AIAssistantPanel";
@@ -13,6 +13,8 @@ import { useAIAssistant } from "@/components/AIAssistant/useAIAssistant";
 import { isPushActive, schedulePushNotifications, reRegisterSubscription } from "@/lib/pushManager";
 import { maybeSyncOnOpen } from "@/lib/calendarClient";
 import { appClient } from "@/api/appClient";
+import { refreshAppBadge, getUnreadCount } from "@/lib/appBadge";
+import NotificationsPanel from "@/components/notifications/NotificationsPanel";
 
 const primaryNav = [
   { icon: LayoutDashboard, label: "Home",     page: "Dashboard" },
@@ -96,6 +98,8 @@ export default function Layout({ children, currentPageName }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [showMore, setShowMore] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const { theme, toggleTheme } = useTheme();
 
   // Schedule push notifications on app open (if user has push enabled)
@@ -129,6 +133,12 @@ export default function Layout({ children, currentPageName }) {
     };
     document.addEventListener("visibilitychange", onVisible);
     return () => document.removeEventListener("visibilitychange", onVisible);
+  }, []);
+
+  // Refresh app-icon badge + in-header unread count on open.
+  useEffect(() => {
+    getUnreadCount().then(setUnreadCount).catch(() => {});
+    refreshAppBadge().catch(() => {});
   }, []);
 
   // Roll open-ended recurring series (ongoing weekly lessons, etc.) forward so
@@ -203,13 +213,28 @@ export default function Layout({ children, currentPageName }) {
             </>
           )}
         </div>
-        <button
-          onClick={toggleTheme}
-          className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
-          title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-        >
-          {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-        </button>
+        <div className="flex items-center gap-1">
+          {/* Bell / notification centre */}
+          <button
+            onClick={() => setShowNotifications(true)}
+            className="relative p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
+            title="Notifications"
+          >
+            <Bell className="w-4 h-4" />
+            {unreadCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 w-4 h-4 flex items-center justify-center rounded-full bg-indigo-600 text-[9px] font-bold text-white leading-none">
+                {unreadCount > 9 ? "9+" : unreadCount}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={toggleTheme}
+            className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
+            title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          >
+            {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </button>
+        </div>
       </header>
 
       {/* Content */}
@@ -248,6 +273,16 @@ export default function Layout({ children, currentPageName }) {
           </div>
         </>
       )}
+
+      {/* Notification centre panel */}
+      <NotificationsPanel
+        open={showNotifications}
+        onClose={() => {
+          setShowNotifications(false);
+          getUnreadCount().then(setUnreadCount).catch(() => {});
+          refreshAppBadge().catch(() => {});
+        }}
+      />
 
       {/* AI Assistant */}
       <AIAssistantButton onClick={openPanel} />

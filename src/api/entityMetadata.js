@@ -211,6 +211,11 @@ export const ENTITY_CONFIG = {
     columns: ["title", "notes"],
     jsonColumns: ["items"],
   },
+  Notification: {
+    table: "notifications",
+    columns: ["type", "title", "body", "entity_type", "url", "read_at"],
+    jsonColumns: [],
+  },
   WorkEvent: {
     table: "work_events",
     columns: [

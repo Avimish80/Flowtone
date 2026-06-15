@@ -17,6 +17,7 @@ const entityNames = [
   "EmailMessage",
   "Equipment",
   "Payment",
+  "Notification",
   "PracticeGoal",
   "PracticeSession",
   "Reminder",
