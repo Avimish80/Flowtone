@@ -521,6 +521,30 @@ export function useAIAssistant() {
             if (batchClientIds[key]) action.data.client_id = batchClientIds[key];
           }
 
+          // Handle SUGGEST_CONTACT_PICKER — show a card offering to pull the
+          // new client's phone/email from the device contacts. The user taps,
+          // picks the contact, and the details flow back as a message.
+          if (action.type === "SUGGEST_CONTACT_PICKER") {
+            const supported = "contacts" in navigator && "ContactsManager" in window;
+            if (supported) {
+              const name = action.data?.name || "";
+              // Resolve real client id: the AI may not know it, but we do from
+              // the CREATE_CLIENT that ran earlier in this same turn.
+              const resolvedId = action.data?.client_id
+                || (name ? batchClientIds[name.toLowerCase().trim()] : "")
+                || "";
+              setMessages((prev) => [
+                ...prev,
+                makeMessage("contact_picker", action.data?.prompt || `Want me to grab ${name || "their"} phone and email from your contacts?`, {
+                  clientName: name,
+                  clientId: resolvedId,
+                }),
+              ]);
+            }
+            // If not supported, silently skip — the client was already created with just the name.
+            continue;
+          }
+
           // Handle LOCATION_SEARCH inline — render tappable options the user
           // picks from; the chosen address flows back so the AI can finish.
           if (action.type === "LOCATION_SEARCH") {

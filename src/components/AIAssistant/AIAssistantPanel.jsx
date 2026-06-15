@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { X, Trash2, Send, Sparkles, ExternalLink, Mic, AlertCircle, MapPin } from "lucide-react";
+import { X, Trash2, Send, Sparkles, ExternalLink, Mic, AlertCircle, MapPin, BookUser } from "lucide-react";
 import { useSpeechInput } from "@/hooks/useSpeechInput";
 import { createPageUrl } from "@/utils";
 
@@ -100,6 +100,50 @@ function LocationCard({ message, onPick }) {
             </span>
           </button>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function ContactPickerCard({ message, onPick }) {
+  const [picking, setPicking] = useState(false);
+
+  const handlePick = async () => {
+    if (picking) return;
+    setPicking(true);
+    try {
+      const contacts = await navigator.contacts.select(["name", "email", "tel"], { multiple: false });
+      if (contacts && contacts.length > 0) {
+        const c = contacts[0];
+        const name = (c.name || [])[0] || message.clientName || "";
+        const email = (c.email || [])[0] || "";
+        const phone = (c.tel || [])[0] || "";
+        onPick({ name, email, phone, clientId: message.clientId });
+      }
+    } catch {
+      // User cancelled or API unavailable — just dismiss silently
+    } finally {
+      setPicking(false);
+    }
+  };
+
+  return (
+    <div className="flex items-start gap-2.5 mb-3">
+      <div className="flex-shrink-0 w-7 h-7 rounded-full bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center">
+        <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+      </div>
+      <div className="max-w-[85%] w-full space-y-2">
+        <p className="text-sm text-gray-100 bg-gray-800 px-4 py-2.5 rounded-2xl rounded-tl-sm shadow">
+          {message.content}
+        </p>
+        <button
+          onClick={handlePick}
+          disabled={picking}
+          className="flex items-center gap-2 bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-600/40 text-indigo-300 text-sm font-medium rounded-xl px-4 py-2 transition-colors disabled:opacity-50"
+        >
+          <BookUser className="w-4 h-4" />
+          {picking ? "Opening contacts…" : "Pick from contacts"}
+        </button>
       </div>
     </div>
   );
@@ -305,6 +349,21 @@ export default function AIAssistantPanel({
                   key={msg.id}
                   message={msg}
                   onPick={(addr) => sendMessage(`Use this location for the event: ${addr}`)}
+                />
+              );
+            if (msg.role === "contact_picker")
+              return (
+                <ContactPickerCard
+                  key={msg.id}
+                  message={msg}
+                  onPick={({ name, email, phone, clientId }) => {
+                    const parts = [];
+                    if (email) parts.push(`email ${email}`);
+                    if (phone) parts.push(`phone ${phone}`);
+                    if (parts.length === 0) return;
+                    const target = clientId ? `client id ${clientId}` : (name || "that client");
+                    sendMessage(`Add to ${target}: ${parts.join(", ")}`);
+                  }}
                 />
               );
             return null;

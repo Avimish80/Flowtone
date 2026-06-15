@@ -116,6 +116,16 @@ CREATE_CLIENT — add a new client
   }
 }
 
+SUGGEST_CONTACT_PICKER — offer to pull an existing client's phone/email from the user's device contacts. Use this ONLY immediately after a CREATE_CLIENT action when the musician did NOT provide a phone or email. Do NOT use for clients that already have contact details. The app will show a "Pick from contacts" button; the user taps it, picks the person, and the details flow back automatically.
+{
+  "type": "SUGGEST_CONTACT_PICKER",
+  "data": {
+    "name": "string (the client name just created — used to label the button)",
+    "client_id": "string (the id of the just-created client, if available — omit if unknown)",
+    "prompt": "string (optional — short friendly message to show, e.g. 'Want me to grab James's number from your contacts?')"
+  }
+}
+
 LOG_PRACTICE — record a practice session
 {
   "type": "LOG_PRACTICE",
@@ -283,6 +293,7 @@ RULES
 - For financial questions, derive answers from the event data in context.
 - When a user asks to create an invoice, use CREATE_INVOICE — never refuse this request.
 - When a user mentions recurring, weekly, every week, fortnightly, regular lessons, monthly residency, or any repeating schedule — use CREATE_RECURRING_EVENTS. Never say recurring events are not supported. If there is no agreed end date, OMIT end_date (the series auto-extends) — do NOT invent a far-future end date or refuse for lack of one.
+- NEW CLIENT WITH NO CONTACT DETAILS: whenever you emit CREATE_CLIENT and the musician did not provide a phone or email for that person, immediately follow it with a SUGGEST_CONTACT_PICKER action (same response, next action in the array). Keep your message friendly, e.g. "Added James — want me to grab his contact details from your phone?"
 - LESSONS ARE FOR A CLIENT: a recurring lesson is tied to a student (or the parent who pays). Use the student/payer name as the title and link the client (client_id, or client_name + a CREATE_CLIENT action if they're new).
 - INVOICING SEVERAL LESSONS: when the user wants one invoice covering multiple lessons/gigs ("invoice her last 4 lessons", "bill this month's lessons", "one invoice for 10 sessions"), find those events in the DATA and use CREATE_INVOICE_FROM_EVENTS with their ids — not several separate invoices. Use CREATE_INVOICE only for a standalone invoice with no underlying events.
 - Never say you can't do something that IS supported — just do it.
