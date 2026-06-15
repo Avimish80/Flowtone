@@ -156,23 +156,40 @@ CREATE_INVOICE — create a new invoice for a client
   }
 }
 
-CREATE_RECURRING_EVENTS — create a repeating series of events (weekly lessons, monthly residency, etc.)
+CREATE_RECURRING_EVENTS — create a repeating series of events (weekly lessons, monthly residency, etc.). This is the RIGHT action for ongoing weekly/fortnightly lessons. For an OPEN-ENDED series (no agreed finish — "every week", "ongoing", "no end") OMIT end_date and count: the app materialises the next several months and automatically keeps extending the series over time, so you never need a far-future end date. Only set end_date (or count) when the musician gives a real finish point.
 {
   "type": "CREATE_RECURRING_EVENTS",
   "data": {
-    "title": "string (required)",
+    "title": "string (required — usually the student's or payer's name, e.g. 'Emma — guitar lesson')",
     "event_type": "Lesson|Gig|Session|Rehearsal|Practice",
-    "start_date": "YYYY-MM-DD (first occurrence)",
-    "end_date": "YYYY-MM-DD (last possible date, required)",
-    "frequency": "weekly|biweekly|monthly",
+    "start_date": "YYYY-MM-DD (first occurrence, required)",
+    "frequency": "daily|weekly|biweekly|monthly",
+    "interval": number (optional, default 1 — e.g. frequency 'weekly' + interval 3 = every 3 weeks),
+    "days_of_week": "optional array of weekday numbers (0=Sun..6=Sat) for weekly series, e.g. [4] for every Thursday",
+    "end_date": "YYYY-MM-DD (OMIT for ongoing/no-end series — see note above)",
+    "count": "number (optional — use ONLY when they want a fixed number of occurrences, e.g. 'book 10 lessons')",
     "start_time": "HH:MM (24h, optional)",
     "end_time": "HH:MM (24h, optional)",
     "status": "confirmed|lead (default: confirmed)",
     "location_address": "string (optional)",
-    "fee": number (optional),
+    "fee": number (optional — per-occurrence price),
     "client_id": "string (optional)",
     "client_name": "string (optional — set this INSTEAD of client_id when the client is new and being created in this same response)",
     "notes": "string (optional)"
+  }
+}
+
+CREATE_INVOICE_FROM_EVENTS — make ONE invoice that covers several existing events (e.g. "invoice Emma for her last 4 lessons", "bill June's lessons"). Look up the matching events in the DATA and pass their ids. All events must be the same client. Use this (not CREATE_INVOICE) whenever the invoice is for lessons/gigs that already exist as events.
+{
+  "type": "CREATE_INVOICE_FROM_EVENTS",
+  "data": {
+    "event_ids": ["array of event ids from the EVENTS data (required)"],
+    "layout": "per_event|bundled (per_event = one dated line per lesson; bundled = a single 'N lessons @ £X' line. Default per_event. Use bundled if they ask for one combined line or a simpler invoice.)",
+    "title": "string (optional — a sensible default is generated)",
+    "due_date": "YYYY-MM-DD (optional)",
+    "notes": "string (optional)",
+    "status": "draft|sent|paid (default draft)",
+    "currency": "GBP|USD|EUR (optional — inferred from the events)"
   }
 }
 
@@ -265,7 +282,9 @@ RULES
 - Use LOCATION_SEARCH only for real physical-place lookups, never for anything else.
 - For financial questions, derive answers from the event data in context.
 - When a user asks to create an invoice, use CREATE_INVOICE — never refuse this request.
-- When a user mentions recurring, weekly, every week, regular lessons, monthly residency, or any repeating schedule — use CREATE_RECURRING_EVENTS. Never say recurring events are not supported.
+- When a user mentions recurring, weekly, every week, fortnightly, regular lessons, monthly residency, or any repeating schedule — use CREATE_RECURRING_EVENTS. Never say recurring events are not supported. If there is no agreed end date, OMIT end_date (the series auto-extends) — do NOT invent a far-future end date or refuse for lack of one.
+- LESSONS ARE FOR A CLIENT: a recurring lesson is tied to a student (or the parent who pays). Use the student/payer name as the title and link the client (client_id, or client_name + a CREATE_CLIENT action if they're new).
+- INVOICING SEVERAL LESSONS: when the user wants one invoice covering multiple lessons/gigs ("invoice her last 4 lessons", "bill this month's lessons", "one invoice for 10 sessions"), find those events in the DATA and use CREATE_INVOICE_FROM_EVENTS with their ids — not several separate invoices. Use CREATE_INVOICE only for a standalone invoice with no underlying events.
 - Never say you can't do something that IS supported — just do it.
 - SOURCE OF TRUTH: The DATA section is the musician's real records. NEVER claim something doesn't exist (no events that day, no such client/invoice) when it appears in the data. If you truly can't find what they mean, say you can't see it and ask them to narrow it down by date or name — do NOT silently create a duplicate.
 - EDIT, DON'T DUPLICATE: When the user wants to change something they already have, find that record in the data, take its "id", and use UPDATE_*/DELETE_*. Only use CREATE_* for genuinely new things.
@@ -384,11 +403,11 @@ router.post('/chat', async (req, res) => {
 
 // ─── POST /api/ai/briefing ─────────────────────────────────────────
 // Lightweight daily briefing using Haiku for cost efficiency.
-// Body: { today, name, todayEvents, overdueInvoices, noInvoiceEvents }
+// Body: { today, name, todayEvents, overdueInvoices, noInvoiceEvents, feeMissingEvents, locationMissingEvents }
 // Returns: { greeting, items: [{ text, type, entity_id, entity_type }] }
 router.post('/briefing', async (req, res) => {
   try {
-    const { today, timeOfDay = 'morning', name, language = 'English', assistantName = '', todayEvents = [], overdueInvoices = [], noInvoiceEvents = [] } = req.body;
+    const { today, timeOfDay = 'morning', name, language = 'English', assistantName = '', todayEvents = [], overdueInvoices = [], noInvoiceEvents = [], feeMissingEvents = [], locationMissingEvents = [] } = req.body;
 
     const client = getClient();
 
@@ -400,7 +419,7 @@ Return ONLY valid JSON — no markdown, no prose outside the JSON:
   "items": [
     {
       "text": "Short actionable description (max 12 words)",
-      "type": "event_today|invoice_overdue|invoice_missing|general",
+      "type": "event_today|invoice_overdue|invoice_missing|fee_missing|location_missing|general",
       "entity_id": "record id or null",
       "entity_type": "event|invoice|null"
     }
@@ -409,7 +428,10 @@ Return ONLY valid JSON — no markdown, no prose outside the JSON:
 
 Rules:
 - 2 to 4 items max
-- Priority: today events first, then overdue invoices, then events missing invoices
+- Priority: today events first, then overdue invoices, then events missing invoices, then missing-fee gigs, then missing-location gigs
+- For fee_missing items: say you need the fee before you can make the invoice (set entity_type to "event")
+- For location_missing items: say you can't plan travel without the address (set entity_type to "event")
+- Speak in the first person as the user's assistant ("I can't... — add the...")
 - If everything looks clear, return 1 general item saying so warmly
 - Keep text short, friendly, and action-oriented
 - Return raw JSON only — absolutely no markdown fences
@@ -424,7 +446,13 @@ OVERDUE INVOICES (${overdueInvoices.length}):
 ${JSON.stringify(overdueInvoices)}
 
 EVENTS WITHOUT INVOICES (${noInvoiceEvents.length}):
-${JSON.stringify(noInvoiceEvents)}`;
+${JSON.stringify(noInvoiceEvents)}
+
+PAST GIGS WITH NO FEE — can't invoice until the amount is known (${feeMissingEvents.length}):
+${JSON.stringify(feeMissingEvents)}
+
+UPCOMING GIGS WITH NO LOCATION — can't plan travel (${locationMissingEvents.length}):
+${JSON.stringify(locationMissingEvents)}`;
 
     const apiResponse = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',

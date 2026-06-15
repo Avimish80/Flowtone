@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { Sparkles, X } from "lucide-react";
 import { isPast, parseISO } from "date-fns";
 import { getCachedProfileSync, deriveFallbackName, DEFAULT_LANGUAGE, DEFAULT_ASSISTANT_NAME } from "@/lib/assistantProfile";
+import { gigsMissingFee, gigsMissingLocation } from "@/lib/missingInfo";
 
 function buildNavUrl(address) {
   return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}&travelmode=driving`;
@@ -86,6 +87,16 @@ export function AIDashboardBriefing({ events = [], documents = [] }) {
       .slice(0, 3)
       .map((e) => ({ id: e.id, title: e.title, date: e.date, total_price: e.total_price || e.base_price }));
 
+    // Blocking gaps the standard briefing filter above hides (it requires a
+    // fee and a future date). Shared finders keep these in sync with the pushes.
+    const now = Date.now();
+    const feeMissingEvents = gigsMissingFee(events, invoices, now)
+      .slice(0, 3)
+      .map((e) => ({ id: e.id, title: e.title, date: e.date }));
+    const locationMissingEvents = gigsMissingLocation(events, invoices, now)
+      .slice(0, 3)
+      .map((e) => ({ id: e.id, title: e.title, date: e.date }));
+
     flowtoneJson("/api/ai/briefing", {
       method: "POST",
       body: JSON.stringify({
@@ -97,6 +108,8 @@ export function AIDashboardBriefing({ events = [], documents = [] }) {
         todayEvents,
         overdueInvoices,
         noInvoiceEvents,
+        feeMissingEvents,
+        locationMissingEvents,
       }),
     })
       .then((data) => {
@@ -221,6 +234,26 @@ export function AIDashboardBriefing({ events = [], documents = [] }) {
                       className="text-xs bg-indigo-600/25 border border-indigo-500/30 text-indigo-300 px-3 py-1 rounded-lg hover:bg-indigo-600/40 transition-colors"
                     >
                       Create Invoice
+                    </button>
+                  )}
+
+                  {/* Add fee — past gig with no amount, blocks the invoice */}
+                  {item.type === "fee_missing" && (
+                    <button
+                      onClick={() => handleItemAction(item, "view")}
+                      className="text-xs bg-indigo-600/25 border border-indigo-500/30 text-indigo-300 px-3 py-1 rounded-lg hover:bg-indigo-600/40 transition-colors"
+                    >
+                      Add fee
+                    </button>
+                  )}
+
+                  {/* Add location — upcoming gig with no address */}
+                  {item.type === "location_missing" && (
+                    <button
+                      onClick={() => handleItemAction(item, "view")}
+                      className="text-xs bg-indigo-600/25 border border-indigo-500/30 text-indigo-300 px-3 py-1 rounded-lg hover:bg-indigo-600/40 transition-colors"
+                    >
+                      Add location
                     </button>
                   )}
                 </div>

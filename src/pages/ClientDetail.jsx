@@ -2,9 +2,10 @@ import { useState, useEffect } from "react";
 import { appClient } from "@/api/appClient";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { ArrowLeft, Save, Trash2, Plus, X, AlertTriangle, AlertCircle, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Plus, X, AlertTriangle, AlertCircle, CheckCircle2, FileText } from "lucide-react";
 import { useGoBack } from "@/hooks/useGoBack";
 import ClientFinancialSummary from "../components/client/ClientFinancialSummary";
+import InvoiceLessonsModal from "../components/client/InvoiceLessonsModal";
 
 const CLIENT_TYPES = ["venue", "agent", "student", "band", "other"];
 const EMAIL_TAGS = ["none", "gig_provider", "student", "ignored"];
@@ -26,6 +27,7 @@ export default function ClientDetail() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [newEmail, setNewEmail] = useState("");
   const [newPhone, setNewPhone] = useState("");
+  const [showInvoiceLessons, setShowInvoiceLessons] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -243,6 +245,16 @@ export default function ClientDetail() {
           />
         </div>
 
+        {/* Invoice several lessons at once */}
+        {id && (
+          <button
+            onClick={() => setShowInvoiceLessons(true)}
+            className="w-full bg-gray-800 hover:bg-gray-700 border border-gray-700 text-white rounded-xl py-2.5 text-sm font-medium flex items-center justify-center gap-2 transition-colors"
+          >
+            <FileText className="w-4 h-4 text-indigo-400" /> Invoice lessons
+          </button>
+        )}
+
         {/* Financial Summary */}
         {id && (
           <div>
@@ -272,6 +284,18 @@ export default function ClientDetail() {
           </div>
         )}
       </div>
+
+      {showInvoiceLessons && id && (
+        <InvoiceLessonsModal
+          clientId={id}
+          clientName={client.name || "this client"}
+          onClose={() => setShowInvoiceLessons(false)}
+          onCreated={(doc) => {
+            setShowInvoiceLessons(false);
+            navigate(createPageUrl(`DocumentDetail?id=${doc.id}`));
+          }}
+        />
+      )}
     </div>
   );
 }

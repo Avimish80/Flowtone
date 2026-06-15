@@ -131,6 +131,23 @@ export default function Layout({ children, currentPageName }) {
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, []);
 
+  // Roll open-ended recurring series (ongoing weekly lessons, etc.) forward so
+  // ~6 months of future occurrences always exist. Idempotent + throttled to
+  // once per day so it costs nothing on a normal app open.
+  useEffect(() => {
+    try {
+      const last = Number(localStorage.getItem("flowtone_recurrence_topup_at") || 0);
+      if (Date.now() - last < 20 * 60 * 60 * 1000) return; // ~once/day
+    } catch { /* ignore */ }
+    appClient.helpers
+      .topUpRecurringSeries()
+      .then((res) => {
+        try { localStorage.setItem("flowtone_recurrence_topup_at", String(Date.now())); } catch { /* ignore */ }
+        if (res?.added) console.info(`Recurrence top-up: added ${res.added} event(s) across ${res.series} series`);
+      })
+      .catch(() => {});
+  }, []);
+
   const {
     messages,
     loading: aiLoading,

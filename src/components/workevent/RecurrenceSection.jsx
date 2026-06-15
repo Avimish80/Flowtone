@@ -33,13 +33,21 @@ export default function RecurrenceSection({ event, onChange }) {
     if (!event.id) return;
     setLoading(true);
     setDone(false);
-    const res = await appClient.functions.invoke("createRecurringEvents", { event_id: event.id });
+    // Route through the shared engine so this matches the AI path exactly,
+    // including open-ended ("No end") series that auto-extend over time. The
+    // existing event is adopted as occurrence #0 (not duplicated).
+    const res = await appClient.helpers.createRecurringSeries({
+      template: event,
+      rule,
+      startDate: event.date,
+      anchorEventId: event.id,
+    });
     setLoading(false);
-    if (res.data?.success) {
+    if (res?.success) {
       setDone(true);
-      setResult(res.data);
+      setResult({ created_count: res.created, open_ended: res.open_ended });
       onChange("is_recurring", true);
-      onChange("recurrence_id", res.data.recurrence_id);
+      onChange("recurrence_id", res.recurrence_id);
     }
   };
 
@@ -136,7 +144,13 @@ export default function RecurrenceSection({ event, onChange }) {
           {/* End type */}
           <div>
             <label className="text-xs text-gray-400 mb-1 block">End</label>
-            <div className="grid grid-cols-2 gap-2 mb-2">
+            <div className="grid grid-cols-3 gap-2 mb-2">
+              <button
+                onClick={() => updateRule("end_type", "never")}
+                className={`py-2 rounded-lg text-sm font-medium transition-colors ${rule.end_type === "never" ? "bg-indigo-600 text-white" : "bg-gray-800 text-gray-400 hover:bg-gray-700"}`}
+              >
+                No end
+              </button>
               <button
                 onClick={() => updateRule("end_type", "count")}
                 className={`py-2 rounded-lg text-sm font-medium transition-colors ${rule.end_type === "count" ? "bg-indigo-600 text-white" : "bg-gray-800 text-gray-400 hover:bg-gray-700"}`}
@@ -150,7 +164,9 @@ export default function RecurrenceSection({ event, onChange }) {
                 Until date
               </button>
             </div>
-            {rule.end_type === "count" ? (
+            {rule.end_type === "never" ? (
+              <p className="text-xs text-gray-500">Ongoing — Flowtone keeps about six months of lessons in your calendar and adds more automatically.</p>
+            ) : rule.end_type === "count" ? (
               <div className="flex items-center gap-2">
                 <input
                   type="number"
@@ -190,7 +206,8 @@ export default function RecurrenceSection({ event, onChange }) {
           {done && result && (
             <div className="bg-green-950/50 border border-green-700/40 rounded-xl p-3 flex items-center gap-2 text-green-400 text-sm">
               <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-              Created {result.created_count} additional events in the series
+              Created {result.created_count} more event{result.created_count === 1 ? "" : "s"} in the series
+              {result.open_ended ? " — it'll keep extending automatically." : "."}
             </div>
           )}
 

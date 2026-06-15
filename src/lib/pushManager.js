@@ -2,6 +2,7 @@
 // Handles SW registration, subscription, scheduling — 5-layer notification system.
 
 import { getEffectivePrefs, timingToMinutes } from './notificationPrefs.js';
+import { gigsMissingFee, importedEventsIncomplete, hasFee } from './missingInfo.js';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 const VAPID_PUBLIC_KEY =
@@ -187,6 +188,13 @@ export async function schedulePushNotifications(
   const nonPracticeGigs = gigEvents.filter(e => e.event_type !== 'Practice');
   const practiceEvents  = gigEvents.filter(e => e.event_type === 'Practice');
 
+  // Imported (e.g. Google Calendar) events still missing a location and/or fee.
+  // Computed once: the missing_venue layer defers to this one so a freshly
+  // imported gig gets the "I added this from your calendar" copy, not a generic
+  // venue warning — exactly one notification per blocked gig.
+  const importedIncomplete = importedEventsIncomplete(gigEvents, documents, now);
+  const importedIncompleteIds = new Set(importedIncomplete.map(x => x.event.id));
+
   // Invoice map: work_event_id → sent invoice (for "invoice not sent" checks)
   const sentInvoiceByEvent = {};
   for (const doc of documents) {
@@ -358,6 +366,10 @@ export async function schedulePushNotifications(
     }
     for (const event of nonPracticeGigs) {
       if (sentInvoiceByEvent[event.id]) continue; // already sent
+      // No fee and no draft invoice → the app can't build an invoice at all.
+      // Hand off to the gig_needs_fee layer (it asks for the amount) instead of
+      // nudging to "create" an invoice that can't be created.
+      if (!hasFee(event) && !draftInvoiceByEvent[event.id]) continue;
       const eventDt = parseLocal(event.date);
       if (!eventDt || eventDt.getTime() > now) continue; // future events — wait until after
       const fireAt = new Date(eventDt.getTime() + 24 * 60 * 60 * 1000);
@@ -378,6 +390,36 @@ export async function schedulePushNotifications(
           { action: 'open_invoice', title: draftInv ? 'Review Invoice' : 'Create Invoice' },
         ],
         actionUrls: { open_invoice: url },
+      }));
+    }
+  }
+
+  // ── L2a-bis: Gig needs a fee (blocks the invoice) ───────────────────────
+  if (prefs.gig_needs_fee?.enabled) {
+    // Past, billable gigs with no fee and no invoice — limited to the last 14
+    // days so we don't nag about ancient gigs. The app literally can't make the
+    // invoice until it knows the amount.
+    const fourteenDaysMs = 14 * 24 * 60 * 60 * 1000;
+    const feeBlocked = gigsMissingFee(events, documents, now).filter(e => {
+      const end = parseLocal(e.date, e.end_time || e.start_time)?.getTime();
+      return end != null && end >= now - fourteenDaysMs;
+    });
+    for (const event of feeBlocked) {
+      // The gig is already over (gigsMissingFee returns only past gigs), so
+      // fireAt = gigEnd + 1day would be in the past and get dropped by push().
+      // Fire at the next 9am from NOW instead, so the alert reliably lands on
+      // the next app-open reschedule. The stable tag prevents duplicates.
+      const fireAt = new Date();
+      fireAt.setHours(9, 0, 0, 0);
+      if (fireAt.getTime() <= now) fireAt.setDate(fireAt.getDate() + 1);
+      tasks.push(push({
+        fireAt: fireAt.toISOString(),
+        tag: `needs-fee-${event.id}`,
+        title: `I need the fee for ${event.title}`,
+        body: `That gig's done but you never told me the fee, so I can't make the invoice. Tap to add the amount.`,
+        url: `/WorkEventDetail?id=${event.id}`,
+        actions: [{ action: 'open_gig', title: 'Add fee' }],
+        actionUrls: { open_gig: `/WorkEventDetail?id=${event.id}` },
       }));
     }
   }
@@ -461,6 +503,9 @@ export async function schedulePushNotifications(
   if (prefs.missing_venue?.enabled) {
     for (const event of nonPracticeGigs) {
       if (event.location_address) continue; // has venue
+      // Defer to imported_event_incomplete for freshly imported gigs (it has
+      // more useful "I added this from your calendar" copy) — no double-notify.
+      if (prefs.imported_event_incomplete?.enabled && importedIncompleteIds.has(event.id)) continue;
       const startDt = parseLocal(event.date);
       if (!startDt) continue;
       const daysUntil = Math.floor((startDt.getTime() - now) / (24 * 60 * 60 * 1000));
@@ -470,10 +515,36 @@ export async function schedulePushNotifications(
       tasks.push(push({
         fireAt: fireAt.toISOString(),
         tag: `missing-venue-${event.id}`,
-        title: `Missing venue: ${event.title}`,
-        body: `This gig is in ${daysUntil} day${daysUntil !== 1 ? 's' : ''} — no address saved yet`,
+        title: `I can't plan travel to ${event.title}`,
+        body: `No location yet, so I can't work out your travel time. Tap to add it.`,
         url: `/WorkEventDetail?id=${event.id}`,
-        actions: [{ action: 'open_gig', title: 'Add Address' }],
+        actions: [{ action: 'open_gig', title: 'Add location' }],
+        actionUrls: { open_gig: `/WorkEventDetail?id=${event.id}` },
+      }));
+    }
+  }
+
+  // ── L3a-bis: Imported event missing details ─────────────────────────────
+  if (prefs.imported_event_incomplete?.enabled) {
+    for (const { event, missingLocation, missingFee } of importedIncomplete) {
+      // Imported just now — prompt soon (next 9am from now) rather than waiting
+      // until 2 days before the gig. Stable tag means reopening won't spam, and
+      // once the user fills the field the finder drops it next reschedule.
+      const fireAt = new Date();
+      fireAt.setHours(9, 0, 0, 0);
+      if (fireAt.getTime() <= now) fireAt.setDate(fireAt.getDate() + 1);
+      const miss = missingLocation && missingFee
+        ? 'a location or the fee'
+        : missingLocation
+          ? 'a location'
+          : 'the fee';
+      tasks.push(push({
+        fireAt: fireAt.toISOString(),
+        tag: `imported-incomplete-${event.id}`,
+        title: `I added "${event.title}" from your calendar`,
+        body: `It's missing ${miss} — I can't plan around it yet. Tap to fill in the details.`,
+        url: `/WorkEventDetail?id=${event.id}`,
+        actions: [{ action: 'open_gig', title: 'Add details' }],
         actionUrls: { open_gig: `/WorkEventDetail?id=${event.id}` },
       }));
     }

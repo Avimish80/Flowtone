@@ -133,8 +133,11 @@ export default function DocumentDetail() {
               const evt = evts[0];
               setLinkedEvent(evt);
 
-              // Auto-sync prices from event to draft invoices
-              if (d.document_type === "invoice" && d.status === "draft" && !d.is_locked) {
+              // Auto-sync prices from event to draft invoices.
+              // Skip multi-event invoices: their line items intentionally cover
+              // several events, so collapsing them to one event's fee is wrong.
+              const isMultiEvent = Array.isArray(d.work_event_ids) && d.work_event_ids.length > 1;
+              if (d.document_type === "invoice" && d.status === "draft" && !d.is_locked && !isMultiEvent) {
                 const eventFee = evt.total_price || evt.base_price || 0;
                 const currentFee = d.line_items?.[0]?.unit_price || 0;
                 // Only sync if event fee changed and there's a single event-derived line item

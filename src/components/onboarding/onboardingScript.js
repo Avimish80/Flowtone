@@ -76,13 +76,9 @@ export const STEPS = [
     text: (a) => `I've already set up "${a.business_name || a.user_name}" and ${a.currency || "GBP"} for your invoices. One thing only you can do: drop your logo into Settings → Business Profile, and your invoices go from plain to pro.`,
   },
   {
-    id: "tour_done",
+    id: "connect",
     type: "say",
-    text: () => "That's the tour! Where do we start?",
-    actions: [
-      { label: "Create my first gig", kind: "navigate", page: "WorkEventDetail" },
-      { label: "Ask the assistant", kind: "ai_prefill", message: "What can you help me with?" },
-      { label: "Take me to my dashboard", kind: "finish" },
-    ],
+    text: (a) => `That's the tour, ${a.user_name}! One last step — switch on what you want. You can change any of these later in Settings.`,
+    connect: true,
   },
 ];

@@ -207,49 +207,78 @@ async function executeAction(action) {
     }
 
     case "CREATE_RECURRING_EVENTS": {
-      const { start_date, end_date, frequency = "weekly", title, event_type, start_time, end_time, status, location_address, fee, client_id, notes } = data;
-      if (!start_date || !end_date) return { success: false, type, label: "Need a start and end date for recurring events." };
+      const {
+        start_date, end_date, frequency = "weekly", interval, days_of_week, count,
+        title, event_type, start_time, end_time, status, location_address, fee, client_id, notes,
+      } = data;
+      if (!start_date) return { success: false, type, label: "Need a start date for the recurring lessons." };
 
-      // Build list of dates
-      const dates = [];
-      const cur = new Date(start_date + "T12:00:00");
-      const end = new Date(end_date + "T12:00:00");
-      const step = frequency === "monthly" ? null : frequency === "biweekly" ? 14 : 7;
-      while (cur <= end) {
-        dates.push(cur.toISOString().slice(0, 10));
-        if (frequency === "monthly") {
-          cur.setMonth(cur.getMonth() + 1);
-        } else {
-          cur.setDate(cur.getDate() + step);
-        }
-      }
+      // Resolve the end condition from whatever the AI provided. No end_date /
+      // count means an ongoing series — the engine materialises ~6 months and
+      // the app's rolling top-up keeps extending it.
+      const rule = {
+        frequency,
+        interval: interval || 1,
+        days_of_week: Array.isArray(days_of_week) ? days_of_week : undefined,
+        end_type: count ? "count" : end_date ? "until" : "never",
+        count: count || undefined,
+        until: end_date || undefined,
+      };
 
-      // Create all events. Use the real column names the rest of the app
-      // reads: base_price/total_price for the fee, recurrence_id/_index to
-      // group the series. client_id is omitted when blank (the data layer
-      // would otherwise have to coerce "" → null on a uuid column).
-      const seriesId = Math.random().toString(36).slice(2);
       const price = Number(fee) || 0;
-      let index = 0;
-      for (const date of dates) {
-        await appClient.entities.WorkEvent.create({
-          title, event_type: event_type || "Lesson", date,
-          start_time: start_time || "", end_time: end_time || "",
-          status: status || "confirmed",
-          location_address: location_address || "",
-          base_price: price, total_price: price,
-          notes: notes || "",
-          ...(client_id ? { client_id } : {}),
-          is_recurring: true, recurrence_id: seriesId, recurrence_index: index,
-        });
-        index += 1;
+      const template = {
+        title,
+        event_type: event_type || "Lesson",
+        start_time: start_time || "",
+        end_time: end_time || "",
+        status: status || "confirmed",
+        location_address: location_address || "",
+        base_price: price,
+        total_price: price,
+        notes: notes || "",
+        ...(client_id ? { client_id } : {}),
+      };
+
+      const res = await appClient.helpers.createRecurringSeries({ template, rule, startDate: start_date });
+      if (!res.success) {
+        return { success: false, type, label: res.error || "I couldn't set up that recurring series." };
       }
 
+      const tail = res.failed
+        ? ` (${res.failed} couldn't be added — reopen the app to retry)`
+        : res.open_ended
+          ? " — ongoing, I'll keep extending it automatically"
+          : "";
       return {
         success: true,
         type,
-        label: `Created ${dates.length} recurring events: ${title} (${frequency}, ${dates[0]} → ${dates[dates.length - 1]})`,
-        page: "WorkEvents",
+        label: `Scheduled ${res.created} ${title || "lessons"} · ${res.summary}${tail}`,
+        page: "CalendarView",
+      };
+    }
+
+    case "CREATE_INVOICE_FROM_EVENTS": {
+      const eventIds = Array.isArray(data.event_ids) ? data.event_ids.filter(Boolean) : [];
+      if (eventIds.length === 0) {
+        return { success: false, type, label: "Tell me which lessons to invoice and I'll bundle them." };
+      }
+      const layout = data.layout === "bundled" ? "bundled" : "per_event";
+      const { document, event_count } = await appClient.helpers.buildInvoiceFromEvents({
+        event_ids: eventIds,
+        layout,
+        title: data.title,
+        due_date: data.due_date,
+        notes: data.notes,
+        status: data.status,
+        currency: data.currency,
+      });
+      return {
+        success: true,
+        type,
+        label: `Created invoice for ${event_count} ${event_count === 1 ? "session" : "sessions"}${document.document_number ? " #" + document.document_number : ""}`,
+        entityId: document.id,
+        page: "DocumentDetail",
+        navigate: { page: "DocumentDetail", params: { id: document.id } },
       };
     }
 

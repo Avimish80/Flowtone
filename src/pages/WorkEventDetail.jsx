@@ -61,6 +61,12 @@ export default function WorkEventDetail() {
   const [linkedPracticeSessions, setLinkedPracticeSessions] = useState([]);
   const [loggingPractice, setLoggingPractice] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
+  // "Apply to series" prompt — shown after saving a recurring event when
+  // time or price changed. `seriesChangedFields` lists what changed.
+  const [seriesPrompt, setSeriesPrompt] = useState(null); // { fields: string[] } | null
+  const [applyingToSeries, setApplyingToSeries] = useState(false);
+  // Snapshot of the event as last loaded from DB, for diffing on save
+  const [savedSnapshot, setSavedSnapshot] = useState(null);
 
   const isPractice = event.event_type === "Practice";
 
@@ -82,6 +88,7 @@ export default function WorkEventDetail() {
         const e = evts[0];
         if (e.status === "confirmed" || e.status === "completed") e.base_price_locked = true;
         setEvent(e);
+        setSavedSnapshot(e);
 
         // Load linked documents (one-directional: Document owns work_event_id)
         const docs = await appClient.entities.Document.filter({ work_event_id: e.id });
@@ -146,6 +153,21 @@ export default function WorkEventDetail() {
           const newInvoice = await appClient.helpers.convertEstimateToInvoice(estimate.id);
           await appClient.entities.Document.update(newInvoice.id, { work_event_id: id });
           setInvoice(newInvoice);
+        }
+
+        // Update snapshot after a successful save
+        setSavedSnapshot(event);
+
+        // For recurring events, detect which series-relevant fields changed
+        // and offer to apply them to upcoming occurrences.
+        if (event.is_recurring && event.recurrence_id && savedSnapshot) {
+          const SERIES_FIELDS = ["start_time", "end_time", "base_price", "total_price", "currency", "location_address"];
+          const changed = SERIES_FIELDS.filter(
+            (f) => String(event[f] ?? "") !== String(savedSnapshot[f] ?? ""),
+          );
+          if (changed.length > 0) {
+            setSeriesPrompt({ fields: changed, event });
+          }
         }
 
         // Flash "Saved ✓" briefly for existing events
@@ -255,6 +277,17 @@ export default function WorkEventDetail() {
 
   const toggleSection = (key) => setOpenSection(openSection === key ? null : key);
 
+  const handleApplyToSeries = async () => {
+    if (!seriesPrompt) return;
+    setApplyingToSeries(true);
+    await appClient.helpers.applyToUpcomingInSeries({
+      event: seriesPrompt.event,
+      fields: seriesPrompt.fields,
+    });
+    setApplyingToSeries(false);
+    setSeriesPrompt(null);
+  };
+
   // Is this a past or today's practice event that hasn't been logged yet?
   const showCheckin = isPractice && id && event.date && event.date <= TODAY && !event.practice_logged && !event.practice_skipped;
   const alreadyLogged = isPractice && event.practice_logged;
@@ -331,6 +364,53 @@ export default function WorkEventDetail() {
           <div className="flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0" />
             <span className="text-sm text-amber-100">This gig came from Google. Add the client, fee and any details to complete it.</span>
+          </div>
+        </div>
+      )}
+
+      {/* Apply-to-series prompt — shown after saving a recurring event when
+           time or price changed */}
+      {seriesPrompt && (
+        <div className="mx-4 mt-4 bg-indigo-950/60 border border-indigo-700/50 rounded-xl p-4">
+          <div className="flex items-start gap-3">
+            <RefreshCw className="w-4 h-4 text-indigo-400 flex-shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm text-indigo-100 font-medium mb-0.5">Apply to all upcoming lessons?</p>
+              <p className="text-xs text-indigo-300/70">
+                {seriesPrompt.fields
+                  .map((f) => ({
+                    start_time: "start time", end_time: "end time",
+                    base_price: "fee", total_price: "fee", currency: "currency",
+                    location_address: "location",
+                  }[f] || f))
+                  .filter((v, i, a) => a.indexOf(v) === i)
+                  .join(", ")
+                  .replace(/^(.)/, (c) => c.toUpperCase())} changed — apply to future occurrences in this series.
+              </p>
+            </div>
+            <button
+              onClick={() => setSeriesPrompt(null)}
+              className="text-indigo-400/60 hover:text-indigo-300 transition-colors flex-shrink-0"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="flex gap-2 mt-3">
+            <button
+              onClick={handleApplyToSeries}
+              disabled={applyingToSeries}
+              className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-lg py-2 text-sm font-medium flex items-center justify-center gap-1.5 transition-colors"
+            >
+              {applyingToSeries
+                ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Applying…</>
+                : <><CheckCircle2 className="w-3.5 h-3.5" /> Yes, apply to all upcoming</>}
+            </button>
+            <button
+              onClick={() => setSeriesPrompt(null)}
+              className="px-4 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg py-2 text-sm font-medium transition-colors"
+            >
+              Just this one
+            </button>
           </div>
         </div>
       )}

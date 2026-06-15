@@ -4,6 +4,7 @@ import { PREVIEW_USER } from "@/lib/previewMode";
 import { getSupabaseClient, isPreviewModeEnabled } from "@/lib/supabaseClient";
 import { syncNow } from "@/lib/calendarClient";
 import { format } from "date-fns";
+import { expandRecurrence, normalizeRule, describeRule, isOpenEnded, HORIZON_MONTHS } from "@/lib/recurrence";
 
 // ─── Entity Registry ───────────────────────────────────────────────
 const entityNames = [
@@ -324,6 +325,329 @@ const unlockDocument = async (documentId, reason = "") => {
 const buildClientMap = async () => {
   const clients = await entities.Client.list();
   return Object.fromEntries(clients.map((c) => [c.id, c]));
+};
+
+// ─── Recurring series (shared engine) ──────────────────────────────
+//
+// createRecurringSeries materialises a series from a normalized recurrence
+// rule using the shared engine in src/lib/recurrence.js. It is resilient to
+// partial failure: each event is created independently and a single failed
+// insert no longer aborts the whole series or leaves the caller with a bare
+// error. The full rule + anchor date are stamped on every event so the
+// rolling top-up (topUpRecurringSeries) can later extend an open-ended series.
+// anchorEventId — when the series grows out of an event that already exists
+// (the RecurrenceSection on an event detail screen), pass its id: that event
+// is adopted as occurrence #0 instead of being duplicated, and only the
+// remaining dates are created.
+const createRecurringSeries = async ({ template = {}, rule: ruleInput = {}, startDate, anchorEventId, today } = {}) => {
+  const rule = normalizeRule(ruleInput);
+  const anchor = startDate || template.date;
+  if (!anchor) return { success: false, error: "A start date is required.", created: 0, failed: 0 };
+
+  const dates = expandRecurrence(anchor, rule, { today });
+  if (dates.length === 0) return { success: false, error: "That schedule produced no dates.", created: 0, failed: 0 };
+
+  const recurrenceId = template.recurrence_id || (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2));
+
+  // Strip fields that must be per-occurrence or are server-managed.
+  const {
+    id: _id, date: _date, created_at: _c, updated_at: _u,
+    recurrence_index: _ri, google_calendar_event_id: _g,
+    ...base
+  } = template;
+
+  let created = 0;
+  let failed = 0;
+  let firstId = anchorEventId || null;
+  const createdEvents = [];
+
+  // If an anchor event already exists, adopt it as occurrence #0 and create
+  // only the dates after it (skip the first generated date, which is itself).
+  let startIndex = 0;
+  if (anchorEventId) {
+    try {
+      await entities.WorkEvent.update(anchorEventId, {
+        is_recurring: true,
+        recurrence_id: recurrenceId,
+        recurrence_index: 0,
+        recurrence_rule: rule,
+        recurrence_anchor: anchor,
+      });
+    } catch (err) {
+      console.warn("createRecurringSeries: failed to update anchor event", err);
+    }
+    startIndex = 1; // dates[0] is the anchor itself
+  }
+
+  for (let index = startIndex; index < dates.length; index += 1) {
+    try {
+      const evt = await entities.WorkEvent.create({
+        ...base,
+        event_type: base.event_type || "Lesson",
+        status: base.status || "confirmed",
+        date: dates[index],
+        is_recurring: true,
+        recurrence_id: recurrenceId,
+        recurrence_index: index,
+        recurrence_rule: rule,
+        recurrence_anchor: anchor,
+        google_calendar_event_id: "",
+      });
+      if (!firstId) firstId = evt?.id;
+      createdEvents.push(evt);
+      created += 1;
+    } catch (err) {
+      console.warn("createRecurringSeries: insert failed for", dates[index], err);
+      failed += 1;
+    }
+  }
+
+  return {
+    success: created > 0 || !!anchorEventId,
+    created,
+    failed,
+    recurrence_id: recurrenceId,
+    first_event_id: firstId,
+    events: createdEvents,
+    dates,
+    open_ended: isOpenEnded(rule),
+    summary: describeRule(rule),
+  };
+};
+
+// Top up open-ended series so roughly HORIZON_MONTHS of future occurrences
+// always exist. Idempotent: only creates dates that aren't already present in
+// the series, so it is safe to run on every app open. Returns the number of
+// events added across all series.
+const topUpRecurringSeries = async ({ today } = {}) => {
+  let allEvents;
+  try {
+    allEvents = await entities.WorkEvent.list();
+  } catch {
+    return { added: 0, series: 0 };
+  }
+
+  // Group recurring events by their series id.
+  const groups = new Map();
+  for (const e of allEvents) {
+    if (!e.is_recurring || !e.recurrence_id) continue;
+    if (!groups.has(e.recurrence_id)) groups.set(e.recurrence_id, []);
+    groups.get(e.recurrence_id).push(e);
+  }
+
+  let added = 0;
+  let seriesTouched = 0;
+  for (const [recurrenceId, members] of groups) {
+    // Only extend open-ended series; fixed count/until series are complete.
+    const ruleSource = members.find((m) => m.recurrence_rule && Object.keys(m.recurrence_rule).length) || members[0];
+    const rule = ruleSource?.recurrence_rule;
+    if (!rule || !isOpenEnded(rule)) continue;
+
+    const anchor = ruleSource.recurrence_anchor
+      || members.map((m) => m.date).filter(Boolean).sort()[0];
+    if (!anchor) continue;
+
+    const existing = new Set(members.map((m) => m.date));
+    const latest = members.map((m) => m.date).filter(Boolean).sort().pop();
+
+    // Desired dates across the full horizon from anchor; keep only ones we
+    // don't already have and that fall after the current latest occurrence.
+    const desired = expandRecurrence(anchor, rule, { today });
+    const missing = desired.filter((d) => !existing.has(d) && (!latest || d > latest));
+    if (missing.length === 0) continue;
+
+    // Use the latest member as the template for new occurrences.
+    const tmpl = members.reduce((a, b) => (a.recurrence_index > b.recurrence_index ? a : b), members[0]);
+    let nextIndex = Math.max(...members.map((m) => Number(m.recurrence_index) || 0)) + 1;
+    const {
+      id: _i, date: _d, created_at: _c, updated_at: _u,
+      recurrence_index: _ri, google_calendar_event_id: _g, ...base
+    } = tmpl;
+
+    for (const date of missing) {
+      try {
+        await entities.WorkEvent.create({
+          ...base,
+          date,
+          is_recurring: true,
+          recurrence_id: recurrenceId,
+          recurrence_index: nextIndex,
+          recurrence_rule: rule,
+          recurrence_anchor: anchor,
+          google_calendar_event_id: "",
+        });
+        nextIndex += 1;
+        added += 1;
+      } catch (err) {
+        console.warn("topUpRecurringSeries: insert failed for", date, err);
+      }
+    }
+    seriesTouched += 1;
+  }
+
+  return { added, series: seriesTouched };
+};
+
+// Apply selected fields from one event to every UPCOMING event in the same
+// series (date >= today, not this event itself, not already completed/cancelled
+// unless includeAll is true). Returns { updated, skipped }.
+//
+// Which fields to carry: caller passes `fields` — an array of field names
+// picked from the edited event. Default set covers time + price.
+const DEFAULT_SERIES_FIELDS = [
+  "start_time", "end_time",
+  "base_price", "total_price", "currency",
+  "location_address",
+];
+
+const applyToUpcomingInSeries = async ({ event, fields = DEFAULT_SERIES_FIELDS, today } = {}) => {
+  if (!event?.recurrence_id) return { updated: 0, skipped: 0 };
+
+  const todayStr = today || format(new Date(), "yyyy-MM-dd");
+
+  let allEvents;
+  try {
+    allEvents = await entities.WorkEvent.list();
+  } catch {
+    return { updated: 0, skipped: 0 };
+  }
+
+  const siblings = allEvents.filter(
+    (e) =>
+      e.recurrence_id === event.recurrence_id &&
+      e.id !== event.id &&
+      e.date &&
+      e.date >= todayStr &&
+      e.status !== "cancelled" &&
+      e.status !== "completed",
+  );
+
+  const patch = {};
+  for (const f of fields) {
+    if (Object.prototype.hasOwnProperty.call(event, f)) {
+      patch[f] = event[f];
+    }
+  }
+  if (Object.keys(patch).length === 0) return { updated: 0, skipped: 0 };
+
+  let updated = 0;
+  let skipped = 0;
+  for (const sibling of siblings) {
+    try {
+      await entities.WorkEvent.update(sibling.id, patch);
+      updated += 1;
+    } catch (err) {
+      console.warn("applyToUpcomingInSeries: update failed for", sibling.id, err);
+      skipped += 1;
+    }
+  }
+
+  return { updated, skipped };
+};
+
+// ─── Multi-event invoices ──────────────────────────────────────────
+//
+// buildInvoiceFromEvents creates ONE invoice covering several events (e.g.
+// "invoice the last 4 lessons"). All events must belong to the same client.
+// layout:
+//   "per_event" (default) — one line item per event, dated
+//   "bundled"             — a single summary line ("N lessons @ £X")
+// Each invoiced event is stamped with the invoice id so it shows as invoiced
+// and won't be double-billed.
+const buildInvoiceFromEvents = async ({ event_ids = [], layout = "per_event", title, due_date, notes, status = "draft", currency } = {}) => {
+  if (!Array.isArray(event_ids) || event_ids.length === 0) {
+    throw new Error("No events selected for the invoice.");
+  }
+
+  // Load the events (filter is single-key, so fetch all once and pick).
+  const all = await entities.WorkEvent.list();
+  const byId = new Map(all.map((e) => [e.id, e]));
+  const events = event_ids.map((id) => byId.get(id)).filter(Boolean)
+    .sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  if (events.length === 0) throw new Error("Couldn't find those events.");
+
+  // Determine the client — must be shared.
+  const clientIds = [...new Set(events.map((e) => e.client_id).filter(Boolean))];
+  if (clientIds.length > 1) {
+    throw new Error("Those events belong to different clients — invoice them separately.");
+  }
+  const clientId = clientIds[0] || "";
+
+  const cur = currency || events[0].currency || "GBP";
+  const priceOf = (e) => Number(e.total_price ?? e.base_price) || 0;
+  const niceDate = (d) => {
+    try { return format(new Date(d + "T12:00:00"), "EEE d MMM"); } catch { return d; }
+  };
+
+  let lineItems;
+  if (layout === "bundled") {
+    const total = events.reduce((s, e) => s + priceOf(e), 0);
+    const prices = [...new Set(events.map(priceOf))];
+    const unit = prices.length === 1 ? prices[0] : Math.round((total / events.length) * 100) / 100;
+    const label = events[0].event_type === "Lesson" ? "lessons" : "events";
+    const span = events.length > 1 ? ` (${niceDate(events[0].date)} – ${niceDate(events[events.length - 1].date)})` : "";
+    lineItems = [{
+      description: `${events.length} ${label}${span}`,
+      quantity: events.length,
+      unit_price: unit,
+      total: Math.round(unit * events.length * 100) / 100,
+    }];
+  } else {
+    lineItems = events.map((e) => {
+      const price = priceOf(e);
+      return {
+        description: `${e.title || e.event_type || "Session"} — ${niceDate(e.date)}`,
+        quantity: 1,
+        unit_price: price,
+        total: price,
+      };
+    });
+  }
+
+  const subtotal = Math.round(lineItems.reduce((s, i) => s + (Number(i.total) || 0), 0) * 100) / 100;
+  const docNumber = await getNextDocumentNumber("invoice");
+  const todayStr = format(new Date(), "yyyy-MM-dd");
+  const safeStatus = ["draft", "sent", "paid"].includes(status) ? status : "draft";
+
+  const defaultTitle = events[0].event_type === "Lesson"
+    ? `Lessons — ${events.length}× ${niceDate(events[0].date)}–${niceDate(events[events.length - 1].date)}`
+    : (events[0].title || "Invoice");
+
+  const doc = await entities.Document.create({
+    document_type: "invoice",
+    document_number: docNumber,
+    title: title || defaultTitle,
+    client_id: clientId,
+    status: safeStatus,
+    currency: cur,
+    line_items: lineItems,
+    subtotal,
+    total: subtotal,
+    tax_rate: 0,
+    tax_amount: 0,
+    discount_value: 0,
+    discount_amount: 0,
+    due_date: due_date || "",
+    notes: notes || "",
+    work_event_id: events[0].id,          // primary, for back-compat with single-event UI
+    work_event_ids: events.map((e) => e.id), // full set (lands in payload jsonb)
+    is_standalone: false,
+    is_locked: false,
+    paid_amount: safeStatus === "paid" ? subtotal : 0,
+    ...(safeStatus === "paid" ? { paid_date: todayStr } : {}),
+    ...(safeStatus === "sent" || safeStatus === "paid" ? { sent_date: todayStr } : {}),
+  });
+
+  // Stamp each event so it reads as invoiced and won't be re-billed.
+  for (const e of events) {
+    try {
+      await entities.WorkEvent.update(e.id, { invoice_id: doc.id, invoice_status: safeStatus });
+    } catch (err) {
+      console.warn("buildInvoiceFromEvents: failed to stamp event", e.id, err);
+    }
+  }
+
+  return { document: doc, event_count: events.length, total: subtotal };
 };
 
 // ─── Recurring Events ──────────────────────────────────────────────
@@ -1104,5 +1428,9 @@ export const appClient = {
     unlockDocument,
     buildClientMap,
     ensureSingletonEntity,
+    createRecurringSeries,
+    topUpRecurringSeries,
+    buildInvoiceFromEvents,
+    applyToUpcomingInSeries,
   },
 };
