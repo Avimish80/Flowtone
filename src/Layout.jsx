@@ -119,9 +119,16 @@ export default function Layout({ children, currentPageName }) {
     });
   }, []);
 
-  // Silent two-way calendar sync on app open (no-op unless connected; throttled)
+  // Silent two-way calendar sync on app open AND whenever the app returns to
+  // the foreground (installed PWAs often don't re-mount on resume). No-op
+  // unless connected; throttled to once per 2 min inside maybeSyncOnOpen().
   useEffect(() => {
     maybeSyncOnOpen();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") maybeSyncOnOpen();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
   }, []);
 
   const {
