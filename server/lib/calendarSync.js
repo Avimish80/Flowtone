@@ -286,3 +286,32 @@ export async function runSyncForUser(userId) {
 
   return { pushed, pulled, last_synced_at: nowIso };
 }
+
+/**
+ * Background sync for every connected user with sync enabled. Called by the
+ * cron scheduler so calendars stay current even when no app is open. Runs
+ * users sequentially and isolates per-user failures so one bad token can't
+ * stall the batch.
+ */
+export async function syncAllConnectedUsers() {
+  const db = getSupabaseAdmin();
+  const { data: rows, error } = await db
+    .from(CREDS_TABLE)
+    .select('user_id')
+    .eq('sync_enabled', true)
+    .not('refresh_token', 'is', null);
+  if (error) throw error;
+
+  let ok = 0;
+  let failed = 0;
+  for (const row of rows || []) {
+    try {
+      await runSyncForUser(row.user_id);
+      ok++;
+    } catch (err) {
+      failed++;
+      console.error('[calendar-sync] failed for user', row.user_id, err.message ?? err);
+    }
+  }
+  return { users: rows?.length || 0, ok, failed };
+}

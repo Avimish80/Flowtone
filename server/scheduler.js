@@ -1,6 +1,7 @@
 import cron from 'node-cron';
 import webpush from 'web-push';
 import { getDuePushes, markPushSent, getSubscription, deleteSubscription } from './db.js';
+import { syncAllConnectedUsers } from './lib/calendarSync.js';
 
 const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY;
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY;
@@ -67,4 +68,28 @@ export function startScheduler() {
   });
 
   console.log('[scheduler] Push notification scheduler started (every 5 minutes)');
+
+  // ─── Background calendar sync (every 5 minutes) ────────────────────
+  // Keeps every connected calendar current even when no app is open.
+  // An in-flight guard prevents overlapping ticks if a batch runs long.
+  let calendarSyncRunning = false;
+  cron.schedule('*/5 * * * *', async () => {
+    if (calendarSyncRunning) {
+      console.warn('[scheduler] Calendar sync still running; skipping this tick');
+      return;
+    }
+    calendarSyncRunning = true;
+    try {
+      const res = await syncAllConnectedUsers();
+      if (res.users) {
+        console.log(`[scheduler] Calendar sync: ${res.ok}/${res.users} ok, ${res.failed} failed`);
+      }
+    } catch (err) {
+      console.error('[scheduler] Calendar sync tick failed:', err.message ?? err);
+    } finally {
+      calendarSyncRunning = false;
+    }
+  });
+
+  console.log('[scheduler] Calendar sync scheduler started (every 5 minutes)');
 }
