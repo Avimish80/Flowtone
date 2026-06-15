@@ -5,7 +5,7 @@ import { Check, Mail, Navigation, Bell, Banknote, Building2, CalendarDays, Refre
 import { formatDistanceToNow } from "date-fns";
 import { getAssistantProfile, DEFAULT_ASSISTANT_NAME, DEFAULT_LANGUAGE } from "@/lib/assistantProfile";
 import { LANGUAGE_OPTIONS } from "@/components/onboarding/onboardingScript";
-import { TEMPLATE_DEFS, generateInvoiceHTML } from "@/lib/invoiceTemplates";
+import { TEMPLATE_DEFS, generateInvoiceHTML, sanitizeCustom, DEFAULT_CUSTOM, ACCENT_PRESETS, HEADER_STYLES, FONT_CHOICES } from "@/lib/invoiceTemplates";
 import { registerPush, unregisterPush, isPushActive, schedulePushNotifications, sendTestPush } from "@/lib/pushManager";
 import { DEFAULT_PREFS } from "@/lib/notificationPrefs";
 import { isGmailConnected, getGmailEmail, connectGmail, disconnectGmail } from "@/lib/gmailClient";
@@ -571,6 +571,7 @@ export default function AppSettings() {
                       3: { hdr: "#0f172a", hdrText: "#e2e8f0", accent: "#0f172a", line: "#f1f5f9" },
                       4: { hdr: "#fff",    hdrText: "#111827", accent: "#374151", line: "#e5e7eb" },
                       5: { hdr: "#4c1d95", hdrText: "#ede9fe", accent: "#7c3aed", line: "#ddd6fe" },
+                      6: (() => { const a = sanitizeCustom(settings.invoice_custom).accent_color; return { hdr: a, hdrText: "#fff", accent: a, line: "#e5e7eb" }; })(),
                     }[t.id];
                     return (
                       <button
@@ -613,6 +614,85 @@ export default function AppSettings() {
                       >
                         Preview
                       </button>
+                    </div>
+                  );
+                })()}
+
+                {(settings.invoice_template || 1) === 6 && (() => {
+                  const custom = sanitizeCustom(settings.invoice_custom);
+                  const setCustom = (patch) => onChange("invoice_custom", { ...custom, ...patch });
+                  const HEADER_LABELS = { band: "Colour band", minimal: "Minimal line", centered: "Centred" };
+                  const FONT_LABELS = { sans: "Sans", serif: "Serif" };
+                  const segBtn = (active) => `flex-1 text-xs py-1.5 rounded-md transition-colors ${active ? "bg-indigo-600 text-white" : "bg-gray-900 text-gray-400 hover:text-gray-200"}`;
+                  return (
+                    <div className="mt-4 pt-4 border-t border-gray-700/60 space-y-4">
+                      <p className="text-[11px] text-gray-500 leading-snug">
+                        Make it yours — or just ask the assistant: <span className="text-gray-400">"make my invoice header teal and centred."</span>
+                      </p>
+
+                      {/* Accent colour */}
+                      <div>
+                        <label className={labelCls}>Accent colour</label>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {ACCENT_PRESETS.map(hex => (
+                            <button
+                              key={hex}
+                              onClick={() => setCustom({ accent_color: hex })}
+                              aria-label={hex}
+                              className={`w-7 h-7 rounded-full transition-transform ${custom.accent_color === hex ? "ring-2 ring-offset-2 ring-offset-gray-800 ring-white scale-110" : "hover:scale-105"}`}
+                              style={{ backgroundColor: hex }}
+                            />
+                          ))}
+                          <label className="w-7 h-7 rounded-full border border-gray-600 grid place-items-center cursor-pointer relative overflow-hidden" title="Custom colour">
+                            <input type="color" value={custom.accent_color} onChange={e => setCustom({ accent_color: e.target.value })}
+                              className="absolute inset-0 opacity-0 cursor-pointer" />
+                            <span className="text-[10px] text-gray-400">+</span>
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* Header style */}
+                      <div>
+                        <label className={labelCls}>Header style</label>
+                        <div className="flex gap-1.5 bg-gray-900 p-1 rounded-lg">
+                          {HEADER_STYLES.map(h => (
+                            <button key={h} onClick={() => setCustom({ header_style: h })} className={segBtn(custom.header_style === h)}>
+                              {HEADER_LABELS[h]}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Font */}
+                      <div>
+                        <label className={labelCls}>Body font</label>
+                        <div className="flex gap-1.5 bg-gray-900 p-1 rounded-lg">
+                          {FONT_CHOICES.map(f => (
+                            <button key={f} onClick={() => setCustom({ font: f })} className={segBtn(custom.font === f)}>
+                              {FONT_LABELS[f]}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Footer text */}
+                      <div>
+                        <label className={labelCls}>Footer line</label>
+                        <input className={inputCls} maxLength={160} placeholder={DEFAULT_CUSTOM.footer_text}
+                          value={custom.footer_text} onChange={e => setCustom({ footer_text: e.target.value })} />
+                      </div>
+
+                      {/* Logo toggle */}
+                      <label className="flex items-center justify-between cursor-pointer">
+                        <span className="text-sm text-white">Show logo</span>
+                        <button
+                          onClick={() => setCustom({ show_logo: !custom.show_logo })}
+                          className={`w-11 h-6 rounded-full transition-colors relative ${custom.show_logo ? "bg-indigo-600" : "bg-gray-600"}`}
+                          aria-pressed={custom.show_logo}
+                        >
+                          <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-all ${custom.show_logo ? "left-[22px]" : "left-0.5"}`} />
+                        </button>
+                      </label>
                     </div>
                   );
                 })()}

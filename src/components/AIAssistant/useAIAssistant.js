@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { askAI } from "@/api/aiClient";
 import { appClient } from "@/api/appClient";
+import { sanitizeCustom } from "@/lib/invoiceTemplates";
 import { getAssistantProfile } from "@/lib/assistantProfile";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -374,6 +375,21 @@ async function executeAction(action) {
         entityId: documentId, page: "DocumentDetail",
         navigate: { page: "DocumentDetail", params: { id: documentId } },
       };
+    }
+
+    case "UPDATE_INVOICE_STYLE": {
+      // Restyle the Personal invoice template within fixed rails.
+      // sanitizeCustom() whitelists fields + clamps values, so the AI can
+      // only change accent/header/font/footer/logo — never the layout.
+      const all = await appClient.entities.AppSettings.list().catch(() => []);
+      const current = all[0];
+      const merged = sanitizeCustom({ ...(current?.invoice_custom || {}), ...data });
+      if (current?.id) {
+        await appClient.entities.AppSettings.update(current.id, { invoice_custom: merged, invoice_template: 6 });
+      } else {
+        await appClient.entities.AppSettings.create({ invoice_custom: merged, invoice_template: 6 });
+      }
+      return { success: true, type, label: "Updated your invoice style" };
     }
 
     case "NAVIGATE": {
