@@ -10,6 +10,7 @@ import {
   Dumbbell, Check, X, CheckCircle2, Target, ExternalLink, Loader2, CalendarPlus
 } from "lucide-react";
 import { eventsToIcal, downloadIcal } from "@/lib/icalExport";
+import { deleteCalendarEvent } from "@/lib/calendarClient";
 import EventInfoSection from "../components/workevent/EventInfoSection";
 import EventFinancialsSection from "../components/workevent/EventFinancialsSection";
 import EventEquipmentSection from "../components/workevent/EventEquipmentSection";
@@ -243,6 +244,11 @@ export default function WorkEventDetail() {
   };
 
   const handleDelete = async () => {
+    // Remove the Google copy too — a delete is a real delete. Best-effort:
+    // deleteCalendarEvent fails quiet, so a sync hiccup never blocks the delete.
+    if (event?.google_calendar_event_id) {
+      await deleteCalendarEvent(event.google_calendar_event_id);
+    }
     await appClient.entities.WorkEvent.delete(id);
     navigate(createPageUrl("WorkEvents"));
   };
@@ -318,6 +324,16 @@ export default function WorkEventDetail() {
           </button>
         </div>
       </div>
+
+      {/* Pulled from Google with no details — nudge the user to complete it */}
+      {id && event.created_from_gcal && !event.client_id && (
+        <div className="mx-4 mt-4 bg-amber-900/25 border border-amber-700/50 rounded-xl p-4">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0" />
+            <span className="text-sm text-amber-100">This gig came from Google. Add the client, fee and any details to complete it.</span>
+          </div>
+        </div>
+      )}
 
       {/* Practice check-in banner — shown for past/today practice events */}
       {showCheckin && (

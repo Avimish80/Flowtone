@@ -44,6 +44,45 @@ export async function disconnectCalendar() {
 }
 
 /**
+ * Remove a single event from Google now. Call when the user DELETES a gig in
+ * Flowtone — the sync engine can't push a deletion once the local row is gone.
+ * Best-effort and fail-quiet; never blocks the local delete.
+ */
+export async function deleteCalendarEvent(googleId) {
+  if (isPreviewModeEnabled() || !googleId || String(googleId).startsWith("local-")) return;
+  try {
+    await flowtoneJson("/api/calendar/delete-event", {
+      method: "POST",
+      body: JSON.stringify({ google_calendar_event_id: googleId }),
+    });
+  } catch {
+    // Best-effort — a leftover Google copy is better than blocking the delete.
+  }
+}
+
+/** Notify the user about gigs just pulled from Google that have no details. */
+async function notifyBareGigs(gigs) {
+  if (!gigs?.length) return;
+  try {
+    if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+    const reg = await navigator.serviceWorker?.ready;
+    if (!reg) return;
+    const one = gigs.length === 1;
+    reg.showNotification(
+      one ? `New gig from Google: ${gigs[0].title || "Untitled"}` : `${gigs.length} new gigs from Google`,
+      {
+        body: "Add the client, fee and details in Flowtone.",
+        tag: "flowtone-bare-gigs",
+        icon: "/icon-192x192.svg",
+        data: { url: one ? `/WorkEventDetail?id=${gigs[0].id}` : "/WorkEvents" },
+      }
+    );
+  } catch {
+    // Notifications are a nice-to-have; never disrupt sync.
+  }
+}
+
+/**
  * Silent sync on app open. Throttled, fail-quiet, and a no-op when calendar
  * isn't connected or sync is disabled. Safe to call on every mount.
  */
@@ -57,7 +96,8 @@ export async function maybeSyncOnOpen() {
     if (!status.connected || !status.sync_enabled) return;
 
     localStorage.setItem(OPEN_SYNC_KEY, String(Date.now()));
-    await syncNow();
+    const result = await syncNow();
+    await notifyBareGigs(result?.new_bare_gigs);
   } catch {
     // Silent — app-open sync must never disrupt the UI.
   }
