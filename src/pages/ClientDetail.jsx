@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { appClient } from "@/api/appClient";
 import { useNavigate } from "react-router-dom";
-import { createPageUrl } from "@/utils";
-import { ArrowLeft, Save, Trash2, Plus, X, AlertTriangle, AlertCircle, CheckCircle2, FileText } from "lucide-react";
+import { createPageUrl, formatMoney } from "@/utils";
+import { ArrowLeft, Save, Trash2, Plus, X, AlertTriangle, AlertCircle, Check, Loader2, FileText, Mail, Phone, MapPin } from "lucide-react";
 import { useGoBack } from "@/hooks/useGoBack";
 import ClientFinancialSummary from "../components/client/ClientFinancialSummary";
 import InvoiceLessonsModal from "../components/client/InvoiceLessonsModal";
@@ -23,20 +23,41 @@ export default function ClientDetail() {
   });
   const [loading, setLoading] = useState(!!id);
   const [saving, setSaving] = useState(false);
-  const [savedFlash, setSavedFlash] = useState(false);
+  const [savingState, setSavingState] = useState("idle"); // 'idle' | 'saving' | 'saved' — auto-save
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [newEmail, setNewEmail] = useState("");
   const [newPhone, setNewPhone] = useState("");
   const [showInvoiceLessons, setShowInvoiceLessons] = useState(false);
+  const lastSavedJsonRef = useRef(null);
 
   useEffect(() => {
     if (id) {
       appClient.entities.Client.filter({ id }).then(data => {
-        if (data[0]) setClient(data[0]);
+        if (data[0]) { setClient(data[0]); lastSavedJsonRef.current = JSON.stringify(data[0]); }
         setLoading(false);
       });
     }
   }, [id]);
+
+  // ── Auto-save (existing clients) — debounced; new clients use Create ──
+  useEffect(() => {
+    if (!id || loading || !client.name?.trim()) return;
+    const json = JSON.stringify(client);
+    if (json === lastSavedJsonRef.current) return;
+    const t = setTimeout(async () => {
+      setSavingState("saving");
+      try {
+        await appClient.entities.Client.update(id, client);
+        lastSavedJsonRef.current = json;
+        setSavingState("saved");
+        setTimeout(() => setSavingState(s => (s === "saved" ? "idle" : s)), 2000);
+      } catch (err) {
+        console.error("Client auto-save error:", err);
+        setSavingState("idle");
+      }
+    }, 1200);
+    return () => clearTimeout(t);
+  }, [client, id, loading]);
 
   const onChange = (field, value) => setClient(prev => ({ ...prev, [field]: value }));
 
@@ -76,6 +97,9 @@ export default function ClientDetail() {
 
   if (loading) return <div className="p-4 text-gray-400">Loading...</div>;
 
+  const primaryEmail = (client.emails || []).find(Boolean) || "";
+  const primaryPhone = (client.phones || []).find(Boolean) || "";
+
   return (
     <div className="max-w-xl mx-auto">
       {/* Header */}
@@ -83,22 +107,73 @@ export default function ClientDetail() {
         <button onClick={goBack} className="text-gray-400 hover:text-white transition-colors">
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <h1 className="flex-1 font-semibold text-white truncate">{client.name || "New Client"}</h1>
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className={`px-4 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-all ${
-            savedFlash
-              ? "bg-green-600 text-white"
-              : "bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white"
-          }`}
-        >
-          {savedFlash
-            ? <><CheckCircle2 className="w-4 h-4" /> Saved</>
-            : <><Save className="w-4 h-4" /> {saving ? "Saving..." : "Save"}</>
-          }
-        </button>
+        <h1 className="flex-1 font-semibold text-white truncate">{id ? (client.name || "Client") : "New Client"}</h1>
+        {id ? (
+          <div className="flex items-center justify-end text-xs flex-shrink-0 min-w-[68px] h-7">
+            {savingState === "saving" && <span className="text-gray-400 flex items-center gap-1"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving…</span>}
+            {savingState === "saved" && <span className="text-green-400 flex items-center gap-1"><Check className="w-3.5 h-3.5" /> Saved</span>}
+          </div>
+        ) : (
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="px-4 py-1.5 rounded-lg text-sm font-medium bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white flex items-center gap-1.5 transition-colors"
+          >
+            {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Creating…</> : <><Save className="w-4 h-4" /> Create</>}
+          </button>
+        )}
       </div>
+
+      {/* Hero ticket — at-a-glance, clickable summary for an existing client */}
+      {id && (
+        <div className="mx-4 mt-4 bg-gradient-to-br from-indigo-900/80 to-gray-900 rounded-2xl border border-indigo-700/30 overflow-hidden">
+          <div className="p-6">
+            <div className="flex items-start justify-between gap-3">
+              <h2 className="text-2xl font-bold text-white leading-tight">{client.name || "Unnamed client"}</h2>
+              {client.default_fee > 0 && (
+                <span className="text-sm font-semibold text-indigo-200 whitespace-nowrap flex-shrink-0">
+                  {formatMoney(client.default_fee, client.default_currency || "GBP").replace(/\.00$/, "")} default
+                </span>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
+              {client.client_type && (
+                <span className="text-[11px] font-medium text-indigo-200 bg-indigo-600/30 px-2 py-0.5 rounded-full capitalize">{client.client_type}</span>
+              )}
+              {client.has_late_payment_history && (
+                <span className="text-[11px] font-medium text-red-300 bg-red-950/60 border border-red-700/40 px-2 py-0.5 rounded-full flex items-center gap-1"><AlertCircle className="w-3 h-3" /> Late payer</span>
+              )}
+            </div>
+
+            {primaryEmail && (
+              <a href={`mailto:${primaryEmail}`} className="flex items-center gap-2 mt-4 text-sm text-gray-200 hover:text-white transition-colors">
+                <Mail className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+                <span className="truncate flex-1">{primaryEmail}</span>
+              </a>
+            )}
+
+            {primaryPhone && (
+              <div className="flex items-center justify-between gap-2 mt-3">
+                <a href={`tel:${primaryPhone}`} className="flex items-center gap-2 text-sm text-gray-200 hover:text-white transition-colors min-w-0">
+                  <Phone className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+                  <span className="truncate">{primaryPhone}</span>
+                </a>
+                <a href={`tel:${primaryPhone}`} className="flex items-center gap-1.5 text-xs font-medium text-indigo-200 bg-indigo-600/30 hover:bg-indigo-600/50 px-2.5 py-1 rounded-lg transition-colors flex-shrink-0">
+                  <Phone className="w-3.5 h-3.5" /> Call
+                </a>
+              </div>
+            )}
+
+            {client.city && (
+              <p className="flex items-center gap-2 mt-3 text-sm text-gray-300">
+                <MapPin className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+                <span className="truncate">{client.city}</span>
+              </p>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="p-4 space-y-5">
         {/* Name */}

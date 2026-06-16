@@ -130,6 +130,16 @@ export default function CalendarView() {
     });
   }, []);
 
+  // Open at a specific day when arriving via ?date= (e.g. from an event ticket)
+  useEffect(() => {
+    const dateParam = new URLSearchParams(window.location.search).get("date");
+    if (!dateParam) return;
+    try {
+      const d = parseISO(dateParam);
+      if (!isNaN(d)) { setCurrent(d); setSelectedDay(d); }
+    } catch { /* bad date — ignore */ }
+  }, []);
+
   // Scroll time grid to ~7 AM on load
   useEffect(() => {
     if (!loading && timeGridRef.current) {

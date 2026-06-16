@@ -1,16 +1,27 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { appClient } from "@/api/appClient";
-import { useNavigate } from "react-router-dom";
-import { createPageUrl } from "@/utils";
+import { useNavigate, Link } from "react-router-dom";
+import { createPageUrl, formatMoney } from "@/utils";
 import { useGoBack } from "@/hooks/useGoBack";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import {
-  ArrowLeft, Save, Trash2, Banknote,
+  ArrowLeft, Trash2, Banknote, Phone, User, Clock, MapPin,
   Package, Mail, Navigation, ChevronDown, ChevronUp, AlertTriangle, FileText, CalendarDays, RefreshCw,
-  Dumbbell, Check, X, CheckCircle2, Target, ExternalLink, Loader2, CalendarPlus
+  Dumbbell, Check, X, CheckCircle2, Target, ExternalLink, Loader2
 } from "lucide-react";
-import { eventsToIcal, downloadIcal } from "@/lib/icalExport";
 import { deleteCalendarEvent } from "@/lib/calendarClient";
+
+const STATUS_LABELS = { lead: "Tentative", confirmed: "Confirmed", completed: "Completed", cancelled: "Cancelled" };
+const SERIES_FIELDS = ["start_time", "end_time", "base_price", "total_price", "currency", "location_address"];
+
+function buildNavUrl(address) {
+  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}&travelmode=driving`;
+}
+
+function eventDateLabel(date) {
+  if (!date) return "";
+  try { return format(parseISO(date), "EEE d MMM"); } catch { return date; }
+}
 import EventInfoSection from "../components/workevent/EventInfoSection";
 import EventFinancialsSection from "../components/workevent/EventFinancialsSection";
 import EventEquipmentSection from "../components/workevent/EventEquipmentSection";
@@ -51,8 +62,13 @@ export default function WorkEventDetail() {
   const [invoice, setInvoice] = useState(null);
   const [loading, setLoading] = useState(!!id);
   const [saving, setSaving] = useState(false);
+  const [savingState, setSavingState] = useState("idle"); // 'idle' | 'saving' | 'saved'
   const [creatingInvoice, setCreatingInvoice] = useState(false);
-  const [openSection, setOpenSection] = useState(prefilledType === "Practice" ? "practice" : "info");
+  // Existing events open with everything collapsed so the hero leads; new
+  // events open the form (Info, or Practice when prefilled) since there's no hero.
+  const [openSection, setOpenSection] = useState(
+    id ? null : (prefilledType === "Practice" ? "practice" : "info")
+  );
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   // Practice-specific state
@@ -60,15 +76,29 @@ export default function WorkEventDetail() {
   const [upcomingGigs, setUpcomingGigs] = useState([]);
   const [linkedPracticeSessions, setLinkedPracticeSessions] = useState([]);
   const [loggingPractice, setLoggingPractice] = useState(false);
-  const [savedFlash, setSavedFlash] = useState(false);
-  // "Apply to series" prompt — shown after saving a recurring event when
-  // time or price changed. `seriesChangedFields` lists what changed.
-  const [seriesPrompt, setSeriesPrompt] = useState(null); // { fields: string[] } | null
+  // "Apply to series" prompt — shown after a recurring event's time/price/
+  // location changes vs. the baseline it was loaded with. `fields` lists what changed.
+  const [seriesPrompt, setSeriesPrompt] = useState(null); // { fields: string[], event } | null
   const [applyingToSeries, setApplyingToSeries] = useState(false);
-  // Snapshot of the event as last loaded from DB, for diffing on save
-  const [savedSnapshot, setSavedSnapshot] = useState(null);
+
+  // Refs for the debounced auto-save (read latest values without stale closures)
+  const eventRef = useRef(event);
+  const estimateRef = useRef(estimate);
+  const invoiceRef = useRef(invoice);
+  const saveTimerRef = useRef(null);
+  const seriesBaselineRef = useRef(null); // series-field values as loaded, for diffing
+  useEffect(() => { eventRef.current = event; }, [event]);
+  useEffect(() => { estimateRef.current = estimate; }, [estimate]);
+  useEffect(() => { invoiceRef.current = invoice; }, [invoice]);
 
   const isPractice = event.event_type === "Practice";
+
+  const clientObj = useMemo(
+    () => clients.find(c => c.id === event.client_id) || null,
+    [clients, event.client_id]
+  );
+  const clientPhone = clientObj?.phones?.find(Boolean) || "";
+  const eventFee = event.total_price || event.base_price || 0;
 
   // Filter sections based on event type
   const visibleSections = useMemo(() =>
@@ -88,7 +118,7 @@ export default function WorkEventDetail() {
         const e = evts[0];
         if (e.status === "confirmed" || e.status === "completed") e.base_price_locked = true;
         setEvent(e);
-        setSavedSnapshot(e);
+        seriesBaselineRef.current = e;
 
         // Load linked documents (one-directional: Document owns work_event_id)
         const docs = await appClient.entities.Document.filter({ work_event_id: e.id });
@@ -128,6 +158,65 @@ export default function WorkEventDetail() {
     }
   }, [isPractice, id]);
 
+  // ── Auto-save (existing events) ─────────────────────────────────────
+  // Persist the latest event to the DB. Reads from refs so the debounced
+  // timer never captures a stale event/estimate/invoice.
+  const persist = useCallback(async () => {
+    const ev = eventRef.current;
+    if (!ev?.id) return;
+    setSavingState("saving");
+    try {
+      await appClient.entities.WorkEvent.update(ev.id, ev);
+
+      // If the event is now confirmed and has an estimate but no invoice, convert it.
+      if ((ev.status === "confirmed" || ev.status === "completed") && estimateRef.current && !invoiceRef.current) {
+        const newInvoice = await appClient.helpers.convertEstimateToInvoice(estimateRef.current.id);
+        await appClient.entities.Document.update(newInvoice.id, { work_event_id: ev.id });
+        setInvoice(newInvoice);
+      }
+
+      // For recurring events, offer to apply series-relevant changes to the rest.
+      if (ev.is_recurring && ev.recurrence_id && seriesBaselineRef.current) {
+        const baseline = seriesBaselineRef.current;
+        const changed = SERIES_FIELDS.filter(
+          (f) => String(ev[f] ?? "") !== String(baseline[f] ?? ""),
+        );
+        if (changed.length > 0) setSeriesPrompt({ fields: changed, event: ev });
+      }
+
+      setSavingState("saved");
+      setTimeout(() => setSavingState((s) => (s === "saved" ? "idle" : s)), 2000);
+    } catch (err) {
+      console.error("Auto-save error:", err);
+      setSavingState("idle");
+    }
+  }, []);
+
+  const scheduleSave = useCallback(() => {
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => { persist(); }, 1200);
+  }, [persist]);
+
+  // Flush any pending save when leaving the page (e.g. tapping a bottom-nav
+  // item) so nothing is lost. Fire-and-forget raw update — no setState on an
+  // unmounting component.
+  useEffect(() => () => {
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      const ev = eventRef.current;
+      if (ev?.id) appClient.entities.WorkEvent.update(ev.id, ev).catch(() => {});
+    }
+  }, []);
+
+  // Open an accordion section and scroll it into view — used by the hero's
+  // clickable rows/badges so a tap jumps straight to the editable fields.
+  const goToSection = (key) => {
+    setOpenSection(key);
+    setTimeout(() => {
+      document.getElementById(`section-${key}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 60);
+  };
+
   const onChange = (field, value) => {
     setEvent(prev => {
       const updated = { ...prev, [field]: value };
@@ -140,75 +229,55 @@ export default function WorkEventDetail() {
     if (field === "event_type" && value === "Practice") {
       setOpenSection("practice");
     }
+    if (id) scheduleSave();
   };
 
-  const handleSave = async () => {
+  // Flush before navigating back, so a half-typed change still lands.
+  const handleBack = async () => {
+    if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null; }
+    if (id) await persist();
+    goBack();
+  };
+
+  // New events still need an explicit "create" action — auto-saving a blank
+  // event on the first keystroke would litter the calendar with junk.
+  const handleCreate = async () => {
     setSaving(true);
     try {
-      if (id) {
-        await appClient.entities.WorkEvent.update(id, event);
+      const created = await appClient.entities.WorkEvent.create(event);
 
-        // If event is now confirmed and has an estimate but no invoice, convert estimate to invoice
-        if ((event.status === "confirmed" || event.status === "completed") && estimate && !invoice) {
-          const newInvoice = await appClient.helpers.convertEstimateToInvoice(estimate.id);
-          await appClient.entities.Document.update(newInvoice.id, { work_event_id: id });
-          setInvoice(newInvoice);
-        }
-
-        // Update snapshot after a successful save
-        setSavedSnapshot(event);
-
-        // For recurring events, detect which series-relevant fields changed
-        // and offer to apply them to upcoming occurrences.
-        if (event.is_recurring && event.recurrence_id && savedSnapshot) {
-          const SERIES_FIELDS = ["start_time", "end_time", "base_price", "total_price", "currency", "location_address"];
-          const changed = SERIES_FIELDS.filter(
-            (f) => String(event[f] ?? "") !== String(savedSnapshot[f] ?? ""),
-          );
-          if (changed.length > 0) {
-            setSeriesPrompt({ fields: changed, event });
-          }
-        }
-
-        // Flash "Saved ✓" briefly for existing events
-        setSavedFlash(true);
-        setTimeout(() => setSavedFlash(false), 2000);
-      } else {
-        const created = await appClient.entities.WorkEvent.create(event);
-
-        // Skip auto-estimate for Practice events — no financials needed
-        if (created.event_type !== "Practice") {
-          const client = clients.find(c => c.id === created.client_id);
-          const fee = created.base_price || client?.default_fee || 0;
-          const estNumber = await appClient.helpers.getNextDocumentNumber("estimate");
-          await appClient.entities.Document.create({
-            document_type: "estimate",
-            document_number: estNumber,
-            title: created.title,
-            client_id: created.client_id || "",
-            client_email: "",
-            work_event_id: created.id,
-            is_standalone: false,
-            status: "draft",
-            currency: created.currency || "GBP",
-            line_items: fee > 0 ? [{ description: created.event_type || "Performance", quantity: 1, unit_price: fee, total: fee }] : [],
-            subtotal: fee,
-            total: fee,
-            discount_type: null,
-            discount_value: 0,
-            discount_amount: 0,
-            tax_rate: 0,
-            tax_amount: 0,
-            is_locked: false,
-            paid_amount: 0,
-          });
-        }
-
-        // Go back to wherever the user came from (calendar, practice page, events list)
-        goBack();
+      // Skip auto-estimate for Practice events — no financials needed
+      if (created.event_type !== "Practice") {
+        const client = clients.find(c => c.id === created.client_id);
+        const fee = created.base_price || client?.default_fee || 0;
+        const estNumber = await appClient.helpers.getNextDocumentNumber("estimate");
+        await appClient.entities.Document.create({
+          document_type: "estimate",
+          document_number: estNumber,
+          title: created.title,
+          client_id: created.client_id || "",
+          client_email: "",
+          work_event_id: created.id,
+          is_standalone: false,
+          status: "draft",
+          currency: created.currency || "GBP",
+          line_items: fee > 0 ? [{ description: created.event_type || "Performance", quantity: 1, unit_price: fee, total: fee }] : [],
+          subtotal: fee,
+          total: fee,
+          discount_type: null,
+          discount_value: 0,
+          discount_amount: 0,
+          tax_rate: 0,
+          tax_amount: 0,
+          is_locked: false,
+          paid_amount: 0,
+        });
       }
+
+      // Go back to wherever the user came from (calendar, practice page, events list)
+      goBack();
     } catch (err) {
-      console.error("Save error:", err);
+      console.error("Create error:", err);
     }
     setSaving(false);
   };
@@ -285,6 +354,14 @@ export default function WorkEventDetail() {
       fields: seriesPrompt.fields,
     });
     setApplyingToSeries(false);
+    seriesBaselineRef.current = eventRef.current; // changes are now the new baseline
+    setSeriesPrompt(null);
+  };
+
+  // Dismiss the series offer ("just this one" / close) and stop re-prompting
+  // for the same change by re-baselining to the current values.
+  const dismissSeriesPrompt = () => {
+    seriesBaselineRef.current = eventRef.current;
     setSeriesPrompt(null);
   };
 
@@ -293,70 +370,146 @@ export default function WorkEventDetail() {
   const alreadyLogged = isPractice && event.practice_logged;
   const wasSkipped = isPractice && event.practice_skipped && !event.practice_logged;
 
+  // Hero summary bits — what's attached, shown as clickable indicators.
+  const notesFirstLine = (event.notes || "").trim().split("\n").find(Boolean) || "";
+  const equipmentCount = (event.equipment_checklist || []).filter(Boolean).length;
+  const linkedDoc = invoice || estimate;
+  const linkedDocLabel = invoice ? "Invoice" : estimate ? "Estimate" : "";
+  const practiceCount = linkedPracticeSessions.length;
+  const heroBadge = "flex items-center gap-1.5 text-xs font-medium text-gray-200 bg-gray-800/60 hover:bg-gray-700/70 border border-gray-700/50 px-2.5 py-1 rounded-lg transition-colors";
+
   if (loading) return <div className="p-4 text-gray-400">Loading...</div>;
 
   return (
     <div className="max-w-xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 bg-gray-900 sticky top-0 z-20 border-b border-gray-800">
-        <button onClick={goBack} className="text-gray-400 hover:text-white transition-colors flex-shrink-0">
-          <ArrowLeft className="w-5 h-5" />
-        </button>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <h1 className="font-semibold text-white truncate">{event.title || "New Event"}</h1>
-            {event.is_recurring && (
-              <span className="flex-shrink-0 flex items-center gap-1 text-xs bg-indigo-900/60 text-indigo-300 border border-indigo-700/40 px-2 py-0.5 rounded-full">
-                <RefreshCw className="w-3 h-3" /> Recurring
-              </span>
-            )}
-            {isPractice && alreadyLogged && (
-              <span className="flex-shrink-0 flex items-center gap-1 text-xs bg-teal-900/60 text-teal-300 border border-teal-700/40 px-2 py-0.5 rounded-full">
-                <CheckCircle2 className="w-3 h-3" /> Logged
-              </span>
-            )}
-          </div>
-          {event.event_type && (
-            <p className="text-xs text-gray-500 truncate">
-              {event.event_type}
-              {event.status ? ` · ${{ lead: "Tentative", confirmed: "Confirmed", completed: "Completed", cancelled: "Cancelled" }[event.status] || event.status}` : ""}
-            </p>
-          )}
-          {event.start_time && (
-            <p className="text-xs text-gray-500">
-              {event.start_time}{event.end_time ? `–${event.end_time}` : ""}
-            </p>
-          )}
-        </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          {id && event.date && (
-            <button
-              onClick={() => {
-                const ics = eventsToIcal([event]);
-                downloadIcal(`${(event.title || "event").replace(/[^a-z0-9]/gi, "-").toLowerCase()}.ics`, ics);
-              }}
-              title="Add to iPhone Calendar"
-              className="p-1.5 rounded-lg text-gray-400 hover:text-indigo-300 hover:bg-gray-800 transition-colors"
-            >
-              <CalendarPlus className="w-4 h-4" />
-            </button>
-          )}
+      {/* New events keep a small bar with Create — existing events navigate
+           back via the bottom nav, so they need no header at all. */}
+      {!id && (
+        <div className="flex items-center gap-3 px-4 py-3 bg-gray-900 sticky top-0 z-20 border-b border-gray-800">
+          <button onClick={handleBack} className="text-gray-400 hover:text-white transition-colors flex-shrink-0">
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <h1 className="flex-1 min-w-0 font-semibold text-white truncate">New Event</h1>
           <button
-            onClick={handleSave}
-            disabled={saving || loading}
-            className={`px-4 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-all ${
-              savedFlash
-                ? "bg-green-600 text-white"
-                : "bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white"
-            }`}
+            onClick={handleCreate}
+            disabled={saving}
+            className="px-4 py-1.5 rounded-lg text-sm font-medium bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white flex items-center gap-1.5 transition-colors flex-shrink-0"
           >
-            {savedFlash
-              ? <><CheckCircle2 className="w-4 h-4" /> Saved</>
-              : <><Save className="w-4 h-4" /> {saving ? "Saving..." : "Save"}</>
-            }
+            {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Creating…</> : <><Check className="w-4 h-4" /> Create</>}
           </button>
         </div>
-      </div>
+      )}
+
+      {/* Hero ticket — at-a-glance, fully clickable summary for an existing event */}
+      {id && (
+        <div className="mx-4 mt-4 bg-gradient-to-br from-indigo-900/80 to-gray-900 rounded-2xl border border-indigo-700/30 overflow-hidden">
+          <div className="p-6">
+            <div className="flex items-start justify-between gap-3">
+              <h2 className="text-2xl font-bold text-white leading-tight">{event.title || "Untitled Event"}</h2>
+              <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                {eventFee > 0 && (
+                  <span className="text-xl font-bold text-white whitespace-nowrap">
+                    {formatMoney(eventFee, event.currency || "GBP").replace(/\.00$/, "")}
+                  </span>
+                )}
+                <span className="text-[11px] h-4 flex items-center">
+                  {savingState === "saving" && <span className="text-indigo-300/80 flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> Saving…</span>}
+                  {savingState === "saved" && <span className="text-green-400 flex items-center gap-1"><Check className="w-3 h-3" /> Saved</span>}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
+              {event.event_type && (
+                <span className="text-[11px] font-medium text-indigo-200 bg-indigo-600/30 px-2 py-0.5 rounded-full">{event.event_type}</span>
+              )}
+              {event.status && (
+                <span className="text-[11px] font-medium text-gray-300 bg-gray-700/50 px-2 py-0.5 rounded-full">{STATUS_LABELS[event.status] || event.status}</span>
+              )}
+              {event.is_recurring && (
+                <span className="text-[11px] font-medium text-indigo-200 bg-indigo-600/30 px-2 py-0.5 rounded-full flex items-center gap-1"><RefreshCw className="w-3 h-3" /> Recurring</span>
+              )}
+              {isPractice && alreadyLogged && (
+                <span className="text-[11px] font-medium text-teal-300 bg-teal-900/50 px-2 py-0.5 rounded-full flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Logged</span>
+              )}
+            </div>
+
+            {(event.date || event.start_time) && (
+              <div className="flex items-center gap-3 text-sm text-gray-200 flex-wrap mt-4">
+                {event.date && (
+                  <button
+                    onClick={() => navigate(createPageUrl(`CalendarView?date=${event.date}`))}
+                    className="flex items-center gap-1.5 hover:text-white transition-colors"
+                  >
+                    <CalendarDays className="w-4 h-4 text-indigo-400" />{eventDateLabel(event.date)}
+                  </button>
+                )}
+                {event.start_time && (
+                  <span className="flex items-center gap-1.5"><Clock className="w-4 h-4 text-indigo-400" />{event.start_time}{event.end_time ? `–${event.end_time}` : ""}</span>
+                )}
+              </div>
+            )}
+
+            {clientObj && (
+              <div className="flex items-center justify-between gap-2 mt-3">
+                <Link to={createPageUrl(`ClientDetail?id=${clientObj.id}`)} className="flex items-center gap-1.5 text-sm text-gray-200 hover:text-white transition-colors min-w-0">
+                  <User className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+                  <span className="truncate">{clientObj.name}</span>
+                </Link>
+                {clientPhone && (
+                  <a href={`tel:${clientPhone}`} className="flex items-center gap-1.5 text-xs font-medium text-indigo-200 bg-indigo-600/30 hover:bg-indigo-600/50 px-2.5 py-1 rounded-lg transition-colors flex-shrink-0">
+                    <Phone className="w-3.5 h-3.5" /> Call
+                  </a>
+                )}
+              </div>
+            )}
+
+            {event.location_address && (
+              <a
+                href={buildNavUrl(event.location_address)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 mt-3 text-sm text-gray-300 hover:text-white transition-colors group"
+              >
+                <MapPin className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+                <span className="truncate flex-1">{event.location_address}</span>
+                <Navigation className="w-4 h-4 text-indigo-400 flex-shrink-0 group-hover:text-indigo-300" />
+              </a>
+            )}
+
+            {notesFirstLine && (
+              <button
+                onClick={() => goToSection("info")}
+                className="flex items-start gap-2 mt-3 text-sm text-gray-300 hover:text-white transition-colors text-left w-full"
+              >
+                <FileText className="w-4 h-4 text-indigo-400 flex-shrink-0 mt-0.5" />
+                <span className="truncate flex-1">{notesFirstLine}</span>
+              </button>
+            )}
+
+            {/* What's attached — tap to jump to that section */}
+            {(linkedDoc || equipmentCount > 0 || (!isPractice && practiceCount > 0)) && (
+              <div className="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-indigo-700/20">
+                {linkedDoc && (
+                  <button onClick={() => goToSection("docs")} className={heroBadge}>
+                    <FileText className="w-3.5 h-3.5 text-indigo-400" /> {linkedDocLabel}
+                  </button>
+                )}
+                {equipmentCount > 0 && (
+                  <button onClick={() => goToSection("equipment")} className={heroBadge}>
+                    <Package className="w-3.5 h-3.5 text-indigo-400" /> Gear · {equipmentCount}
+                  </button>
+                )}
+                {!isPractice && practiceCount > 0 && (
+                  <button onClick={() => goToSection("practice")} className={heroBadge}>
+                    <Dumbbell className="w-3.5 h-3.5 text-teal-400" /> Practice · {practiceCount}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Pulled from Google with no details — nudge the user to complete it */}
       {id && event.created_from_gcal && !event.client_id && (
@@ -389,7 +542,7 @@ export default function WorkEventDetail() {
               </p>
             </div>
             <button
-              onClick={() => setSeriesPrompt(null)}
+              onClick={dismissSeriesPrompt}
               className="text-indigo-400/60 hover:text-indigo-300 transition-colors flex-shrink-0"
             >
               <X className="w-4 h-4" />
@@ -406,7 +559,7 @@ export default function WorkEventDetail() {
                 : <><CheckCircle2 className="w-3.5 h-3.5" /> Yes, apply to all upcoming</>}
             </button>
             <button
-              onClick={() => setSeriesPrompt(null)}
+              onClick={dismissSeriesPrompt}
               className="px-4 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg py-2 text-sm font-medium transition-colors"
             >
               Just this one
@@ -476,7 +629,7 @@ export default function WorkEventDetail() {
       {/* Sections */}
       <div className="p-4 space-y-2">
         {visibleSections.map(({ key, label, icon: Icon }) => (
-          <div key={key} className="bg-gray-900 rounded-xl overflow-hidden border border-gray-800">
+          <div key={key} id={`section-${key}`} className="bg-gray-900 rounded-xl overflow-hidden border border-gray-800">
             <button
               onClick={() => toggleSection(key)}
               className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-800/50 transition-colors"

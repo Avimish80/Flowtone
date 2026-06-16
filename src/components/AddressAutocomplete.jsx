@@ -26,16 +26,18 @@ export default function AddressAutocomplete({
   const [results, setResults] = useState([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const justPickedRef = useRef(false);
+  // Only search after the user actually types. Without this, loading an event
+  // with a saved address would re-trigger the search and pop the dropdown open
+  // every single time the ticket is opened — even though the value is already
+  // committed. Programmatic value changes (initial load, picking a suggestion)
+  // leave this false, so they never search.
+  const interactedRef = useRef(false);
   const boxRef = useRef(null);
 
   // Debounced lookup. Nominatim asks for <=1 req/sec, so wait for a pause in
   // typing, only search 3+ chars, and abort the previous request.
   useEffect(() => {
-    if (justPickedRef.current) {
-      justPickedRef.current = false;
-      return;
-    }
+    if (!interactedRef.current) return;
     const q = value.trim();
     if (q.length < 3) {
       setResults([]);
@@ -81,7 +83,7 @@ export default function AddressAutocomplete({
   }, []);
 
   function pick(address) {
-    justPickedRef.current = true; // skip the search the value change would trigger
+    interactedRef.current = false; // committed value — don't re-search it
     onChange(address);
     setResults([]);
     setOpen(false);
@@ -93,7 +95,7 @@ export default function AddressAutocomplete({
         className={inputClassName}
         placeholder={placeholder}
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => { interactedRef.current = true; onChange(e.target.value); }}
         onFocus={() => results.length > 0 && setOpen(true)}
         autoComplete="off"
       />

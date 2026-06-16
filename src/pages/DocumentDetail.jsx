@@ -1,14 +1,19 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { appClient } from "@/api/appClient";
-import { useNavigate } from "react-router-dom";
-import { createPageUrl, currencySymbol } from "@/utils";
+import { useNavigate, Link } from "react-router-dom";
+import { createPageUrl, currencySymbol, formatMoney } from "@/utils";
 import { useGoBack } from "@/hooks/useGoBack";
 import {
   ArrowLeft, Save, Trash2, Plus, X, AlertTriangle, Send, CheckCircle2,
   XCircle, CalendarDays, Loader2, ExternalLink, ChevronDown,
-  Lock, Unlock, ArrowRightLeft, Printer, Mail,
+  Lock, Unlock, ArrowRightLeft, Printer, Mail, User, Phone, Check,
 } from "lucide-react";
 import { format, addDays, parseISO } from "date-fns";
+
+function docDateLabel(date) {
+  if (!date) return "";
+  try { return format(parseISO(date), "EEE d MMM"); } catch { return date; }
+}
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
@@ -64,6 +69,11 @@ export default function DocumentDetail() {
   const [loading, setLoading] = useState(!!id);
   const [saving, setSaving] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
+  const [savingState, setSavingState] = useState("idle"); // 'idle' | 'saving' | 'saved' — auto-save
+  const [showEditor, setShowEditor] = useState(false); // detailed editor collapsed under the hero
+  const lastSavedJsonRef = useRef(null); // serialized doc as last persisted, to skip no-op saves
+  const docRef = useRef(doc);
+  useEffect(() => { docRef.current = doc; }, [doc]);
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const [sendingEmail, setSendingEmail] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -126,6 +136,7 @@ export default function DocumentDetail() {
       if (docs?.[0]) {
         const d = docs[0];
         setDoc(d);
+        lastSavedJsonRef.current = JSON.stringify(d); // baseline so auto-save skips the freshly-loaded doc
         setEmailTo(d.client_email || "");
 
         if (d.work_event_id) {
@@ -205,6 +216,43 @@ export default function DocumentDetail() {
     didPrefill.current = true;
     handleSelectEvent(prefillEventId);
   }, [availableEvents]);
+
+  // ── Auto-save (existing, unlocked docs) ─────────────────────────────
+  // Debounced; persists whenever `doc` actually changes. New docs still use
+  // the explicit Create button, and locked docs are never auto-saved.
+  useEffect(() => {
+    if (!id || loading || doc.is_locked || !doc.title?.trim()) return;
+    const json = JSON.stringify(doc);
+    if (json === lastSavedJsonRef.current) return;
+    const t = setTimeout(async () => {
+      setSavingState("saving");
+      try {
+        const dataToSave = { ...doc };
+        if (isInvoice && !dataToSave.work_event_id) dataToSave.is_standalone = true;
+        if (dataToSave.client_id && !dataToSave.client_email) {
+          const client = clientMap[dataToSave.client_id];
+          if (client?.emails?.[0]) dataToSave.client_email = client.emails[0];
+        }
+        await appClient.entities.Document.update(id, dataToSave);
+        lastSavedJsonRef.current = json;
+        setSavingState("saved");
+        setTimeout(() => setSavingState(s => (s === "saved" ? "idle" : s)), 2000);
+      } catch (err) {
+        console.error("Invoice auto-save error:", err);
+        setSavingState("idle");
+      }
+    }, 1200);
+    return () => clearTimeout(t);
+  }, [doc, id, loading, isInvoice, clientMap]);
+
+  // Flush a pending change on unmount (e.g. tapping the Finance bottom-nav)
+  // so nothing is lost — fire-and-forget, no setState on an unmounting page.
+  useEffect(() => () => {
+    const d = docRef.current;
+    if (id && d && !d.is_locked && d.title?.trim() && JSON.stringify(d) !== lastSavedJsonRef.current) {
+      appClient.entities.Document.update(id, d).catch(() => {});
+    }
+  }, [id]);
 
   const clientName = useMemo(() => {
     const cid = linkedEvent?.client_id || doc.client_id;
@@ -750,6 +798,11 @@ export default function DocumentDetail() {
     client_name: clientName || doc.client_name || "",
   }), [doc, clientName]);
 
+  // Hero summary bits
+  const heroClient = clientMap[linkedEvent?.client_id || doc.client_id] || null;
+  const heroClientPhone = heroClient?.phones?.find(Boolean) || "";
+  const isPaid = doc.status === "paid";
+
   if (loading) return <div className="p-4 text-gray-400">Loading...</div>;
 
   // ─── Client dropdown helper ──────────────────────────────────────
@@ -778,30 +831,134 @@ export default function DocumentDetail() {
 
   return (
     <div className="max-w-xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 bg-gray-900 sticky top-0 z-20 border-b border-gray-800">
-        <button onClick={handleGoBack} className="text-gray-400 hover:text-white transition-colors flex items-center gap-1.5">
-          <ArrowLeft className="w-5 h-5" />
-          <span className="text-sm text-gray-500">{typeLabel}</span>
-          {doc.is_locked && <Lock className="w-3.5 h-3.5 text-yellow-500" />}
-        </button>
-        <div className="flex-1 flex justify-center">
-          {id && isInvoice && (
-            <span className={`text-xs font-semibold px-3 py-1.5 rounded-full border capitalize ${statusPillClass}`}>
-              {statusLabel}
-            </span>
-          )}
+      {/* New documents keep a small bar with Create — existing ones navigate
+           back via the Finance bottom-nav, so they lead with the hero. */}
+      {!id && (
+        <div className="flex items-center gap-3 px-4 py-3 bg-gray-900 sticky top-0 z-20 border-b border-gray-800">
+          <button onClick={handleGoBack} className="text-gray-400 hover:text-white transition-colors flex items-center gap-1.5">
+            <ArrowLeft className="w-5 h-5" />
+            <span className="text-sm text-gray-500">{typeLabel}</span>
+          </button>
+          <div className="flex-1" />
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="px-4 py-1.5 rounded-lg text-sm font-medium bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white flex items-center gap-1.5 transition-colors"
+          >
+            {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Creating…</> : <><Save className="w-4 h-4" /> Create</>}
+          </button>
         </div>
-        <div className="flex items-center gap-2">
-          {id && (
-            <>
+      )}
+
+      {/* Hero ticket — leads the page: all the invoice info, clickable + quick actions */}
+      {id && (
+        <div className="mx-4 mt-4 bg-gradient-to-br from-indigo-900/80 to-gray-900 rounded-2xl border border-indigo-700/30 overflow-hidden">
+          <div className="p-6">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="text-[11px] uppercase tracking-wider text-indigo-300/70">
+                    {typeLabel}{doc.document_number ? ` · ${doc.document_number}` : ""}
+                  </p>
+                  {savingState === "saving" && <span className="text-[10px] text-indigo-300/70 flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> Saving…</span>}
+                  {savingState === "saved" && <span className="text-[10px] text-green-400 flex items-center gap-1"><Check className="w-3 h-3" /> Saved</span>}
+                </div>
+                <h2 className="text-2xl font-bold text-white leading-tight mt-0.5">
+                  {formatMoney(doc.total || 0, doc.currency || "GBP").replace(/\.00$/, "")}
+                </h2>
+              </div>
+              <span className={`text-xs font-semibold px-3 py-1 rounded-full border capitalize flex-shrink-0 ${statusPillClass}`}>
+                {statusLabel}
+              </span>
+            </div>
+
+            {doc.title && <p className="text-sm text-gray-300 mt-2">{doc.title}</p>}
+
+            {heroClient && (
+              <div className="flex items-center justify-between gap-2 mt-4">
+                <Link to={createPageUrl(`ClientDetail?id=${heroClient.id}`)} className="flex items-center gap-1.5 text-sm text-gray-200 hover:text-white transition-colors min-w-0">
+                  <User className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+                  <span className="truncate">{heroClient.name}</span>
+                </Link>
+                {heroClientPhone && (
+                  <a href={`tel:${heroClientPhone}`} className="flex items-center gap-1.5 text-xs font-medium text-indigo-200 bg-indigo-600/30 hover:bg-indigo-600/50 px-2.5 py-1 rounded-lg transition-colors flex-shrink-0">
+                    <Phone className="w-3.5 h-3.5" /> Call
+                  </a>
+                )}
+              </div>
+            )}
+
+            {(isPaid ? doc.paid_date : doc.due_date) && (
+              <div className="flex items-center gap-3 text-sm flex-wrap mt-3">
+                {isPaid ? (
+                  <span className="flex items-center gap-1.5 text-green-400"><CheckCircle2 className="w-4 h-4" /> Paid {docDateLabel(doc.paid_date)}</span>
+                ) : (
+                  <span className={`flex items-center gap-1.5 ${statusIsOverdue ? "text-red-300" : "text-gray-200"}`}>
+                    <CalendarDays className="w-4 h-4 text-indigo-400" /> Due {docDateLabel(doc.due_date)}
+                  </span>
+                )}
+              </div>
+            )}
+
+            {linkedEvent && (
+              <button
+                onClick={() => navigate(createPageUrl(`WorkEventDetail?id=${linkedEvent.id}`))}
+                className="flex items-center gap-2 mt-3 text-sm text-gray-300 hover:text-white transition-colors w-full text-left"
+              >
+                <CalendarDays className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+                <span className="truncate flex-1">{linkedEvent.title || "Linked event"}</span>
+                <ExternalLink className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+              </button>
+            )}
+
+            {/* Line items — the full breakdown, read-only here (edit below) */}
+            {(doc.line_items || []).length > 0 && (
+              <div className="mt-4 pt-4 border-t border-indigo-700/20 space-y-1.5">
+                {doc.line_items.map((it, i) => (
+                  <div key={i} className="flex items-center justify-between gap-3 text-sm">
+                    <span className="text-gray-300 truncate">{it.quantity > 1 ? `${it.quantity}× ` : ""}{it.description || "Item"}</span>
+                    <span className="text-gray-200 font-medium whitespace-nowrap">{formatMoney(it.total || 0, doc.currency || "GBP").replace(/\.00$/, "")}</span>
+                  </div>
+                ))}
+                {(doc.discount_amount > 0 || doc.tax_amount > 0) && (
+                  <div className="flex items-center justify-end gap-2 text-xs text-gray-400 pt-1">
+                    {doc.discount_amount > 0 && <span>Discount −{formatMoney(doc.discount_amount, doc.currency || "GBP").replace(/\.00$/, "")}</span>}
+                    {doc.discount_amount > 0 && doc.tax_amount > 0 && <span>·</span>}
+                    {doc.tax_amount > 0 && <span>Tax +{formatMoney(doc.tax_amount, doc.currency || "GBP").replace(/\.00$/, "")}</span>}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Quick actions: status + print + email */}
+            <div className="flex items-center gap-2 flex-wrap mt-4 pt-4 border-t border-indigo-700/20">
+              {!doc.is_locked && isInvoice && (
+                <>
+                  {doc.status === "draft" && (
+                    <button onClick={handleMarkSent} className="text-xs bg-blue-600/20 text-blue-300 hover:bg-blue-600/35 border border-blue-700/30 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors"><Send className="w-3.5 h-3.5" /> Mark sent</button>
+                  )}
+                  {(doc.status === "sent" || doc.status === "draft") && (
+                    <button onClick={handleMarkPaid} className="text-xs bg-green-600/20 text-green-300 hover:bg-green-600/35 border border-green-700/30 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors"><CheckCircle2 className="w-3.5 h-3.5" /> Mark paid</button>
+                  )}
+                  {doc.status === "paid" && (
+                    <button onClick={handleMarkUnpaid} className="text-xs bg-gray-700/60 text-gray-300 hover:bg-gray-700 border border-gray-600/40 px-3 py-1.5 rounded-lg transition-colors">Mark unpaid</button>
+                  )}
+                  {(doc.status === "cancelled" || doc.status === "void") && (
+                    <button onClick={handleReopenDraft} className="text-xs bg-gray-700/60 text-gray-300 hover:bg-gray-700 border border-gray-600/40 px-3 py-1.5 rounded-lg transition-colors">Reopen as draft</button>
+                  )}
+                </>
+              )}
+              {doc.is_locked && (
+                <span className="text-xs text-yellow-500/80 flex items-center gap-1"><Lock className="w-3.5 h-3.5" /> Locked</span>
+              )}
+              <div className="flex-1" />
               <button
                 onClick={() => {
                   const templateId = appSettings?.invoice_template || 1;
                   printInvoice(docForPrint, bizProfile, appSettings, templateId);
                 }}
                 title="Print / Save as PDF"
-                className="bg-gray-700 hover:bg-gray-600 text-white p-1.5 rounded-lg transition-colors"
+                className="text-gray-300 hover:text-white bg-gray-800/40 hover:bg-gray-700/60 border border-gray-700/40 p-1.5 rounded-lg transition-colors"
               >
                 <Printer className="w-4 h-4" />
               </button>
@@ -813,28 +970,27 @@ export default function DocumentDetail() {
                   setShowEmailDialog(true);
                 }}
                 title="Send by email"
-                className="bg-gray-700 hover:bg-gray-600 text-white p-1.5 rounded-lg transition-colors"
+                className="text-gray-300 hover:text-white bg-gray-800/40 hover:bg-gray-700/60 border border-gray-700/40 p-1.5 rounded-lg transition-colors"
               >
                 <Mail className="w-4 h-4" />
               </button>
-            </>
-          )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit-details toggle — reveals the full editor below the hero */}
+      {id && (
+        <div className="px-4 mt-3">
           <button
-            onClick={handleSave}
-            disabled={saving || doc.is_locked}
-            className={`px-4 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-all ${
-              savedFlash
-                ? "bg-green-600 text-white"
-                : "bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white"
-            }`}
+            onClick={() => setShowEditor(v => !v)}
+            className="flex items-center gap-1.5 text-xs font-medium text-gray-400 hover:text-gray-200 transition-colors"
           >
-            {savedFlash
-              ? <><CheckCircle2 className="w-4 h-4" /> Saved</>
-              : <><Save className="w-4 h-4" /> {saving ? "Saving..." : "Save"}</>
-            }
+            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showEditor ? "" : "-rotate-90"}`} />
+            {showEditor ? "Hide details" : "Edit details"}
           </button>
         </div>
-      </div>
+      )}
 
       <div className="p-4 space-y-4">
         {/* Error */}
@@ -1040,6 +1196,8 @@ export default function DocumentDetail() {
           </div>
         )}
 
+        {/* Detailed editor — collapsed under the hero for existing docs */}
+        {(!id || showEditor) && (<>
         {/* ── Unified Invoice Card: Title · Items · Total ────────── */}
         <div className="rounded-2xl border border-gray-700/60 bg-gray-800/30 overflow-hidden">
 
@@ -1462,6 +1620,7 @@ export default function DocumentDetail() {
           )}
         </div>}
         </div>
+        </>)}
 
         {/* Delete */}
         {id && (
