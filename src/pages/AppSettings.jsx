@@ -1,7 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { appClient } from "@/api/appClient";
 import { useAuth } from "@/lib/AuthContext";
-import { Check, Mail, Navigation, Bell, Banknote, Building2, CalendarDays, RefreshCw, ChevronDown, ChevronUp, Upload, X, Download, Upload as UploadIcon, LogOut, Sparkles } from "lucide-react";
+import {
+  Check, Mail, Bell, Banknote, Building2, CalendarDays, RefreshCw,
+  ChevronDown, ChevronUp, Upload, X, Download, Upload as UploadIcon,
+  LogOut, Sparkles, Link2
+} from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { getAssistantProfile, DEFAULT_ASSISTANT_NAME, DEFAULT_LANGUAGE } from "@/lib/assistantProfile";
 import { LANGUAGE_OPTIONS } from "@/components/onboarding/onboardingScript";
@@ -18,11 +22,15 @@ export default function AppSettings() {
   const { logout, user, isPreviewMode } = useAuth();
   const [settings, setSettings] = useState(null);
   const [profile, setProfile] = useState(null);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [saveState, setSaveState] = useState("idle"); // 'idle' | 'saving' | 'saved'
   const [loading, setLoading] = useState(true);
   const [openSections, setOpenSections] = useState(new Set(["finance"]));
   const logoInputRef = useRef(null);
+
+  // Refs for debounced save
+  const settingsRef = useRef(null);
+  const profileRef = useRef(null);
+  const saveTimerRef = useRef(null);
 
   // ── Push Notification state ────────────────────────────────────────
   const [pushActive, setPushActive] = useState(false);
@@ -33,13 +41,13 @@ export default function AppSettings() {
 
   // ── Gmail state ───────────────────────────────────────────────────
   const [gmailConnected, setGmailConnected] = useState(false);
-  const [gmailEmail, setGmailEmail] = useState('');
+  const [gmailEmail, setGmailEmail] = useState("");
 
   // ── Calendar state ────────────────────────────────────────────────
   const [calStatus, setCalStatus] = useState({ connected: false });
   const [calBusy, setCalBusy] = useState(false);
   const [calSyncing, setCalSyncing] = useState(false);
-  const [calMsg, setCalMsg] = useState('');
+  const [calMsg, setCalMsg] = useState("");
 
   // ── CSV Import state ──────────────────────────────────────────────
   const [showCSVImport, setShowCSVImport] = useState(false);
@@ -49,7 +57,7 @@ export default function AppSettings() {
       appClient.entities.AppSettings.list(),
       appClient.entities.BusinessProfile.list(),
     ]).then(([settingsData, profileData]) => {
-      setSettings(settingsData[0] || {
+      const s = settingsData[0] || {
         invoice_template: 1,
         default_currency: "GBP",
         default_nav_app: "google_maps",
@@ -61,39 +69,28 @@ export default function AppSettings() {
         invoice_number_prefix: "INV-",
         invoice_number_next: 1,
         default_tax_rate: 0,
-      });
-      setProfile(profileData[0] || {
-        business_name: "",
-        contact_name: "",
-        email: "",
-        phone: "",
-        address_line_1: "",
-        address_line_2: "",
-        city: "",
-        postcode: "",
-        country: "GB",
-        tax_id: "",
-        bank_name: "",
-        bank_account_name: "",
-        bank_sort_code: "",
-        bank_account_number: "",
-        bank_iban: "",
+      };
+      const p = profileData[0] || {
+        business_name: "", contact_name: "", email: "", phone: "",
+        address_line_1: "", address_line_2: "", city: "", postcode: "",
+        country: "GB", tax_id: "", bank_name: "", bank_account_name: "",
+        bank_sort_code: "", bank_account_number: "", bank_iban: "",
         payment_instructions: "",
-      });
+      };
+      setSettings(s);
+      setProfile(p);
+      settingsRef.current = s;
+      profileRef.current = p;
       setLoading(false);
     }).catch(() => setLoading(false));
 
-    // Check current push subscription status
     isPushActive().then(setPushActive).catch(() => {});
-
-    // Check Gmail connection status
     setGmailConnected(isGmailConnected());
     setGmailEmail(getGmailEmail());
 
-    // Handle the Google Calendar OAuth return, then load its status
     const hash = window.location.hash;
     if (hash.includes("calendar=connected") || hash.includes("calendar=error")) {
-      setOpenSections(new Set(["calendar"]));
+      setOpenSections(new Set(["connections"]));
       setCalMsg(hash.includes("calendar=connected")
         ? "Google Calendar connected."
         : "Couldn't connect Google Calendar. Please try again.");
@@ -102,63 +99,84 @@ export default function AppSettings() {
     getCalendarStatus().then(setCalStatus).catch(() => {});
   }, []);
 
-  const onChange = (field, value) => setSettings(prev => ({ ...prev, [field]: value }));
-  const onProfileChange = (field, value) => setProfile(prev => ({ ...prev, [field]: value }));
+  // Keep refs in sync with state
+  useEffect(() => { settingsRef.current = settings; }, [settings]);
+  useEffect(() => { profileRef.current = profile; }, [profile]);
+
+  // ── Debounced auto-save ────────────────────────────────────────────
+  const scheduleSave = useCallback(() => {
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(async () => {
+      const s = settingsRef.current;
+      const p = profileRef.current;
+      if (!s || !p) return;
+      setSaveState("saving");
+      try {
+        if (s.id) {
+          await appClient.entities.AppSettings.update(s.id, s);
+        } else {
+          const created = await appClient.entities.AppSettings.create(s);
+          setSettings(created);
+          settingsRef.current = created;
+        }
+        if (p.id) {
+          await appClient.entities.BusinessProfile.update(p.id, p);
+        } else {
+          const created = await appClient.entities.BusinessProfile.create(p);
+          setProfile(created);
+          profileRef.current = created;
+        }
+        getAssistantProfile({ fresh: true }).catch(() => {});
+        setSaveState("saved");
+        setTimeout(() => setSaveState("idle"), 2000);
+      } catch (err) {
+        console.error("Auto-save error:", err);
+        setSaveState("idle");
+      }
+    }, 1500);
+  }, []);
+
+  const onChange = (field, value) => {
+    setSettings(prev => ({ ...prev, [field]: value }));
+    scheduleSave();
+  };
+  const onProfileChange = (field, value) => {
+    setProfile(prev => ({ ...prev, [field]: value }));
+    scheduleSave();
+  };
 
   // ── Calendar helpers ───────────────────────────────────────────────
   const handleConnectCalendar = async () => {
-    setCalBusy(true);
-    setCalMsg("");
-    try {
-      await connectCalendar(); // redirects to Google
-    } catch {
-      setCalMsg("Couldn't start Google sign-in.");
-      setCalBusy(false);
-    }
+    setCalBusy(true); setCalMsg("");
+    try { await connectCalendar(); }
+    catch { setCalMsg("Couldn't start Google sign-in."); setCalBusy(false); }
   };
 
   const handleDisconnectCalendar = async () => {
     setCalBusy(true);
-    try {
-      await disconnectCalendar();
-      setCalStatus({ connected: false });
-      setCalMsg("");
-    } catch {
-      setCalMsg("Couldn't disconnect.");
-    }
+    try { await disconnectCalendar(); setCalStatus({ connected: false }); setCalMsg(""); }
+    catch { setCalMsg("Couldn't disconnect."); }
     setCalBusy(false);
   };
 
   const handleCalendarSyncNow = async () => {
-    setCalSyncing(true);
-    setCalMsg("");
+    setCalSyncing(true); setCalMsg("");
     try {
       const r = await calendarSyncNow();
-      if (r.skipped) {
-        setCalMsg("Sync is turned off.");
-      } else {
-        setCalStatus(s => ({ ...s, last_synced_at: r.last_synced_at }));
-        setCalMsg(`Synced — ${r.pushed} sent, ${r.pulled} received.`);
-      }
-    } catch {
-      setCalMsg("Sync failed. Please try again.");
-    }
+      if (r.skipped) { setCalMsg("Sync is turned off."); }
+      else { setCalStatus(s => ({ ...s, last_synced_at: r.last_synced_at })); setCalMsg(`Synced — ${r.pushed} sent, ${r.pulled} received.`); }
+    } catch { setCalMsg("Sync failed. Please try again."); }
     setCalSyncing(false);
   };
 
   const handleCalendarToggle = async () => {
     const next = !calStatus.sync_enabled;
     setCalStatus(s => ({ ...s, sync_enabled: next }));
-    try {
-      await setCalendarSyncEnabled(next);
-    } catch {
-      setCalStatus(s => ({ ...s, sync_enabled: !next })); // revert on failure
-    }
+    try { await setCalendarSyncEnabled(next); }
+    catch { setCalStatus(s => ({ ...s, sync_enabled: !next })); }
   };
 
   // ── Push helpers ───────────────────────────────────────────────────
-
-  /** Load events, clients, documents then reschedule all notifications. */
   const reschedule = useCallback(async (currentSettings) => {
     try {
       const [events, clients, documents] = await Promise.all([
@@ -167,97 +185,70 @@ export default function AppSettings() {
         appClient.entities.Document.list().catch(() => []),
       ]);
       await schedulePushNotifications(events, clients, documents, currentSettings);
-    } catch (err) {
-      console.warn("Push reschedule failed:", err);
-    }
+    } catch (err) { console.warn("Push reschedule failed:", err); }
   }, []);
 
   const handleEnablePush = async () => {
-    setPushLoading(true);
-    setPushError("");
+    setPushLoading(true); setPushError("");
     const level = settings?.notification_level || "standard";
     try {
       const result = await registerPush(level);
-      if (result.success) {
-        setPushActive(true);
-        await reschedule(settings);
-      } else if (result.reason === "denied") {
-        setPushError("Notification permission was denied. Please allow notifications in your browser settings.");
-      } else {
-        setPushError("Push notifications are not supported on this device or browser.");
-      }
-    } catch (err) {
-      console.error("Enable push error:", err);
-      setPushError("Something went wrong enabling notifications.");
-    }
+      if (result.success) { setPushActive(true); await reschedule(settings); }
+      else if (result.reason === "denied") setPushError("Notification permission was denied. Please allow notifications in your browser settings.");
+      else setPushError("Push notifications are not supported on this device or browser.");
+    } catch { setPushError("Something went wrong enabling notifications."); }
     setPushLoading(false);
   };
 
   const handleDisablePush = async () => {
-    setPushLoading(true);
-    setPushError("");
-    try {
-      await unregisterPush();
-      setPushActive(false);
-    } catch (err) {
-      console.error("Disable push error:", err);
-      setPushError("Something went wrong disabling notifications.");
-    }
+    setPushLoading(true); setPushError("");
+    try { await unregisterPush(); setPushActive(false); }
+    catch { setPushError("Something went wrong disabling notifications."); }
     setPushLoading(false);
   };
 
   const handleLevelChange = async (level) => {
-    // When switching to full, seed notification_prefs from full defaults if not set
     const updatedSettings = { ...settings, notification_level: level };
-    if (level === "full" && !settings?.notification_prefs) {
-      updatedSettings.notification_prefs = DEFAULT_PREFS.full;
-    }
+    if (level === "full" && !settings?.notification_prefs) updatedSettings.notification_prefs = DEFAULT_PREFS.full;
     setSettings(updatedSettings);
-    if (pushActive) {
-      await reschedule(updatedSettings);
-    }
+    scheduleSave();
+    if (pushActive) await reschedule(updatedSettings);
   };
 
   const handlePrefChange = async (key, field, value) => {
     const currentPrefs = settings?.notification_prefs || DEFAULT_PREFS.full;
-    const updatedPrefs = {
-      ...currentPrefs,
-      [key]: { ...(currentPrefs[key] || {}), [field]: value },
-    };
+    const updatedPrefs = { ...currentPrefs, [key]: { ...(currentPrefs[key] || {}), [field]: value } };
     const updatedSettings = { ...settings, notification_prefs: updatedPrefs };
     setSettings(updatedSettings);
-    if (pushActive) {
-      await reschedule(updatedSettings);
-    }
+    scheduleSave();
+    if (pushActive) await reschedule(updatedSettings);
   };
 
   const handleLogoUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (ev) => onProfileChange("logo", ev.target.result);
+    reader.onload = (ev) => { onProfileChange("logo", ev.target.result); };
     reader.readAsDataURL(file);
   };
 
   const toggleSection = (key) => {
     setOpenSections(prev => {
-      // Single-open accordion: open clicked section, close everything else
-      if (prev.has(key)) return new Set(); // tap same = close
+      if (prev.has(key)) return new Set();
       return new Set([key]);
     });
   };
 
   const openTemplatePreview = (templateId) => {
     const sampleDoc = {
-      document_type: "invoice", document_number: "INV-0001",
-      title: "Sample Invoice", status: "sent",
-      currency: "GBP",
+      document_type: "invoice", document_number: "INV-0001", title: "Sample Invoice",
+      status: "sent", currency: "GBP",
       line_items: [
         { description: "Performance — Evening Event", quantity: 1, unit_price: 800, total: 800 },
         { description: "Travel expenses", quantity: 1, unit_price: 50, total: 50 },
       ],
       subtotal: 850, total: 850, discount_amount: 0, tax_amount: 0, tax_rate: 0,
-      due_date: new Date(Date.now() + 14*86400000).toISOString().slice(0,10),
+      due_date: new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10),
       notes: "Thank you for booking. Please transfer within 14 days.",
     };
     const sampleProfile = {
@@ -270,96 +261,50 @@ export default function AppSettings() {
     };
     const html = generateInvoiceHTML(sampleDoc, sampleProfile, settings, templateId);
     const blob = new Blob([html], { type: "text/html" });
-    const url = URL.createObjectURL(blob);
-    window.open(url, "_blank");
+    window.open(URL.createObjectURL(blob), "_blank");
   };
 
   const handleTestPush = async () => {
     setTestResult("Sending…");
     const result = await sendTestPush();
-    if (result.success) {
-      setTestResult("Sent — it should arrive in a few seconds.");
-    } else if (result.reason === "not_subscribed") {
-      setTestResult("Not subscribed — turn notifications off and on again.");
-    } else {
-      setTestResult("Failed: " + (result.reason || "unknown error"));
-    }
-  };
-
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      // Save settings
-      if (settings.id) {
-        await appClient.entities.AppSettings.update(settings.id, settings);
-      } else {
-        const created = await appClient.entities.AppSettings.create(settings);
-        setSettings(created);
-      }
-      // Save business profile
-      if (profile.id) {
-        await appClient.entities.BusinessProfile.update(profile.id, profile);
-      } else {
-        const created = await appClient.entities.BusinessProfile.create(profile);
-        setProfile(created);
-      }
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
-      // Refresh the assistant profile module cache (AI chat + briefing read it)
-      getAssistantProfile({ fresh: true }).catch(() => {});
-      // Re-schedule notifications with latest settings (if push is active)
-      if (pushActive) {
-        reschedule(settings).catch(() => {});
-      }
-    } catch (err) {
-      console.error("Save error:", err);
-    }
-    setSaving(false);
+    if (result.success) setTestResult("Sent — it should arrive in a few seconds.");
+    else if (result.reason === "not_subscribed") setTestResult("Not subscribed — turn notifications off and on again.");
+    else setTestResult("Failed: " + (result.reason || "unknown error"));
   };
 
   if (loading || !settings) return <div className="p-4 text-gray-400">Loading...</div>;
 
   const SectionHeader = ({ icon: Icon, label, sectionKey }) => (
-    <button
-      onClick={() => toggleSection(sectionKey)}
-      className="w-full flex items-center gap-2 mb-3"
-    >
+    <button onClick={() => toggleSection(sectionKey)} className="w-full flex items-center gap-2 mb-3">
       <Icon className="w-4 h-4 text-indigo-400" />
       <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wide flex-1 text-left">{label}</h2>
-      {openSections.has(sectionKey) ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
+      {openSections.has(sectionKey)
+        ? <ChevronUp className="w-4 h-4 text-gray-500" />
+        : <ChevronDown className="w-4 h-4 text-gray-500" />}
     </button>
   );
 
   const inputCls = "w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500 placeholder-gray-500";
   const labelCls = "text-xs text-gray-400 mb-1 block";
 
-  const DataSubSection = ({ label, children, defaultOpen = true }) => {
-    const [open, setOpen] = useState(defaultOpen);
-    return (
-      <div className="border border-gray-700/60 rounded-xl overflow-hidden">
-        <button
-          onClick={() => setOpen(o => !o)}
-          className="w-full flex items-center justify-between px-4 py-2.5 bg-gray-800/60 hover:bg-gray-800 transition-colors"
-        >
-          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{label}</span>
-          {open ? <ChevronUp className="w-3.5 h-3.5 text-gray-500" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-500" />}
-        </button>
-        {open && <div className="px-3 pb-3">{children}</div>}
-      </div>
-    );
-  };
-
   return (
     <div className="p-4 max-w-xl mx-auto">
+      {/* Subtle save indicator */}
+      <div className="flex justify-end h-5 mb-1">
+        <span className={`text-[11px] text-gray-500 flex items-center gap-1 transition-opacity duration-500 ${saveState === "saved" ? "opacity-100" : "opacity-0"}`}>
+          <Check className="w-3 h-3" /> Saved
+        </span>
+      </div>
+
       <div className="space-y-6">
-        {/* Business Profile */}
+
+        {/* ── Business Profile ─────────────────────────────────────── */}
         <section>
           <SectionHeader icon={Building2} label="Business Profile" sectionKey="profile" />
           {openSections.has("profile") && profile && (
             <div className="bg-gray-800 rounded-xl p-4 space-y-3">
               <p className="text-xs text-gray-500 mb-2">Your details — appears on invoices.</p>
 
-              {/* Logo upload */}
               <div>
                 <label className={labelCls}>Logo</label>
                 <div className="flex items-center gap-3">
@@ -396,7 +341,7 @@ export default function AppSettings() {
                 </div>
                 <div>
                   <label className={labelCls}>Phone</label>
-                  <input className={inputCls} placeholder="+44 7..." value={profile.phone || ""} onChange={e => onProfileChange("phone", e.target.value)} />
+                  <input className={inputCls} placeholder="+44 7…" value={profile.phone || ""} onChange={e => onProfileChange("phone", e.target.value)} />
                 </div>
                 <div className="col-span-2">
                   <label className={labelCls}>Email</label>
@@ -428,8 +373,8 @@ export default function AppSettings() {
                 </div>
               </div>
 
-              <div className="border-t border-gray-700 pt-3 mt-3">
-                <p className="text-xs text-gray-500 mb-2">Bank details — shown on invoices for payment.</p>
+              <div className="border-t border-gray-700 pt-3 mt-1">
+                <p className="text-xs text-gray-500 mb-3">Bank details — shown on invoices for payment.</p>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className={labelCls}>Bank Name</label>
@@ -453,7 +398,7 @@ export default function AppSettings() {
                   </div>
                   <div className="col-span-2">
                     <label className={labelCls}>Payment Instructions</label>
-                    <textarea className={inputCls + " h-16 resize-none"} placeholder="e.g. Pay via bank transfer to..." value={profile.payment_instructions || ""} onChange={e => onProfileChange("payment_instructions", e.target.value)} />
+                    <textarea className={inputCls + " h-16 resize-none"} placeholder="e.g. Pay via bank transfer to…" value={profile.payment_instructions || ""} onChange={e => onProfileChange("payment_instructions", e.target.value)} />
                   </div>
                 </div>
               </div>
@@ -461,12 +406,12 @@ export default function AppSettings() {
           )}
         </section>
 
-        {/* AI Assistant */}
+        {/* ── Assistant ────────────────────────────────────────────── */}
         <section>
           <SectionHeader icon={Sparkles} label="Assistant" sectionKey="assistant" />
           {openSections.has("assistant") && (
             <div className="bg-gray-800 rounded-xl p-4 space-y-4">
-              <p className="text-xs text-gray-500">Personalize how the AI assistant talks to you.</p>
+              <p className="text-xs text-gray-500">Personalise how the AI assistant talks to you.</p>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={labelCls}>Your Name</label>
@@ -506,10 +451,22 @@ export default function AppSettings() {
                   />
                 </div>
               </div>
+
+              <div>
+                <label className={labelCls}>About you</label>
+                <textarea
+                  className={inputCls + " h-24 resize-none"}
+                  placeholder="A few lines the assistant should always know — e.g. 'I'm a session guitarist based in London. I mostly do jazz and corporate events. My lesson rate is £50/hour.'"
+                  value={settings.assistant_profile?.context_notes || ""}
+                  onChange={e => onChange("assistant_profile", { ...(settings.assistant_profile || {}), context_notes: e.target.value })}
+                />
+                <p className="text-[10px] text-gray-600 mt-1">The assistant reads this on every conversation.</p>
+              </div>
             </div>
           )}
         </section>
 
+        {/* ── Finance ──────────────────────────────────────────────── */}
         <section>
           <SectionHeader icon={Banknote} label="Finance" sectionKey="finance" />
           {openSections.has("finance") && (
@@ -539,7 +496,6 @@ export default function AppSettings() {
                 </div>
               </div>
 
-              {/* Invoice numbering */}
               <div className="border-t border-gray-700 pt-4">
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Invoice Numbering</p>
                 <div className="grid grid-cols-2 gap-3">
@@ -555,7 +511,6 @@ export default function AppSettings() {
                 <p className="text-xs text-gray-600 mt-2">Next invoice: {settings.invoice_number_prefix || "INV-"}{String(settings.invoice_number_next || 1).padStart(4, "0")}</p>
               </div>
 
-              {/* Invoice template */}
               <div className="border-t border-gray-700 pt-4">
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Invoice Template</p>
                 <div className="flex gap-2.5">
@@ -573,9 +528,7 @@ export default function AppSettings() {
                       <button
                         key={t.id}
                         onClick={() => onChange("invoice_template", t.id)}
-                        className={`rounded-md transition-all ${
-                          isActive ? "ring-2 ring-indigo-500 ring-offset-2 ring-offset-gray-800" : "opacity-60 hover:opacity-100"
-                        }`}
+                        className={`rounded-md transition-all ${isActive ? "ring-2 ring-indigo-500 ring-offset-2 ring-offset-gray-800" : "opacity-60 hover:opacity-100"}`}
                         aria-label={t.name}
                       >
                         <svg width="44" height="57" viewBox="0 0 40 52" fill="none" className="rounded-md">
@@ -604,10 +557,7 @@ export default function AppSettings() {
                         <p className="text-sm text-white">{active.name}</p>
                         <p className="text-xs text-gray-500 leading-snug">{active.desc}</p>
                       </div>
-                      <button
-                        onClick={() => openTemplatePreview(active.id)}
-                        className="text-gray-500 hover:text-gray-300 text-xs flex-shrink-0 transition-colors"
-                      >
+                      <button onClick={() => openTemplatePreview(active.id)} className="text-gray-500 hover:text-gray-300 text-xs flex-shrink-0 transition-colors">
                         Preview
                       </button>
                     </div>
@@ -625,67 +575,41 @@ export default function AppSettings() {
                       <p className="text-[11px] text-gray-500 leading-snug">
                         Make it yours — or just ask the assistant: <span className="text-gray-400">"make my invoice header teal and centred."</span>
                       </p>
-
-                      {/* Accent colour */}
                       <div>
                         <label className={labelCls}>Accent colour</label>
                         <div className="flex items-center gap-2 flex-wrap">
                           {ACCENT_PRESETS.map(hex => (
-                            <button
-                              key={hex}
-                              onClick={() => setCustom({ accent_color: hex })}
-                              aria-label={hex}
+                            <button key={hex} onClick={() => setCustom({ accent_color: hex })} aria-label={hex}
                               className={`w-7 h-7 rounded-full transition-transform ${custom.accent_color === hex ? "ring-2 ring-offset-2 ring-offset-gray-800 ring-white scale-110" : "hover:scale-105"}`}
-                              style={{ backgroundColor: hex }}
-                            />
+                              style={{ backgroundColor: hex }} />
                           ))}
                           <label className="w-7 h-7 rounded-full border border-gray-600 grid place-items-center cursor-pointer relative overflow-hidden" title="Custom colour">
-                            <input type="color" value={custom.accent_color} onChange={e => setCustom({ accent_color: e.target.value })}
-                              className="absolute inset-0 opacity-0 cursor-pointer" />
+                            <input type="color" value={custom.accent_color} onChange={e => setCustom({ accent_color: e.target.value })} className="absolute inset-0 opacity-0 cursor-pointer" />
                             <span className="text-[10px] text-gray-400">+</span>
                           </label>
                         </div>
                       </div>
-
-                      {/* Header style */}
                       <div>
                         <label className={labelCls}>Header style</label>
                         <div className="flex gap-1.5 bg-gray-900 p-1 rounded-lg">
-                          {HEADER_STYLES.map(h => (
-                            <button key={h} onClick={() => setCustom({ header_style: h })} className={segBtn(custom.header_style === h)}>
-                              {HEADER_LABELS[h]}
-                            </button>
-                          ))}
+                          {HEADER_STYLES.map(h => <button key={h} onClick={() => setCustom({ header_style: h })} className={segBtn(custom.header_style === h)}>{HEADER_LABELS[h]}</button>)}
                         </div>
                       </div>
-
-                      {/* Font */}
                       <div>
                         <label className={labelCls}>Body font</label>
                         <div className="flex gap-1.5 bg-gray-900 p-1 rounded-lg">
-                          {FONT_CHOICES.map(f => (
-                            <button key={f} onClick={() => setCustom({ font: f })} className={segBtn(custom.font === f)}>
-                              {FONT_LABELS[f]}
-                            </button>
-                          ))}
+                          {FONT_CHOICES.map(f => <button key={f} onClick={() => setCustom({ font: f })} className={segBtn(custom.font === f)}>{FONT_LABELS[f]}</button>)}
                         </div>
                       </div>
-
-                      {/* Footer text */}
                       <div>
                         <label className={labelCls}>Footer line</label>
-                        <input className={inputCls} maxLength={160} placeholder={DEFAULT_CUSTOM.footer_text}
-                          value={custom.footer_text} onChange={e => setCustom({ footer_text: e.target.value })} />
+                        <input className={inputCls} maxLength={160} placeholder={DEFAULT_CUSTOM.footer_text} value={custom.footer_text} onChange={e => setCustom({ footer_text: e.target.value })} />
                       </div>
-
-                      {/* Logo toggle */}
                       <label className="flex items-center justify-between cursor-pointer">
                         <span className="text-sm text-white">Show logo</span>
-                        <button
-                          onClick={() => setCustom({ show_logo: !custom.show_logo })}
+                        <button onClick={() => setCustom({ show_logo: !custom.show_logo })}
                           className={`w-11 h-6 rounded-full transition-colors relative ${custom.show_logo ? "bg-indigo-600" : "bg-gray-600"}`}
-                          aria-pressed={custom.show_logo}
-                        >
+                          aria-pressed={custom.show_logo}>
                           <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-all ${custom.show_logo ? "left-[22px]" : "left-0.5"}`} />
                         </button>
                       </label>
@@ -697,59 +621,23 @@ export default function AppSettings() {
           )}
         </section>
 
-        {/* Navigation */}
-        <section>
-          <SectionHeader icon={Navigation} label="Navigation" sectionKey="navigation" />
-          {openSections.has("navigation") && (
-            <div className="bg-gray-800 rounded-xl p-4">
-              <label className={labelCls}>Default Nav App</label>
-              <div className="flex gap-2">
-                {["google_maps", "waze"].map(app => (
-                  <button
-                    key={app}
-                    onClick={() => onChange("default_nav_app", app)}
-                    className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors border ${
-                      settings.default_nav_app === app
-                        ? "bg-indigo-600 border-indigo-500 text-white"
-                        : "bg-gray-900 border-gray-700 text-gray-400 hover:text-white"
-                    }`}
-                  >
-                    {app === "google_maps" ? "Google Maps" : "Waze"}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </section>
-
-        {/* Notifications */}
+        {/* ── Notifications ─────────────────────────────────────────── */}
         <section>
           <SectionHeader icon={Bell} label="Notifications" sectionKey="notifications" />
           {openSections.has("notifications") && (
             <div className="bg-gray-800 rounded-xl p-4 space-y-5">
-
-              {/* Master toggle */}
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-sm text-gray-200">Push notifications</p>
                   <p className="text-xs text-gray-500 mt-0.5">
-                    {pushLoading
-                      ? (pushActive ? "Turning off…" : "Turning on…")
-                      : pushActive ? "Active on this device" : "Off"}
+                    {pushLoading ? (pushActive ? "Turning off…" : "Turning on…") : pushActive ? "Active on this device" : "Off"}
                   </p>
                 </div>
-                <Toggle
-                  on={pushActive}
-                  disabled={pushLoading}
-                  onClick={pushActive ? handleDisablePush : handleEnablePush}
-                />
+                <Toggle on={pushActive} disabled={pushLoading} onClick={pushActive ? handleDisablePush : handleEnablePush} />
               </div>
 
-              {pushError && (
-                <p className="text-xs text-red-400 bg-red-900/30 rounded-lg px-3 py-2">{pushError}</p>
-              )}
+              {pushError && <p className="text-xs text-red-400 bg-red-900/30 rounded-lg px-3 py-2">{pushError}</p>}
 
-              {/* Level — stacked rows */}
               <div>
                 <label className={labelCls}>Level</label>
                 <div className="rounded-xl border border-gray-700 divide-y divide-gray-700 overflow-hidden">
@@ -760,13 +648,8 @@ export default function AppSettings() {
                   ].map(({ key, label, desc }) => {
                     const active = (settings.notification_level || "standard") === key;
                     return (
-                      <button
-                        key={key}
-                        onClick={() => handleLevelChange(key)}
-                        className={`w-full flex items-center justify-between gap-3 px-3.5 py-3 text-left transition-colors ${
-                          active ? "bg-indigo-600/15" : "bg-gray-900 hover:bg-gray-900/60"
-                        }`}
-                      >
+                      <button key={key} onClick={() => handleLevelChange(key)}
+                        className={`w-full flex items-center justify-between gap-3 px-3.5 py-3 text-left transition-colors ${active ? "bg-indigo-600/15" : "bg-gray-900 hover:bg-gray-900/60"}`}>
                         <div>
                           <p className={`text-sm ${active ? "text-white font-medium" : "text-gray-300"}`}>{label}</p>
                           <p className="text-xs text-gray-500 mt-0.5">{desc}</p>
@@ -778,35 +661,21 @@ export default function AppSettings() {
                 </div>
               </div>
 
-              {/* Full mode: per-notification prefs editor */}
               {(settings.notification_level || "standard") === "full" && (
-                <NotificationPrefsEditor
-                  prefs={settings.notification_prefs || DEFAULT_PREFS.full}
-                  onChange={handlePrefChange}
-                />
+                <NotificationPrefsEditor prefs={settings.notification_prefs || DEFAULT_PREFS.full} onChange={handlePrefChange} />
               )}
 
-              {/* Test */}
               {pushActive && (
                 <div>
-                  <button
-                    onClick={handleTestPush}
-                    className="w-full py-2.5 rounded-xl text-sm font-medium border border-gray-700 text-gray-300 hover:text-white hover:border-gray-500 transition-colors"
-                  >
+                  <button onClick={handleTestPush} className="w-full py-2.5 rounded-xl text-sm font-medium border border-gray-700 text-gray-300 hover:text-white hover:border-gray-500 transition-colors">
                     Send test notification
                   </button>
-                  {testResult && (
-                    <p className="text-xs text-gray-500 text-center mt-2">{testResult}</p>
-                  )}
+                  {testResult && <p className="text-xs text-gray-500 text-center mt-2">{testResult}</p>}
                 </div>
               )}
 
-              {/* Diagnostics — tucked away */}
               <div>
-                <button
-                  onClick={() => setDiagOpen(o => !o)}
-                  className="text-[11px] text-gray-600 hover:text-gray-400 transition-colors"
-                >
+                <button onClick={() => setDiagOpen(o => !o)} className="text-[11px] text-gray-600 hover:text-gray-400 transition-colors">
                   {diagOpen ? "Hide diagnostics" : "Diagnostics"}
                 </button>
                 {diagOpen && (
@@ -821,135 +690,128 @@ export default function AppSettings() {
           )}
         </section>
 
-        {/* Gmail */}
+        {/* ── Connections (Gmail + Calendar + Navigation) ───────────── */}
         <section>
-          <SectionHeader icon={Mail} label="Gmail" sectionKey="gmail" />
-          {openSections.has("gmail") && (
-            <div className="bg-gray-800 rounded-xl p-4 space-y-4">
-              {gmailConnected ? (
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-green-900/40 flex items-center justify-center flex-shrink-0">
-                    <Check className="w-4 h-4 text-green-400" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-green-400">Connected</p>
-                    <p className="text-xs text-gray-400 truncate">{gmailEmail}</p>
-                  </div>
-                  <button
-                    onClick={() => { disconnectGmail(); setGmailConnected(false); setGmailEmail(''); }}
-                    className="text-xs text-red-400 hover:text-red-300 underline underline-offset-2 flex-shrink-0"
-                  >
-                    Disconnect
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <p className="text-xs text-gray-400">Send invoices directly from your Gmail account.</p>
-                  <button
-                    onClick={connectGmail}
-                    className="w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white transition-colors"
-                  >
-                    <Mail className="w-4 h-4" />
-                    Connect Gmail
-                  </button>
-                </>
-              )}
-            </div>
-          )}
-        </section>
+          <SectionHeader icon={Link2} label="Connections" sectionKey="connections" />
+          {openSections.has("connections") && (
+            <div className="bg-gray-800 rounded-xl overflow-hidden divide-y divide-gray-700/60">
 
-        {/* Calendar */}
-        <section>
-          <SectionHeader icon={CalendarDays} label="Calendar" sectionKey="calendar" />
-          {openSections.has("calendar") && (
-            <div className="bg-gray-800 rounded-xl p-4 space-y-4">
-              {calStatus.connected ? (
-                <>
-                  {/* Connected account */}
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-green-900/40 flex items-center justify-center flex-shrink-0">
-                      <Check className="w-4 h-4 text-green-400" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-green-400">Connected</p>
-                      <p className="text-xs text-gray-400 truncate">{calStatus.email}</p>
-                    </div>
-                    <button
-                      onClick={handleDisconnectCalendar}
-                      disabled={calBusy}
-                      className="text-xs text-red-400 hover:text-red-300 underline underline-offset-2 flex-shrink-0 disabled:opacity-50"
-                    >
+              {/* Google Calendar */}
+              <div className="p-4 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <CalendarDays className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                    <p className="text-sm font-medium text-gray-200">Google Calendar</p>
+                  </div>
+                  {calStatus.connected ? (
+                    <button onClick={handleDisconnectCalendar} disabled={calBusy}
+                      className="text-xs text-red-400 hover:text-red-300 underline underline-offset-2 disabled:opacity-50 flex-shrink-0">
                       Disconnect
                     </button>
-                  </div>
+                  ) : null}
+                </div>
 
-                  {/* Sync toggle */}
-                  <div className="flex items-center justify-between gap-3 border-t border-gray-700 pt-4">
-                    <div className="min-w-0">
-                      <p className="text-sm text-gray-200">Sync gigs to my calendar</p>
-                      <p className="text-xs text-gray-500 mt-0.5">Two-way with your “{calStatus.calendar_summary || "Flowtone Gigs"}” calendar.</p>
+                {calStatus.connected ? (
+                  <>
+                    <p className="text-xs text-gray-500 pl-6">{calStatus.email}</p>
+
+                    <div className="flex items-center justify-between gap-3 pl-6">
+                      <p className="text-sm text-gray-300">Sync gigs</p>
+                      <Toggle on={!!calStatus.sync_enabled} onClick={handleCalendarToggle} />
                     </div>
-                    <Toggle on={!!calStatus.sync_enabled} onClick={handleCalendarToggle} />
-                  </div>
 
-                  {/* Sync now */}
-                  <div>
-                    <button
-                      onClick={handleCalendarSyncNow}
-                      disabled={calSyncing || !calStatus.sync_enabled}
-                      className="w-full py-2.5 rounded-xl text-sm font-medium border border-gray-700 text-gray-300 hover:text-white hover:border-gray-500 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                    >
-                      <RefreshCw className={`w-4 h-4 ${calSyncing ? "animate-spin" : ""}`} />
-                      {calSyncing ? "Syncing…" : "Sync now"}
+                    <div className="pl-6">
+                      <button onClick={handleCalendarSyncNow} disabled={calSyncing || !calStatus.sync_enabled}
+                        className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-200 disabled:opacity-40 transition-colors">
+                        <RefreshCw className={`w-3.5 h-3.5 ${calSyncing ? "animate-spin" : ""}`} />
+                        {calSyncing ? "Syncing…" : "Sync now"}
+                      </button>
+                      {(calMsg || calStatus.last_synced_at) && (
+                        <p className="text-[11px] text-gray-600 mt-1">
+                          {calMsg || (calStatus.last_synced_at ? `Last synced ${formatDistanceToNow(new Date(calStatus.last_synced_at), { addSuffix: true })}` : "")}
+                        </p>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <div className="pl-6 space-y-3">
+                    <p className="text-xs text-gray-500 leading-relaxed">Two-way sync — gigs you create here appear in Google Calendar, and vice versa.</p>
+                    <button onClick={handleConnectCalendar} disabled={calBusy}
+                      className="flex items-center gap-2 text-sm font-medium text-indigo-400 hover:text-indigo-300 disabled:opacity-50 transition-colors">
+                      <CalendarDays className="w-4 h-4" />
+                      Connect Google Calendar
                     </button>
-                    <p className="text-xs text-gray-500 text-center mt-2">
-                      {calMsg
-                        ? calMsg
-                        : calStatus.last_synced_at
-                          ? `Last synced ${formatDistanceToNow(new Date(calStatus.last_synced_at), { addSuffix: true })}`
-                          : "Not synced yet"}
-                    </p>
+                    {calMsg && <p className="text-xs text-gray-500">{calMsg}</p>}
                   </div>
-                </>
-              ) : (
-                <>
-                  <p className="text-xs text-gray-400 leading-relaxed">
-                    Two-way sync with Google Calendar. Gigs you create here appear in your calendar, and gigs you add to your “Flowtone Gigs” calendar appear here.
-                  </p>
-                  <p className="text-[11px] text-gray-500 leading-relaxed">
-                    On iPhone, add your Google account in the Calendar app to see gigs there.
-                  </p>
-                  <button
-                    onClick={handleConnectCalendar}
-                    disabled={calBusy}
-                    className="w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white transition-colors disabled:opacity-50"
-                  >
-                    <CalendarDays className="w-4 h-4" />
-                    Connect Google Calendar
-                  </button>
-                  {calMsg && <p className="text-xs text-gray-500 text-center">{calMsg}</p>}
-                </>
-              )}
+                )}
+              </div>
+
+              {/* Gmail */}
+              <div className="p-4 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <Mail className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                    <p className="text-sm font-medium text-gray-200">Gmail</p>
+                  </div>
+                  {gmailConnected ? (
+                    <button onClick={() => { disconnectGmail(); setGmailConnected(false); setGmailEmail(""); }}
+                      className="text-xs text-red-400 hover:text-red-300 underline underline-offset-2 flex-shrink-0">
+                      Disconnect
+                    </button>
+                  ) : null}
+                </div>
+
+                {gmailConnected ? (
+                  <p className="text-xs text-gray-500 pl-6">{gmailEmail}</p>
+                ) : (
+                  <div className="pl-6 space-y-3">
+                    <p className="text-xs text-gray-500">Send invoices directly from your Gmail account.</p>
+                    <button onClick={connectGmail}
+                      className="flex items-center gap-2 text-sm font-medium text-indigo-400 hover:text-indigo-300 transition-colors">
+                      <Mail className="w-4 h-4" />
+                      Connect Gmail
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Navigation */}
+              <div className="p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium text-gray-200">Navigation app</p>
+                  </div>
+                  <div className="flex gap-1.5">
+                    {["google_maps", "waze"].map(app => (
+                      <button key={app} onClick={() => onChange("default_nav_app", app)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
+                          settings.default_nav_app === app
+                            ? "bg-indigo-600 border-indigo-500 text-white"
+                            : "bg-gray-900 border-gray-700 text-gray-400 hover:text-white"
+                        }`}>
+                        {app === "google_maps" ? "Google Maps" : "Waze"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
             </div>
           )}
         </section>
 
-        {/* Backup & Restore */}
+        {/* ── Backup & Restore ──────────────────────────────────────── */}
         <section>
           <SectionHeader icon={Download} label="Backup & Restore" sectionKey="data" />
           {openSections.has("data") && (
             <div className="bg-gray-800 rounded-xl p-4 space-y-2">
-              <button
-                onClick={() => setShowCSVImport(true)}
-                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-gray-700 hover:bg-gray-600 text-gray-200 transition-colors"
-              >
+              <button onClick={() => setShowCSVImport(true)}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-gray-700 hover:bg-gray-600 text-gray-200 transition-colors">
                 <UploadIcon className="w-4 h-4" />
                 Restore from Backup
               </button>
-              <button
-                onClick={async () => { const csv = await exportFullApp(appClient); downloadCSV("flowtone-backup.csv", csv); }}
-                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-indigo-600 hover:bg-indigo-500 text-white transition-colors"
-              >
+              <button onClick={async () => { const csv = await exportFullApp(appClient); downloadCSV("flowtone-backup.csv", csv); }}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-indigo-600 hover:bg-indigo-500 text-white transition-colors">
                 <Download className="w-4 h-4" />
                 Export Full App Backup
               </button>
@@ -958,33 +820,20 @@ export default function AppSettings() {
           )}
         </section>
 
-        {/* Save */}
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className={`w-full py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-colors ${
-            saved ? "bg-green-600 text-white" : "bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-50"
-          }`}
-        >
-          {saved ? <><Check className="w-4 h-4" /> Saved!</> : saving ? "Saving..." : "Save Settings"}
-        </button>
-
-        {/* Account */}
+        {/* ── Account ───────────────────────────────────────────────── */}
         {!isPreviewMode && (
-          <div className="rounded-2xl border border-gray-700/60 bg-gray-800/30 p-4 space-y-3">
-            <p className="text-xs text-gray-500 uppercase tracking-wider font-medium">Account</p>
+          <div className="rounded-2xl border border-gray-700/40 p-4 space-y-3">
             {user?.email && (
-              <p className="text-sm text-gray-400">Signed in as <span className="text-white">{user.email}</span></p>
+              <p className="text-xs text-gray-500">Signed in as <span className="text-gray-300">{user.email}</span></p>
             )}
-            <button
-              onClick={() => logout()}
-              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium border border-gray-700 text-gray-300 hover:text-white hover:border-gray-500 transition-colors"
-            >
+            <button onClick={() => logout()}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium border border-gray-700 text-gray-400 hover:text-white hover:border-gray-500 transition-colors">
               <LogOut className="w-4 h-4" />
               Sign out
             </button>
           </div>
         )}
+
       </div>
 
       {showCSVImport && <SmartCSVImport onClose={() => setShowCSVImport(false)} onImported={() => setShowCSVImport(false)} />}

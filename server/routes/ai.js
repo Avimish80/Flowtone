@@ -34,6 +34,9 @@ function buildIdentitySection(assistantProfile) {
   if (assistantProfile.language && assistantProfile.language !== 'English') {
     lines.push(`- LANGUAGE: ALWAYS write the "message" field in ${assistantProfile.language}, even if the musician writes in another language — unless they explicitly ask you to switch. JSON keys, action "type" values, and data field names MUST stay in English; dates stay YYYY-MM-DD.`);
   }
+  if (assistantProfile.context_notes && assistantProfile.context_notes.trim()) {
+    lines.push(`- Background context about them: "${assistantProfile.context_notes.trim()}"`);
+  }
 
   return `
 ────────────────────────────────────────────
