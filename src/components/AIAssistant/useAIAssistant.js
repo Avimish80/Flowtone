@@ -3,6 +3,7 @@ import { askAI } from "@/api/aiClient";
 import { appClient } from "@/api/appClient";
 import { sanitizeCustom } from "@/lib/invoiceTemplates";
 import { getAssistantProfile } from "@/lib/assistantProfile";
+import { notify } from "@/lib/appBadge";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -609,6 +610,12 @@ export function useAIAssistant() {
               { action: { type: "ERROR" } }
             );
             setMessages((prev) => [...prev, errMsg]);
+            notify({
+              type: "ai_problem",
+              title: "I couldn't finish that action",
+              body: action.type ? action.type.replace(/_/g, " ").toLowerCase() : "",
+              url: "/",
+            }).catch(() => {});
           }
         }
       } catch (err) {

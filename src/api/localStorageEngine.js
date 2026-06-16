@@ -61,7 +61,7 @@ function hydrateRow(row) {
 const UUID_FK_COLUMNS = new Set([
   "client_id", "work_event_id", "linked_gig_id", "document_id",
   "converted_from_id", "practice_goal_id", "practice_session_id",
-  "goal_id", "linked_entity_id",
+  "goal_id", "linked_entity_id", "entity_id",
 ]);
 
 function splitRecord(entityName, record = {}) {

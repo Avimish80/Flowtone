@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import Anthropic from '@anthropic-ai/sdk';
+import { getAuthenticatedUser } from '../lib/auth.js';
+import { getSupabaseAdmin, isSupabaseServerConfigured } from '../lib/supabaseAdmin.js';
 
 const router = Router();
 
@@ -31,6 +33,9 @@ function buildIdentitySection(assistantProfile) {
   }
   if (assistantProfile.language && assistantProfile.language !== 'English') {
     lines.push(`- LANGUAGE: ALWAYS write the "message" field in ${assistantProfile.language}, even if the musician writes in another language — unless they explicitly ask you to switch. JSON keys, action "type" values, and data field names MUST stay in English; dates stay YYYY-MM-DD.`);
+  }
+  if (assistantProfile.context_notes && assistantProfile.context_notes.trim()) {
+    lines.push(`- Background context about them: "${assistantProfile.context_notes.trim()}"`);
   }
 
   return `
@@ -340,6 +345,23 @@ ${JSON.stringify(settings)}
 Always respond with valid JSON only. No markdown. No explanation outside the JSON.`;
 }
 
+// ─── AI usage logger — fire-and-forget, never throws ───────────────
+async function logAiUsage({ userId, model, usage, channel = 'in_app' }) {
+  if (!isSupabaseServerConfigured()) return;
+  try {
+    const admin = getSupabaseAdmin();
+    await admin.from('ai_usage_events').insert({
+      user_id: userId || null,
+      channel,
+      model: model || '',
+      input_tokens: usage?.input_tokens ?? 0,
+      output_tokens: usage?.output_tokens ?? 0,
+    });
+  } catch (err) {
+    console.warn('[AI usage log]', err.message);
+  }
+}
+
 // ─── POST /api/ai/chat ──────────────────────────────────────────────
 // Body: {
 //   messages: [{ role: "user"|"assistant", content: string }],
@@ -357,6 +379,13 @@ router.post('/chat', async (req, res) => {
       return res.status(400).json({ error: 'messages must be a non-empty array' });
     }
 
+    // Resolve user id for usage logging (optional — graceful if unauthenticated)
+    let userId = null;
+    try {
+      const user = await getAuthenticatedUser(req);
+      userId = user?.id || null;
+    } catch { /* non-fatal */ }
+
     const client = getClient();
     const systemPrompt = buildSystemPrompt(context);
 
@@ -367,6 +396,9 @@ router.post('/chat', async (req, res) => {
       system: systemPrompt,
       messages,
     });
+
+    // Log usage fire-and-forget
+    logAiUsage({ userId, model: apiResponse.model, usage: apiResponse.usage, channel: 'in_app' });
 
     const rawText = apiResponse.content
       .filter((block) => block.type === 'text')
