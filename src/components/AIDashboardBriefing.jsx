@@ -7,7 +7,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { Sparkles, X } from "lucide-react";
 import { isPast, parseISO } from "date-fns";
 import { getCachedProfileSync, deriveFallbackName, DEFAULT_LANGUAGE, DEFAULT_ASSISTANT_NAME } from "@/lib/assistantProfile";
-import { gigsMissingFee, gigsMissingLocation } from "@/lib/missingInfo";
+import { gigsMissingFee, gigsMissingLocation, hasLocation, hasFee, hasInvoice } from "@/lib/missingInfo";
 
 function buildNavUrl(address) {
   return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}&travelmode=driving`;
@@ -46,6 +46,42 @@ export function AIDashboardBriefing({ events = [], documents = [] }) {
     () => Object.fromEntries(events.map((e) => [e.id, e])),
     [events]
   );
+
+  const invoices = useMemo(
+    () => documents.filter((d) => d.document_type === "invoice"),
+    [documents]
+  );
+  const invoiceMap = useMemo(
+    () => Object.fromEntries(invoices.map((i) => [i.id, i])),
+    [invoices]
+  );
+  const invoicedEventIds = useMemo(
+    () => new Set(invoices.map((i) => i.work_event_id).filter(Boolean)),
+    [invoices]
+  );
+
+  // The briefing copy is cached for the day-part (one Haiku call), so it can go
+  // stale the moment the user fills a gap (adds a location, a fee, an invoice).
+  // Reconcile each actionable item against LIVE data before rendering so a
+  // resolved item disappears immediately — no refetch, no extra AI cost.
+  const visibleItems = useMemo(() => {
+    if (!briefing?.items) return [];
+    return briefing.items.filter((item) => {
+      if (item.entity_type === "event" && item.entity_id) {
+        const event = eventMap[item.entity_id];
+        if (!event) return false; // event deleted since the briefing was built
+        if (item.type === "location_missing") return !hasLocation(event);
+        if (item.type === "fee_missing") return !hasFee(event) && !hasInvoice(event, invoices);
+        if (item.type === "invoice_missing") return !invoicedEventIds.has(event.id);
+      }
+      if (item.type === "invoice_overdue" && item.entity_id) {
+        const inv = invoiceMap[item.entity_id];
+        if (!inv) return false; // invoice deleted
+        return inv.status === "sent"; // paid/cancelled → no longer needs chasing
+      }
+      return true;
+    });
+  }, [briefing, eventMap, invoices, invoiceMap, invoicedEventIds]);
 
   useEffect(() => {
     if (isPreviewModeEnabled()) {
@@ -157,7 +193,7 @@ export function AIDashboardBriefing({ events = [], documents = [] }) {
     );
   }
 
-  if (!briefing || !briefing.items?.length) return null;
+  if (!briefing || visibleItems.length === 0) return null;
 
   return (
     <div className="rounded-2xl border border-gray-700/40 bg-gray-900/60 overflow-hidden">
@@ -188,7 +224,7 @@ export function AIDashboardBriefing({ events = [], documents = [] }) {
 
       {/* Items */}
       <div className="divide-y divide-gray-700/30">
-        {briefing.items.map((item, i) => {
+        {visibleItems.map((item, i) => {
           const hasEntity = item.entity_id && item.type !== "general";
           const event = item.entity_type === "event" ? eventMap[item.entity_id] : null;
           const hasLocation = event?.location_address;

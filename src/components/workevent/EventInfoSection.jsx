@@ -1,6 +1,7 @@
 import { MapPin, Clock, Calendar, User, Tag, RefreshCw, Loader2, CheckCircle2 } from "lucide-react";
 import { useState } from "react";
 import { appClient } from "@/api/appClient";
+import AddressAutocomplete from "@/components/AddressAutocomplete";
 
 /** Parse "HH:MM" → total minutes */
 function toMins(t) {
@@ -169,11 +170,11 @@ export default function EventInfoSection({ event, onChange, clients }) {
       {/* Location */}
       <div>
         <label className={labelCls + " flex items-center gap-1"}><MapPin className="w-3 h-3" />Location</label>
-        <input
-          className={inputCls}
+        <AddressAutocomplete
+          inputClassName={inputCls}
           placeholder="Address or venue name"
           value={event.location_address || ""}
-          onChange={e => onChange("location_address", e.target.value)}
+          onChange={val => onChange("location_address", val)}
         />
       </div>
 
