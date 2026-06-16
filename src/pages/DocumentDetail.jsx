@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { appClient } from "@/api/appClient";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl, currencySymbol } from "@/utils";
@@ -22,6 +22,7 @@ export default function DocumentDetail() {
   const params = new URLSearchParams(window.location.search);
   const id = params.get("id");
   const typeParam = params.get("type") || "invoice";
+  const prefillEventId = params.get("event_id");
   const navigate = useNavigate();
 
   const defaultDueDate = format(addDays(new Date(), 30), "yyyy-MM-dd");
@@ -56,6 +57,7 @@ export default function DocumentDetail() {
   };
 
   const [doc, setDoc] = useState(emptyDoc);
+  const didPrefill = useRef(false);
   const [clients, setClients] = useState([]);
   const [linkedEvent, setLinkedEvent] = useState(null);
   const [payments, setPayments] = useState([]);
@@ -196,6 +198,13 @@ export default function DocumentDetail() {
       setLoadingEvents(false);
     }).catch(() => setLoadingEvents(false));
   }, [isInvoice]);
+
+  // Pre-fill from event_id URL param (e.g. from AI dashboard briefing "Create Invoice" button)
+  useEffect(() => {
+    if (!prefillEventId || !isNew || didPrefill.current || !availableEvents.length) return;
+    didPrefill.current = true;
+    handleSelectEvent(prefillEventId);
+  }, [availableEvents]);
 
   const clientName = useMemo(() => {
     const cid = linkedEvent?.client_id || doc.client_id;

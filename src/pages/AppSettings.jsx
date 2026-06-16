@@ -24,7 +24,7 @@ export default function AppSettings() {
   const [profile, setProfile] = useState(null);
   const [saveState, setSaveState] = useState("idle"); // 'idle' | 'saving' | 'saved'
   const [loading, setLoading] = useState(true);
-  const [openSections, setOpenSections] = useState(new Set(["finance"]));
+  const [openSections, setOpenSections] = useState(new Set());
   const logoInputRef = useRef(null);
 
   // Refs for debounced save
