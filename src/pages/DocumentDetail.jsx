@@ -1280,58 +1280,56 @@ export default function DocumentDetail() {
             {/* Event / Client link — or inline tile picker if neither is set */}
             {isInvoice && (
               linkedEvent ? (
-                <span className="flex items-center gap-1">
+                <div className="flex items-center gap-1.5 flex-wrap">
                   <a
                     href={createPageUrl(`WorkEventDetail?id=${linkedEvent.id}`)}
-                    className="flex items-center gap-1 text-xs text-indigo-400/60 hover:text-indigo-300 transition-colors"
                     onClick={e => e.stopPropagation()}
+                    className="inline-flex items-center gap-1.5 text-xs font-medium text-indigo-300 bg-indigo-600/20 border border-indigo-700/30 hover:bg-indigo-600/35 px-2.5 py-1 rounded-full transition-colors"
                   >
-                    <ExternalLink className="w-3 h-3" />
-                    {linkedEvent.title}
-                    {linkedEvent.date && (
-                      <span className="text-indigo-400/40">
-                        {" · "}{(() => { try { return format(parseISO(linkedEvent.date), "d MMM"); } catch { return ""; } })()}
-                      </span>
-                    )}
+                    <CalendarDays className="w-3.5 h-3.5" />
+                    Event{linkedEvent.date ? ` · ${(() => { try { return format(parseISO(linkedEvent.date), "d MMM"); } catch { return ""; } })()}` : ""}
+                    <ExternalLink className="w-3 h-3 opacity-60" />
                   </a>
                   {!doc.is_locked && (
                     <button onClick={e => { e.stopPropagation(); handleSelectEvent(""); }}
-                      className="text-gray-600 hover:text-red-400 transition-colors ml-0.5" title="Unlink event">
-                      <X className="w-3 h-3" />
+                      className="text-gray-500 hover:text-red-400 transition-colors" title="Unlink event">
+                      <X className="w-3.5 h-3.5" />
                     </button>
                   )}
-                </span>
+                </div>
               ) : clientName ? (
-                <span className="flex items-center gap-1 text-xs text-gray-600">
-                  <span className="w-1.5 h-1.5 rounded-full bg-gray-600 inline-block" />
-                  {clientName}
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-200 bg-gray-700/50 border border-gray-700/40 px-2.5 py-1 rounded-full">
+                    <User className="w-3.5 h-3.5 text-gray-400" />
+                    {clientName}
+                  </span>
                   {!doc.is_locked && (
                     <button onClick={e => { e.stopPropagation(); onChange("client_id", ""); }}
-                      className="text-gray-600 hover:text-red-400 transition-colors ml-0.5" title="Unlink client">
-                      <X className="w-3 h-3" />
+                      className="text-gray-500 hover:text-red-400 transition-colors" title="Unlink client">
+                      <X className="w-3.5 h-3.5" />
                     </button>
                   )}
-                </span>
+                </div>
               ) : !doc.is_locked && (
                 linkingType === null ? (
                   <div className="grid grid-cols-2 gap-2 pt-0.5">
                     <button onClick={() => setLinkingType("event")}
                       className="rounded-xl p-3 text-left border bg-indigo-950/30 border-indigo-800/20 hover:bg-indigo-950/50 transition-all">
-                      <CalendarDays className="w-3.5 h-3.5 text-indigo-400 mb-1.5" />
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-400 mb-0.5">Event</p>
-                      <p className="text-[10px] text-indigo-300/60">
+                      <CalendarDays className="w-4 h-4 text-indigo-400 mb-1.5" />
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-indigo-400 mb-0.5">Event</p>
+                      <p className="text-xs text-indigo-300/60">
                         {loadingEvents ? "Loading…" : `${availableEvents.length} available`}
                       </p>
                     </button>
                     <button onClick={() => setLinkingType("client")}
                       className="rounded-xl p-3 text-left border bg-gray-800/60 border-gray-700/40 hover:bg-gray-700/50 transition-all">
-                      <div className="w-3.5 h-3.5 mb-1.5 text-gray-400">
+                      <div className="w-4 h-4 mb-1.5 text-gray-400">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
                         </svg>
                       </div>
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Client</p>
-                      <p className="text-[10px] text-gray-600">{clients.length} contacts</p>
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Client</p>
+                      <p className="text-xs text-gray-500">{clients.length} contacts</p>
                     </button>
                   </div>
                 ) : linkingType === "event" ? (
