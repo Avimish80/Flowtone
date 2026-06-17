@@ -47,26 +47,35 @@
  *
  * The mainPage value must match a key in the PAGES object exactly.
  */
-import AppSettings from './pages/AppSettings';
-import CalendarView from './pages/CalendarView';
-import ChartDetail from './pages/ChartDetail';
-import Charts from './pages/Charts';
-import ClientDetail from './pages/ClientDetail';
-import Clients from './pages/Clients';
+// NOTE: this file was hand-edited for code-splitting (it is NOT actually
+// auto-generated — there is no generator script in this repo). Pages are
+// React.lazy()-loaded so they ship as separate chunks instead of bloating the
+// initial bundle; App.jsx renders them inside a <Suspense> boundary. Dashboard
+// (the landing page) and the Layout shell stay eager so the first paint after
+// sign-in is instant with no loading flash. When adding a page, follow the
+// lazy() pattern below.
+import { lazy } from 'react';
 import Dashboard from './pages/Dashboard';
-import DocumentDetail from './pages/DocumentDetail';
-import DrivingMode from './pages/DrivingMode';
-import EmailInbox from './pages/EmailInbox';
-import Equipment from './pages/Equipment';
-import EstimateDetail from './pages/EstimateDetail';
-import Estimates from './pages/Estimates';
-import Finance from './pages/Finance';
-import InvoiceDetail from './pages/InvoiceDetail';
-import Invoices from './pages/Invoices';
-import Practice from './pages/Practice';
-import WorkEventDetail from './pages/WorkEventDetail';
-import WorkEvents from './pages/WorkEvents';
 import __Layout from './Layout.jsx';
+
+const AppSettings = lazy(() => import('./pages/AppSettings'));
+const CalendarView = lazy(() => import('./pages/CalendarView'));
+const ChartDetail = lazy(() => import('./pages/ChartDetail'));
+const Charts = lazy(() => import('./pages/Charts'));
+const ClientDetail = lazy(() => import('./pages/ClientDetail'));
+const Clients = lazy(() => import('./pages/Clients'));
+const DocumentDetail = lazy(() => import('./pages/DocumentDetail'));
+const DrivingMode = lazy(() => import('./pages/DrivingMode'));
+const EmailInbox = lazy(() => import('./pages/EmailInbox'));
+const Equipment = lazy(() => import('./pages/Equipment'));
+const EstimateDetail = lazy(() => import('./pages/EstimateDetail'));
+const Estimates = lazy(() => import('./pages/Estimates'));
+const Finance = lazy(() => import('./pages/Finance'));
+const InvoiceDetail = lazy(() => import('./pages/InvoiceDetail'));
+const Invoices = lazy(() => import('./pages/Invoices'));
+const Practice = lazy(() => import('./pages/Practice'));
+const WorkEventDetail = lazy(() => import('./pages/WorkEventDetail'));
+const WorkEvents = lazy(() => import('./pages/WorkEvents'));
 
 
 export const PAGES = {

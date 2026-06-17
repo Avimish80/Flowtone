@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { useTheme } from "@/lib/ThemeContext";
 import {
   Music2, CalendarDays, CalendarRange, Users, Receipt,
   Package, Mail, Car, Settings, LayoutDashboard, MoreHorizontal, X, Sun, Moon,
-  Music, Dumbbell, FileText, Bell
+  Music, Dumbbell, FileText, Bell, Loader2
 } from "lucide-react";
 import AIAssistantButton from "@/components/AIAssistant/AIAssistantButton";
 import AIAssistantPanel from "@/components/AIAssistant/AIAssistantPanel";
@@ -237,9 +237,16 @@ export default function Layout({ children, currentPageName }) {
         </div>
       </header>
 
-      {/* Content */}
+      {/* Content — Suspense lets lazy-loaded pages stream in while the header
+          and bottom nav stay put (page chunks are code-split, see App.jsx). */}
       <main className="flex-1 overflow-auto pb-20">
-        {children}
+        <Suspense fallback={
+          <div className="flex items-center justify-center py-24 text-gray-500">
+            <Loader2 className="w-6 h-6 animate-spin" />
+          </div>
+        }>
+          {children}
+        </Suspense>
       </main>
 
       {/* More Menu Overlay */}
