@@ -115,7 +115,7 @@ export default function Clients() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="font-semibold text-white truncate">{client.name}</p>
-                    {client.has_late_payment_history && <AlertCircle className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />}
+                    {(client.late_payment_flag || client.has_late_payment_history) && <AlertCircle className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />}
                   </div>
                   <p className={`text-xs capitalize ${typeColors[client.client_type] || "text-gray-400"}`}>
                     {client.client_type || "other"}

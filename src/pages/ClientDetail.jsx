@@ -24,7 +24,7 @@ export default function ClientDetail() {
   const [client, setClient] = useState({
     name: "", client_type: "other", emails: [], phones: [],
     default_currency: "GBP", default_payment_terms_days: 30,
-    email_filter_tag: "none", has_late_payment_history: false, notes: ""
+    email_filter_tag: "none", late_payment_flag: false, notes: ""
   });
   const [loading, setLoading] = useState(!!id);
   const [saving, setSaving] = useState(false);
@@ -37,6 +37,9 @@ export default function ClientDetail() {
   const lastSavedJsonRef = useRef(null);
   const clientRef = useRef(client);
   useEffect(() => { clientRef.current = client; }, [client]);
+  const createdOnceRef = useRef(false);
+  const newEmailRef = useRef("");
+  const newPhoneRef = useRef("");
 
   useEffect(() => {
     if (id) {
@@ -61,33 +64,47 @@ export default function ClientDetail() {
         setTimeout(() => setSavingState(s => (s === "saved" ? "idle" : s)), 2000);
       } catch (err) {
         console.error("Client auto-save error:", err);
-        setSavingState("idle");
+        setSavingState("error");
       }
     }, 1200);
     return () => clearTimeout(t);
   }, [client, id, loading]);
 
-  // Flush a pending change on unmount (e.g. tapping the Clients bottom-nav).
+  // Flush on unmount — saves existing clients, creates new ones if name was filled.
   useEffect(() => () => {
     const c = clientRef.current;
-    if (id && c?.name?.trim() && JSON.stringify(c) !== lastSavedJsonRef.current) {
-      appClient.entities.Client.update(id, c).catch(() => {});
+    const merged = {
+      ...c,
+      emails: newEmailRef.current.trim() ? [...(c.emails || []), newEmailRef.current.trim()] : (c.emails || []),
+      phones: newPhoneRef.current.trim() ? [...(c.phones || []), newPhoneRef.current.trim()] : (c.phones || []),
+    };
+    if (!merged.name?.trim()) return;
+    if (id) {
+      if (JSON.stringify(merged) !== lastSavedJsonRef.current)
+        appClient.entities.Client.update(id, merged).catch(err => console.error("Client flush error:", err));
+    } else if (!createdOnceRef.current) {
+      createdOnceRef.current = true;
+      appClient.entities.Client.create(merged).catch(err => console.error("Client flush-create error:", err));
     }
   }, [id]);
 
   const onChange = (field, value) => setClient(prev => ({ ...prev, [field]: value }));
 
   const addEmail = () => {
-    if (!newEmail.trim()) return;
-    onChange("emails", [...(client.emails || []), newEmail.trim()]);
+    const val = newEmailRef.current.trim();
+    if (!val) return;
+    newEmailRef.current = "";
+    onChange("emails", [...(client.emails || []), val]);
     setNewEmail("");
   };
 
   const removeEmail = (i) => onChange("emails", client.emails.filter((_, idx) => idx !== i));
 
   const addPhone = () => {
-    if (!newPhone.trim()) return;
-    onChange("phones", [...(client.phones || []), newPhone.trim()]);
+    const val = newPhoneRef.current.trim();
+    if (!val) return;
+    newPhoneRef.current = "";
+    onChange("phones", [...(client.phones || []), val]);
     setNewPhone("");
   };
 
@@ -97,11 +114,18 @@ export default function ClientDetail() {
   // Create button, which renders only when there's no id.
   const handleSave = async () => {
     setSaving(true);
+    createdOnceRef.current = true;
     try {
-      const created = await appClient.entities.Client.create(client);
+      const data = {
+        ...client,
+        emails: newEmailRef.current.trim() ? [...(client.emails || []), newEmailRef.current.trim()] : (client.emails || []),
+        phones: newPhoneRef.current.trim() ? [...(client.phones || []), newPhoneRef.current.trim()] : (client.phones || []),
+      };
+      const created = await appClient.entities.Client.create(data);
       navigate(createPageUrl(`ClientDetail?id=${created.id}`));
     } catch (err) {
       console.error("Client create error:", err);
+      createdOnceRef.current = false;
     }
     setSaving(false);
   };
@@ -145,6 +169,7 @@ export default function ClientDetail() {
               <span className="text-[11px] h-4 flex items-center flex-shrink-0 mt-1">
                 {savingState === "saving" && <span className="text-indigo-300/80 flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> Saving…</span>}
                 {savingState === "saved" && <span className="text-green-400 flex items-center gap-1"><Check className="w-3 h-3" /> Saved</span>}
+                {savingState === "error" && <span className="text-red-400 flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> Not saved</span>}
               </span>
             </div>
 
@@ -152,7 +177,7 @@ export default function ClientDetail() {
               {client.client_type && (
                 <span className="text-xs font-medium text-indigo-200 bg-indigo-600/30 px-2.5 py-0.5 rounded-full capitalize">{client.client_type}</span>
               )}
-              {client.has_late_payment_history && (
+              {(client.late_payment_flag || client.has_late_payment_history) && (
                 <span className="text-xs font-medium text-red-300 bg-red-950/60 border border-red-700/40 px-2.5 py-0.5 rounded-full flex items-center gap-1"><AlertCircle className="w-3 h-3" /> Late payer</span>
               )}
               {client.default_fee > 0 && (
@@ -266,7 +291,8 @@ export default function ClientDetail() {
               className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-indigo-500"
               placeholder="email@example.com"
               value={newEmail}
-              onChange={e => setNewEmail(e.target.value)}
+              onChange={e => { setNewEmail(e.target.value); newEmailRef.current = e.target.value; }}
+              onBlur={addEmail}
               onKeyDown={e => e.key === "Enter" && addEmail()}
             />
             <button onClick={addEmail} className="bg-gray-700 hover:bg-gray-600 text-white rounded-lg px-3 py-2 transition-colors"><Plus className="w-4 h-4" /></button>
@@ -289,7 +315,8 @@ export default function ClientDetail() {
               className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-indigo-500"
               placeholder="+44 ..."
               value={newPhone}
-              onChange={e => setNewPhone(e.target.value)}
+              onChange={e => { setNewPhone(e.target.value); newPhoneRef.current = e.target.value; }}
+              onBlur={addPhone}
               onKeyDown={e => e.key === "Enter" && addPhone()}
             />
             <button onClick={addPhone} className="bg-gray-700 hover:bg-gray-600 text-white rounded-lg px-3 py-2 transition-colors"><Plus className="w-4 h-4" /></button>
@@ -339,10 +366,10 @@ export default function ClientDetail() {
             <p className="text-xs text-gray-500">Flag this client for late payments</p>
           </div>
           <button
-            onClick={() => onChange("has_late_payment_history", !client.has_late_payment_history)}
-            className={`w-10 h-6 rounded-full transition-colors ${client.has_late_payment_history ? "bg-red-600" : "bg-gray-700"}`}
+            onClick={() => onChange("late_payment_flag", !(client.late_payment_flag || client.has_late_payment_history))}
+            className={`w-10 h-6 rounded-full transition-colors ${(client.late_payment_flag || client.has_late_payment_history) ? "bg-red-600" : "bg-gray-700"}`}
           >
-            <span className={`block w-4 h-4 bg-white rounded-full transition-transform mx-1 ${client.has_late_payment_history ? "translate-x-4" : "translate-x-0"}`} />
+            <span className={`block w-4 h-4 bg-white rounded-full transition-transform mx-1 ${(client.late_payment_flag || client.has_late_payment_history) ? "translate-x-4" : "translate-x-0"}`} />
           </button>
         </div>
 
