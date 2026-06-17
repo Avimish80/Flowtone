@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { appClient } from "@/api/appClient";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl, formatMoney } from "@/utils";
-import { ArrowLeft, Save, Trash2, Plus, X, AlertTriangle, AlertCircle, Check, Loader2, FileText, Mail, Phone, MapPin } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Plus, X, AlertTriangle, AlertCircle, Check, Loader2, FileText, Mail, Phone, MapPin, ChevronDown } from "lucide-react";
 import { useGoBack } from "@/hooks/useGoBack";
 import ClientFinancialSummary from "../components/client/ClientFinancialSummary";
 import InvoiceLessonsModal from "../components/client/InvoiceLessonsModal";
@@ -24,11 +24,14 @@ export default function ClientDetail() {
   const [loading, setLoading] = useState(!!id);
   const [saving, setSaving] = useState(false);
   const [savingState, setSavingState] = useState("idle"); // 'idle' | 'saving' | 'saved' — auto-save
+  const [showEditor, setShowEditor] = useState(false); // editable fields collapsed under the hero
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [newEmail, setNewEmail] = useState("");
   const [newPhone, setNewPhone] = useState("");
   const [showInvoiceLessons, setShowInvoiceLessons] = useState(false);
   const lastSavedJsonRef = useRef(null);
+  const clientRef = useRef(client);
+  useEffect(() => { clientRef.current = client; }, [client]);
 
   useEffect(() => {
     if (id) {
@@ -59,6 +62,14 @@ export default function ClientDetail() {
     return () => clearTimeout(t);
   }, [client, id, loading]);
 
+  // Flush a pending change on unmount (e.g. tapping the Clients bottom-nav).
+  useEffect(() => () => {
+    const c = clientRef.current;
+    if (id && c?.name?.trim() && JSON.stringify(c) !== lastSavedJsonRef.current) {
+      appClient.entities.Client.update(id, c).catch(() => {});
+    }
+  }, [id]);
+
   const onChange = (field, value) => setClient(prev => ({ ...prev, [field]: value }));
 
   const addEmail = () => {
@@ -77,15 +88,15 @@ export default function ClientDetail() {
 
   const removePhone = (i) => onChange("phones", client.phones.filter((_, idx) => idx !== i));
 
+  // Create a new client (existing clients auto-save). Only reachable from the
+  // Create button, which renders only when there's no id.
   const handleSave = async () => {
     setSaving(true);
-    if (id) {
-      await appClient.entities.Client.update(id, client);
-      setSavedFlash(true);
-      setTimeout(() => setSavedFlash(false), 2000);
-    } else {
+    try {
       const created = await appClient.entities.Client.create(client);
       navigate(createPageUrl(`ClientDetail?id=${created.id}`));
+    } catch (err) {
+      console.error("Client create error:", err);
     }
     setSaving(false);
   };
@@ -102,18 +113,14 @@ export default function ClientDetail() {
 
   return (
     <div className="max-w-xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 bg-gray-900 sticky top-0 z-20 border-b border-gray-800">
-        <button onClick={goBack} className="text-gray-400 hover:text-white transition-colors">
-          <ArrowLeft className="w-5 h-5" />
-        </button>
-        <h1 className="flex-1 font-semibold text-white truncate">{id ? (client.name || "Client") : "New Client"}</h1>
-        {id ? (
-          <div className="flex items-center justify-end text-xs flex-shrink-0 min-w-[68px] h-7">
-            {savingState === "saving" && <span className="text-gray-400 flex items-center gap-1"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving…</span>}
-            {savingState === "saved" && <span className="text-green-400 flex items-center gap-1"><Check className="w-3.5 h-3.5" /> Saved</span>}
-          </div>
-        ) : (
+      {/* New clients keep a small bar with Create — existing ones navigate
+           back via the Clients bottom-nav, so they lead with the hero. */}
+      {!id && (
+        <div className="flex items-center gap-3 px-4 py-3 bg-gray-900 sticky top-0 z-20 border-b border-gray-800">
+          <button onClick={goBack} className="text-gray-400 hover:text-white transition-colors">
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <h1 className="flex-1 font-semibold text-white truncate">New Client</h1>
           <button
             onClick={handleSave}
             disabled={saving}
@@ -121,33 +128,37 @@ export default function ClientDetail() {
           >
             {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Creating…</> : <><Save className="w-4 h-4" /> Create</>}
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
-      {/* Hero ticket — at-a-glance, clickable summary for an existing client */}
+      {/* Hero ticket — leads the page: big, clickable client summary */}
       {id && (
         <div className="mx-4 mt-4 bg-gradient-to-br from-indigo-900/80 to-gray-900 rounded-2xl border border-indigo-700/30 overflow-hidden">
-          <div className="p-6">
+          <div className="p-7">
             <div className="flex items-start justify-between gap-3">
-              <h2 className="text-2xl font-bold text-white leading-tight">{client.name || "Unnamed client"}</h2>
+              <h2 className="text-3xl font-bold text-white leading-tight break-words min-w-0">{client.name || "Unnamed client"}</h2>
+              <span className="text-[11px] h-4 flex items-center flex-shrink-0 mt-1">
+                {savingState === "saving" && <span className="text-indigo-300/80 flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> Saving…</span>}
+                {savingState === "saved" && <span className="text-green-400 flex items-center gap-1"><Check className="w-3 h-3" /> Saved</span>}
+              </span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-1.5 mt-3">
+              {client.client_type && (
+                <span className="text-xs font-medium text-indigo-200 bg-indigo-600/30 px-2.5 py-0.5 rounded-full capitalize">{client.client_type}</span>
+              )}
+              {client.has_late_payment_history && (
+                <span className="text-xs font-medium text-red-300 bg-red-950/60 border border-red-700/40 px-2.5 py-0.5 rounded-full flex items-center gap-1"><AlertCircle className="w-3 h-3" /> Late payer</span>
+              )}
               {client.default_fee > 0 && (
-                <span className="text-sm font-semibold text-indigo-200 whitespace-nowrap flex-shrink-0">
+                <span className="text-xs font-medium text-gray-200 bg-gray-700/50 px-2.5 py-0.5 rounded-full">
                   {formatMoney(client.default_fee, client.default_currency || "GBP").replace(/\.00$/, "")} default
                 </span>
               )}
             </div>
 
-            <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
-              {client.client_type && (
-                <span className="text-[11px] font-medium text-indigo-200 bg-indigo-600/30 px-2 py-0.5 rounded-full capitalize">{client.client_type}</span>
-              )}
-              {client.has_late_payment_history && (
-                <span className="text-[11px] font-medium text-red-300 bg-red-950/60 border border-red-700/40 px-2 py-0.5 rounded-full flex items-center gap-1"><AlertCircle className="w-3 h-3" /> Late payer</span>
-              )}
-            </div>
-
             {primaryEmail && (
-              <a href={`mailto:${primaryEmail}`} className="flex items-center gap-2 mt-4 text-sm text-gray-200 hover:text-white transition-colors">
+              <a href={`mailto:${primaryEmail}`} className="flex items-center gap-2.5 mt-5 text-[15px] text-gray-200 hover:text-white transition-colors">
                 <Mail className="w-4 h-4 text-indigo-400 flex-shrink-0" />
                 <span className="truncate flex-1">{primaryEmail}</span>
               </a>
@@ -155,7 +166,7 @@ export default function ClientDetail() {
 
             {primaryPhone && (
               <div className="flex items-center justify-between gap-2 mt-3">
-                <a href={`tel:${primaryPhone}`} className="flex items-center gap-2 text-sm text-gray-200 hover:text-white transition-colors min-w-0">
+                <a href={`tel:${primaryPhone}`} className="flex items-center gap-2.5 text-[15px] text-gray-200 hover:text-white transition-colors min-w-0">
                   <Phone className="w-4 h-4 text-indigo-400 flex-shrink-0" />
                   <span className="truncate">{primaryPhone}</span>
                 </a>
@@ -166,16 +177,41 @@ export default function ClientDetail() {
             )}
 
             {client.city && (
-              <p className="flex items-center gap-2 mt-3 text-sm text-gray-300">
+              <p className="flex items-center gap-2.5 mt-3 text-[15px] text-gray-300">
                 <MapPin className="w-4 h-4 text-indigo-400 flex-shrink-0" />
                 <span className="truncate">{client.city}</span>
               </p>
             )}
+
+            {/* Quick action: invoice this client's lessons */}
+            <div className="flex items-center gap-2 flex-wrap mt-5 pt-5 border-t border-indigo-700/20">
+              <button
+                onClick={() => setShowInvoiceLessons(true)}
+                className="flex items-center gap-1.5 text-xs font-medium text-indigo-200 bg-indigo-600/30 hover:bg-indigo-600/50 px-3 py-1.5 rounded-lg transition-colors"
+              >
+                <FileText className="w-3.5 h-3.5" /> Invoice lessons
+              </button>
+            </div>
           </div>
         </div>
       )}
 
+      {/* Edit-details toggle — reveals the editable fields below the hero */}
+      {id && (
+        <div className="px-4 mt-3">
+          <button
+            onClick={() => setShowEditor(v => !v)}
+            className="flex items-center gap-1.5 text-xs font-medium text-gray-400 hover:text-gray-200 transition-colors"
+          >
+            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showEditor ? "" : "-rotate-90"}`} />
+            {showEditor ? "Hide details" : "Edit details"}
+          </button>
+        </div>
+      )}
+
       <div className="p-4 space-y-5">
+        {/* Editable fields — collapsed under the hero for existing clients */}
+        {(!id || showEditor) && (<>
         {/* Name */}
         <div>
           <label className="text-xs text-gray-400 mb-1 block">Name *</label>
@@ -319,16 +355,7 @@ export default function ClientDetail() {
             onChange={e => onChange("notes", e.target.value)}
           />
         </div>
-
-        {/* Invoice several lessons at once */}
-        {id && (
-          <button
-            onClick={() => setShowInvoiceLessons(true)}
-            className="w-full bg-gray-800 hover:bg-gray-700 border border-gray-700 text-white rounded-xl py-2.5 text-sm font-medium flex items-center justify-center gap-2 transition-colors"
-          >
-            <FileText className="w-4 h-4 text-indigo-400" /> Invoice lessons
-          </button>
-        )}
+        </>)}
 
         {/* Financial Summary */}
         {id && (
