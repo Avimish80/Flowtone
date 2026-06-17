@@ -7,7 +7,7 @@ import { format, parseISO } from "date-fns";
 import {
   ArrowLeft, Trash2, Banknote, Phone, User, Clock, MapPin,
   Package, Mail, Navigation, ChevronDown, ChevronUp, AlertTriangle, FileText, CalendarDays, RefreshCw,
-  Dumbbell, Check, X, CheckCircle2, Target, ExternalLink, Loader2
+  Dumbbell, Check, X, CheckCircle2, Target, ExternalLink, Loader2, MessageCircle
 } from "lucide-react";
 import { deleteCalendarEvent } from "@/lib/calendarClient";
 
@@ -16,6 +16,11 @@ const SERIES_FIELDS = ["start_time", "end_time", "base_price", "total_price", "c
 
 function buildNavUrl(address) {
   return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}&travelmode=driving`;
+}
+
+// wa.me needs an international number with digits only (no +, spaces or dashes).
+function whatsappUrl(phone) {
+  return `https://wa.me/${(phone || "").replace(/[^\d]/g, "")}`;
 }
 
 function eventDateLabel(date) {
@@ -98,6 +103,7 @@ export default function WorkEventDetail() {
     [clients, event.client_id]
   );
   const clientPhone = clientObj?.phones?.find(Boolean) || "";
+  const clientEmail = clientObj?.emails?.find(Boolean) || "";
   const eventFee = event.total_price || event.base_price || 0;
 
   // Filter sections based on event type
@@ -451,15 +457,29 @@ export default function WorkEventDetail() {
             )}
 
             {clientObj && (
-              <div className="flex items-center justify-between gap-2 mt-3">
+              <div className="mt-3">
                 <Link to={createPageUrl(`ClientDetail?id=${clientObj.id}`)} className="flex items-center gap-1.5 text-sm text-gray-200 hover:text-white transition-colors min-w-0">
                   <User className="w-4 h-4 text-indigo-400 flex-shrink-0" />
                   <span className="truncate">{clientObj.name}</span>
                 </Link>
-                {clientPhone && (
-                  <a href={`tel:${clientPhone}`} className="flex items-center gap-1.5 text-xs font-medium text-indigo-200 bg-indigo-600/30 hover:bg-indigo-600/50 px-2.5 py-1 rounded-lg transition-colors flex-shrink-0">
-                    <Phone className="w-3.5 h-3.5" /> Call
-                  </a>
+                {(clientPhone || clientEmail) && (
+                  <div className="flex items-center gap-2 flex-wrap mt-2">
+                    {clientPhone && (
+                      <a href={whatsappUrl(clientPhone)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs font-medium text-green-300 bg-green-600/20 hover:bg-green-600/35 border border-green-700/30 px-2.5 py-1 rounded-lg transition-colors">
+                        <MessageCircle className="w-3.5 h-3.5" /> WhatsApp
+                      </a>
+                    )}
+                    {clientPhone && (
+                      <a href={`tel:${clientPhone}`} className="flex items-center gap-1.5 text-xs font-medium text-indigo-200 bg-indigo-600/30 hover:bg-indigo-600/50 px-2.5 py-1 rounded-lg transition-colors">
+                        <Phone className="w-3.5 h-3.5" /> Call
+                      </a>
+                    )}
+                    {clientEmail && (
+                      <a href={`mailto:${clientEmail}`} className="flex items-center gap-1.5 text-xs font-medium text-indigo-200 bg-indigo-600/30 hover:bg-indigo-600/50 px-2.5 py-1 rounded-lg transition-colors">
+                        <Mail className="w-3.5 h-3.5" /> Email
+                      </a>
+                    )}
+                  </div>
                 )}
               </div>
             )}

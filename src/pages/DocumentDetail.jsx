@@ -6,13 +6,18 @@ import { useGoBack } from "@/hooks/useGoBack";
 import {
   ArrowLeft, Save, Trash2, Plus, X, AlertTriangle, Send, CheckCircle2,
   XCircle, CalendarDays, Loader2, ExternalLink, ChevronDown,
-  Lock, Unlock, ArrowRightLeft, Printer, Mail, User, Phone, Check,
+  Lock, Unlock, ArrowRightLeft, Printer, Mail, User, Phone, Check, MessageCircle,
 } from "lucide-react";
 import { format, addDays, parseISO } from "date-fns";
 
 function docDateLabel(date) {
   if (!date) return "";
   try { return format(parseISO(date), "EEE d MMM"); } catch { return date; }
+}
+
+// wa.me needs an international number with digits only (no +, spaces or dashes).
+function whatsappUrl(phone) {
+  return `https://wa.me/${(phone || "").replace(/[^\d]/g, "")}`;
 }
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
@@ -801,6 +806,7 @@ export default function DocumentDetail() {
   // Hero summary bits
   const heroClient = clientMap[linkedEvent?.client_id || doc.client_id] || null;
   const heroClientPhone = heroClient?.phones?.find(Boolean) || "";
+  const heroClientEmail = heroClient?.emails?.find(Boolean) || doc.client_email || "";
   const isPaid = doc.status === "paid";
 
   if (loading) return <div className="p-4 text-gray-400">Loading...</div>;
@@ -875,15 +881,29 @@ export default function DocumentDetail() {
             {doc.title && <p className="text-sm text-gray-300 mt-2">{doc.title}</p>}
 
             {heroClient && (
-              <div className="flex items-center justify-between gap-2 mt-4">
+              <div className="mt-4">
                 <Link to={createPageUrl(`ClientDetail?id=${heroClient.id}`)} className="flex items-center gap-1.5 text-sm text-gray-200 hover:text-white transition-colors min-w-0">
                   <User className="w-4 h-4 text-indigo-400 flex-shrink-0" />
                   <span className="truncate">{heroClient.name}</span>
                 </Link>
-                {heroClientPhone && (
-                  <a href={`tel:${heroClientPhone}`} className="flex items-center gap-1.5 text-xs font-medium text-indigo-200 bg-indigo-600/30 hover:bg-indigo-600/50 px-2.5 py-1 rounded-lg transition-colors flex-shrink-0">
-                    <Phone className="w-3.5 h-3.5" /> Call
-                  </a>
+                {(heroClientPhone || heroClientEmail) && (
+                  <div className="flex items-center gap-2 flex-wrap mt-2">
+                    {heroClientPhone && (
+                      <a href={whatsappUrl(heroClientPhone)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs font-medium text-green-300 bg-green-600/20 hover:bg-green-600/35 border border-green-700/30 px-2.5 py-1 rounded-lg transition-colors">
+                        <MessageCircle className="w-3.5 h-3.5" /> WhatsApp
+                      </a>
+                    )}
+                    {heroClientPhone && (
+                      <a href={`tel:${heroClientPhone}`} className="flex items-center gap-1.5 text-xs font-medium text-indigo-200 bg-indigo-600/30 hover:bg-indigo-600/50 px-2.5 py-1 rounded-lg transition-colors">
+                        <Phone className="w-3.5 h-3.5" /> Call
+                      </a>
+                    )}
+                    {heroClientEmail && (
+                      <a href={`mailto:${heroClientEmail}`} className="flex items-center gap-1.5 text-xs font-medium text-indigo-200 bg-indigo-600/30 hover:bg-indigo-600/50 px-2.5 py-1 rounded-lg transition-colors">
+                        <Mail className="w-3.5 h-3.5" /> Email
+                      </a>
+                    )}
+                  </div>
                 )}
               </div>
             )}
