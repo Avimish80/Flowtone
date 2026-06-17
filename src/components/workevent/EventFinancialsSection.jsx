@@ -1,8 +1,19 @@
 import { useState } from "react";
-import { Lock, Plus, Trash2 } from "lucide-react";
-import { currencySymbol } from "@/utils";
+import { Link } from "react-router-dom";
+import { Lock, Plus, Trash2, FileText, Receipt, ChevronRight, Loader2 } from "lucide-react";
+import { currencySymbol, createPageUrl } from "@/utils";
 
-export default function EventFinancialsSection({ event, onChange }) {
+const docStatusColors = {
+  draft: "bg-gray-500/20 text-gray-400 border-gray-500/30",
+  sent: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+  accepted: "bg-green-500/20 text-green-400 border-green-500/30",
+  rejected: "bg-red-500/20 text-red-400 border-red-500/30",
+  converted: "bg-indigo-500/20 text-indigo-400 border-indigo-500/30",
+  paid: "bg-green-500/20 text-green-400 border-green-500/30",
+  cancelled: "bg-gray-600/20 text-gray-500 border-gray-600/30",
+};
+
+export default function EventFinancialsSection({ event, onChange, estimate, invoice, onCreateInvoice, creatingInvoice }) {
   const [newLabel, setNewLabel] = useState("");
   const [newAmount, setNewAmount] = useState("");
 
@@ -116,6 +127,53 @@ export default function EventFinancialsSection({ event, onChange }) {
         <span className="text-gray-300 font-medium">Total</span>
         <span className="text-xl font-bold text-indigo-300">{currencySymbol(event.currency)}{total.toFixed(2)}</span>
       </div>
+
+      {/* Invoice — create or open. Estimate shown only if one already exists. */}
+      {event.id && (
+        <div className="pt-2 space-y-2">
+          {estimate && (
+            <Link
+              to={createPageUrl(`DocumentDetail?id=${estimate.id}`)}
+              className="flex items-center gap-3 bg-gray-800 rounded-xl p-3 hover:bg-gray-700 transition-colors"
+            >
+              <FileText className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-gray-500 uppercase tracking-wide">Estimate</p>
+                <p className="text-sm text-white truncate">{currencySymbol(estimate.currency)}{(estimate.total || estimate.subtotal || 0).toFixed(2)}</p>
+              </div>
+              <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${docStatusColors[estimate.status] || docStatusColors.draft}`}>
+                {estimate.status}
+              </span>
+              <ChevronRight className="w-4 h-4 text-gray-600" />
+            </Link>
+          )}
+
+          {invoice ? (
+            <Link
+              to={createPageUrl(`DocumentDetail?id=${invoice.id}`)}
+              className="flex items-center gap-3 bg-gray-800 rounded-xl p-3 hover:bg-gray-700 transition-colors"
+            >
+              <Receipt className="w-4 h-4 text-green-400 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-gray-500 uppercase tracking-wide">Invoice</p>
+                <p className="text-sm text-white truncate">{currencySymbol(invoice.currency)}{(invoice.total || invoice.subtotal || 0).toFixed(2)}</p>
+              </div>
+              <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${docStatusColors[invoice.status] || docStatusColors.draft}`}>
+                {invoice.status}
+              </span>
+              <ChevronRight className="w-4 h-4 text-gray-600" />
+            </Link>
+          ) : (
+            <button
+              onClick={onCreateInvoice}
+              disabled={creatingInvoice}
+              className="w-full bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white rounded-xl py-2.5 text-sm font-medium flex items-center justify-center gap-2 transition-colors"
+            >
+              {creatingInvoice ? <><Loader2 className="w-4 h-4 animate-spin" /> Creating invoice…</> : <><Receipt className="w-4 h-4" /> Create invoice</>}
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

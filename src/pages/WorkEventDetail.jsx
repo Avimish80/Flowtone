@@ -32,13 +32,11 @@ import EventFinancialsSection from "../components/workevent/EventFinancialsSecti
 import EventEquipmentSection from "../components/workevent/EventEquipmentSection";
 import EventNavigationSection from "../components/workevent/EventNavigationSection";
 import EventEmailSection from "../components/workevent/EventEmailSection";
-import EventLinkedDocsSection from "../components/workevent/EventLinkedDocsSection";
 
 const SECTIONS = [
   { key: "info",       label: "Info",       icon: CalendarDays },
   { key: "practice",   label: "Practice",   icon: Dumbbell },
   { key: "financials", label: "Financials", icon: Banknote, hideForPractice: true },
-  { key: "docs",       label: "Docs",       icon: FileText,   hideForPractice: true },
   { key: "equipment",  label: "Equipment",  icon: Package },
   { key: "navigation", label: "Navigate",   icon: Navigation },
   { key: "email",      label: "Email",      icon: Mail },
@@ -324,18 +322,28 @@ export default function WorkEventDetail() {
     setLoggingPractice(false);
   };
 
-  const handleCreateInvoiceFromEstimate = async () => {
-    if (!estimate) return;
+  // Create an invoice for this gig directly — works whether or not an estimate
+  // exists. If there's an estimate, convert it (keeps its line items); otherwise
+  // build the invoice straight from the event's fee. Fixes the dead-end where
+  // gigs that arrived via calendar sync/import had no way to be invoiced.
+  const handleCreateInvoice = async () => {
+    if (!id || invoice) return;
     setCreatingInvoice(true);
     try {
-      const newInvoice = await appClient.helpers.convertEstimateToInvoice(estimate.id);
-      await appClient.entities.Document.update(newInvoice.id, { work_event_id: id });
+      let newInvoice;
+      if (estimate) {
+        newInvoice = await appClient.helpers.convertEstimateToInvoice(estimate.id);
+        await appClient.entities.Document.update(newInvoice.id, { work_event_id: id });
+        const docs = await appClient.entities.Document.filter({ id: estimate.id });
+        if (docs[0]) setEstimate(docs[0]);
+      } else {
+        const { document } = await appClient.helpers.buildInvoiceFromEvents({ event_ids: [id] });
+        newInvoice = document;
+      }
       setInvoice(newInvoice);
-      // Refresh estimate to see "converted" status
-      const docs = await appClient.entities.Document.filter({ id: estimate.id });
-      if (docs[0]) setEstimate(docs[0]);
+      navigate(createPageUrl(`DocumentDetail?id=${newInvoice.id}`));
     } catch (err) {
-      console.error("Convert error:", err);
+      console.error("Create invoice error:", err);
     }
     setCreatingInvoice(false);
   };
@@ -511,7 +519,7 @@ export default function WorkEventDetail() {
             {(linkedDoc || equipmentCount > 0 || (!isPractice && practiceCount > 0)) && (
               <div className="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-indigo-700/20">
                 {linkedDoc && (
-                  <button onClick={() => goToSection("docs")} className={heroBadge}>
+                  <button onClick={() => goToSection("financials")} className={heroBadge}>
                     <FileText className="w-3.5 h-3.5 text-indigo-400" /> {linkedDocLabel}
                   </button>
                 )}
@@ -786,13 +794,13 @@ export default function WorkEventDetail() {
                   </div>
                 )}
 
-                {key === "financials" && <EventFinancialsSection event={event} onChange={onChange} />}
-                {key === "docs" && (
-                  <EventLinkedDocsSection
+                {key === "financials" && (
+                  <EventFinancialsSection
                     event={event}
+                    onChange={onChange}
                     estimate={estimate}
                     invoice={invoice}
-                    onCreateInvoiceFromEstimate={handleCreateInvoiceFromEstimate}
+                    onCreateInvoice={handleCreateInvoice}
                     creatingInvoice={creatingInvoice}
                   />
                 )}
