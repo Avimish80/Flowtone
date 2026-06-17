@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { appClient } from "@/api/appClient";
 import { format } from "date-fns";
 import { X, Loader2, FileText, CheckSquare, Square } from "lucide-react";
-import { currencySymbol, formatMoney } from "@/utils";
+import { currencySymbol, formatMoney, eventsNoun } from "@/utils";
 
 // Picker for turning several of a client's events into ONE invoice.
 // Mirrors the AI's CREATE_INVOICE_FROM_EVENTS path (same helper underneath).
@@ -40,6 +40,9 @@ export default function InvoiceLessonsModal({ clientId, clientName, onClose, onC
   const selectedEvents = useMemo(() => events.filter((e) => selected[e.id]), [events, selected]);
   const total = useMemo(() => selectedEvents.reduce((s, e) => s + priceOf(e), 0), [selectedEvents]);
   const currency = events[0]?.currency || "GBP";
+  // Language follows the events themselves — gigs, lessons, sessions, etc.
+  const noun = eventsNoun(events);              // plural, e.g. "gigs"
+  const nounSingular = eventsNoun(events, 1);   // singular, e.g. "gig"
 
   const toggle = (id) => setSelected((prev) => ({ ...prev, [id]: !prev[id] }));
   const allSelected = events.length > 0 && selectedIds.length === events.length;
@@ -75,7 +78,7 @@ export default function InvoiceLessonsModal({ clientId, clientName, onClose, onC
         <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-800">
           <FileText className="w-5 h-5 text-indigo-400" />
           <div className="flex-1">
-            <h2 className="text-white font-semibold text-sm">Invoice lessons</h2>
+            <h2 className="text-white font-semibold text-sm">Invoice {noun}</h2>
             <p className="text-xs text-gray-500">{clientName}</p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors"><X className="w-5 h-5" /></button>
@@ -124,7 +127,7 @@ export default function InvoiceLessonsModal({ clientId, clientName, onClose, onC
                   onClick={() => setLayout("per_event")}
                   className={`py-2 rounded-lg text-xs font-medium transition-colors ${layout === "per_event" ? "bg-indigo-600 text-white" : "bg-gray-800 text-gray-400 hover:bg-gray-700"}`}
                 >
-                  One line per lesson
+                  One line per {nounSingular}
                 </button>
                 <button
                   onClick={() => setLayout("bundled")}

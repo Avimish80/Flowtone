@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { appClient } from "@/api/appClient";
 import { useNavigate } from "react-router-dom";
-import { createPageUrl, formatMoney } from "@/utils";
+import { createPageUrl, formatMoney, eventsNoun } from "@/utils";
 import { ArrowLeft, Save, Trash2, Plus, X, AlertTriangle, AlertCircle, Check, Loader2, FileText, Mail, Phone, MapPin, ChevronDown, MessageCircle } from "lucide-react";
 
 // wa.me needs an international number with digits only (no +, spaces or dashes).
@@ -34,6 +34,7 @@ export default function ClientDetail() {
   const [newEmail, setNewEmail] = useState("");
   const [newPhone, setNewPhone] = useState("");
   const [showInvoiceLessons, setShowInvoiceLessons] = useState(false);
+  const [billableEvents, setBillableEvents] = useState([]); // for event-type-aware button label
   const lastSavedJsonRef = useRef(null);
   const clientRef = useRef(client);
   useEffect(() => { clientRef.current = client; }, [client]);
@@ -49,6 +50,16 @@ export default function ClientDetail() {
       });
     }
   }, [id]);
+
+  // Load this client's un-invoiced events so the invoice button names them
+  // correctly (gigs / lessons / sessions), matching the events themselves.
+  useEffect(() => {
+    if (!id) return;
+    appClient.entities.WorkEvent.filter({ client_id: id })
+      .then(list => setBillableEvents((list || []).filter(e => e.status !== "cancelled" && !e.invoice_id)))
+      .catch(() => {});
+  }, [id]);
+  const invoiceNoun = eventsNoun(billableEvents);
 
   // ── Auto-save (existing clients) — debounced; new clients use Create ──
   useEffect(() => {
@@ -223,13 +234,13 @@ export default function ClientDetail() {
               </p>
             )}
 
-            {/* Quick action: invoice this client's lessons */}
+            {/* Quick action: invoice this client's un-invoiced events */}
             <div className="flex items-center gap-2 flex-wrap mt-5 pt-5 border-t border-indigo-700/20">
               <button
                 onClick={() => setShowInvoiceLessons(true)}
                 className="flex items-center gap-1.5 text-xs font-medium text-indigo-200 bg-indigo-600/30 hover:bg-indigo-600/50 px-3 py-1.5 rounded-lg transition-colors"
               >
-                <FileText className="w-3.5 h-3.5" /> Invoice lessons
+                <FileText className="w-3.5 h-3.5" /> Invoice {invoiceNoun}
               </button>
             </div>
           </div>

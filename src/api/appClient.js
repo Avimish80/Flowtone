@@ -5,6 +5,7 @@ import { getSupabaseClient, isPreviewModeEnabled } from "@/lib/supabaseClient";
 import { syncNow } from "@/lib/calendarClient";
 import { format } from "date-fns";
 import { expandRecurrence, normalizeRule, describeRule, isOpenEnded, HORIZON_MONTHS } from "@/lib/recurrence";
+import { eventsNoun } from "@/utils";
 
 // ─── Entity Registry ───────────────────────────────────────────────
 const entityNames = [
@@ -585,7 +586,7 @@ const buildInvoiceFromEvents = async ({ event_ids = [], layout = "per_event", ti
     const total = events.reduce((s, e) => s + priceOf(e), 0);
     const prices = [...new Set(events.map(priceOf))];
     const unit = prices.length === 1 ? prices[0] : Math.round((total / events.length) * 100) / 100;
-    const label = events[0].event_type === "Lesson" ? "lessons" : "events";
+    const label = eventsNoun(events);
     const span = events.length > 1 ? ` (${niceDate(events[0].date)} – ${niceDate(events[events.length - 1].date)})` : "";
     lineItems = [{
       description: `${events.length} ${label}${span}`,
@@ -610,9 +611,12 @@ const buildInvoiceFromEvents = async ({ event_ids = [], layout = "per_event", ti
   const todayStr = format(new Date(), "yyyy-MM-dd");
   const safeStatus = ["draft", "sent", "paid"].includes(status) ? status : "draft";
 
-  const defaultTitle = events[0].event_type === "Lesson"
-    ? `Lessons — ${events.length}× ${niceDate(events[0].date)}–${niceDate(events[events.length - 1].date)}`
-    : (events[0].title || "Invoice");
+  // Title names the events when there are several of one kind, e.g.
+  // "Gigs — 4× Mon 2 Jun–Fri 20 Jun"; single events keep their own title.
+  const titleNoun = eventsNoun(events);
+  const defaultTitle = events.length > 1
+    ? `${titleNoun.charAt(0).toUpperCase()}${titleNoun.slice(1)} — ${events.length}× ${niceDate(events[0].date)}–${niceDate(events[events.length - 1].date)}`
+    : (events[0].title || events[0].event_type || "Invoice");
 
   const doc = await entities.Document.create({
     document_type: "invoice",
