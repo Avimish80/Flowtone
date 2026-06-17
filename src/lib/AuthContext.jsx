@@ -92,8 +92,17 @@ export const AuthProvider = ({ children }) => {
 
     let mounted = true;
 
+    // Watchdog: getSession() can hang on GoTrue's internal lock (the documented
+    // iOS "stuck loading" bug). Never let the splash wait forever — flip
+    // authReady after 10s so the sign-in screen shows; onAuthStateChange will
+    // correct state if a session does resolve late.
+    const authWatchdog = setTimeout(() => {
+      if (mounted) setAuthReady(true);
+    }, 10000);
+
     supabase.auth.getSession().then(async ({ data, error }) => {
       if (!mounted) return;
+      clearTimeout(authWatchdog);
 
       if (error) {
         setAuthError({ type: "auth_error", message: error.message });
@@ -142,6 +151,7 @@ export const AuthProvider = ({ children }) => {
 
     return () => {
       mounted = false;
+      clearTimeout(authWatchdog);
       subscription.unsubscribe();
     };
   }, [refreshAccess]);

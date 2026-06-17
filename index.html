@@ -26,7 +26,29 @@
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Instant boot splash: shown the moment the HTML parses, before the JS
+           bundle downloads. React clears #root (and this splash) on first paint.
+           Without it, a slow first load shows only the dark body = pure black. -->
+      <div id="boot-splash" style="position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;background:#030712;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;z-index:9999;">
+        <div style="width:64px;height:64px;border-radius:20px;background:linear-gradient(135deg,#6366f1,#d946ef);box-shadow:0 12px 40px rgba(99,102,241,.45);animation:bootpulse 1.6s ease-in-out infinite;"></div>
+        <div style="letter-spacing:.3em;font-size:14px;font-weight:700;background:linear-gradient(90deg,#c7d2fe,#fff,#f5d0fe);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;">FLOWTONE</div>
+        <div style="width:34px;height:34px;border:3px solid rgba(255,255,255,.15);border-top-color:#818cf8;border-radius:50%;animation:bootspin .8s linear infinite;"></div>
+        <button id="boot-reload" onclick="location.reload()" style="display:none;margin-top:8px;padding:10px 18px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:#c7d2fe;border-radius:12px;font-size:13px;">Taking a while — tap to reload</button>
+        <style>
+          @keyframes bootspin { to { transform: rotate(360deg); } }
+          @keyframes bootpulse { 0%,100% { transform: scale(1); opacity:.85; } 50% { transform: scale(1.12); opacity:1; } }
+        </style>
+      </div>
+    </div>
+    <script>
+      // First visit can be a slow download. After 18s still on the splash,
+      // offer a manual reload instead of leaving the user staring at it.
+      window.__bootReload = setTimeout(function () {
+        var b = document.getElementById('boot-reload');
+        if (b) b.style.display = 'block';
+      }, 18000);
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
