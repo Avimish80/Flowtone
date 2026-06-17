@@ -2,7 +2,12 @@ import { useState, useEffect, useRef } from "react";
 import { appClient } from "@/api/appClient";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl, formatMoney } from "@/utils";
-import { ArrowLeft, Save, Trash2, Plus, X, AlertTriangle, AlertCircle, Check, Loader2, FileText, Mail, Phone, MapPin, ChevronDown } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Plus, X, AlertTriangle, AlertCircle, Check, Loader2, FileText, Mail, Phone, MapPin, ChevronDown, MessageCircle } from "lucide-react";
+
+// wa.me needs an international number with digits only (no +, spaces or dashes).
+function whatsappUrl(phone) {
+  return `https://wa.me/${(phone || "").replace(/[^\d]/g, "")}`;
+}
 import { useGoBack } from "@/hooks/useGoBack";
 import ClientFinancialSummary from "../components/client/ClientFinancialSummary";
 import InvoiceLessonsModal from "../components/client/InvoiceLessonsModal";
@@ -158,10 +163,15 @@ export default function ClientDetail() {
             </div>
 
             {primaryEmail && (
-              <a href={`mailto:${primaryEmail}`} className="flex items-center gap-2.5 mt-5 text-[15px] text-gray-200 hover:text-white transition-colors">
-                <Mail className="w-4 h-4 text-indigo-400 flex-shrink-0" />
-                <span className="truncate flex-1">{primaryEmail}</span>
-              </a>
+              <div className="flex items-center justify-between gap-2 mt-5">
+                <a href={`mailto:${primaryEmail}`} className="flex items-center gap-2.5 text-[15px] text-gray-200 hover:text-white transition-colors min-w-0">
+                  <Mail className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+                  <span className="truncate">{primaryEmail}</span>
+                </a>
+                <a href={`mailto:${primaryEmail}`} className="flex items-center gap-1.5 text-xs font-medium text-indigo-200 bg-indigo-600/30 hover:bg-indigo-600/50 px-2.5 py-1 rounded-lg transition-colors flex-shrink-0">
+                  <Mail className="w-3.5 h-3.5" /> Email
+                </a>
+              </div>
             )}
 
             {primaryPhone && (
@@ -170,9 +180,14 @@ export default function ClientDetail() {
                   <Phone className="w-4 h-4 text-indigo-400 flex-shrink-0" />
                   <span className="truncate">{primaryPhone}</span>
                 </a>
-                <a href={`tel:${primaryPhone}`} className="flex items-center gap-1.5 text-xs font-medium text-indigo-200 bg-indigo-600/30 hover:bg-indigo-600/50 px-2.5 py-1 rounded-lg transition-colors flex-shrink-0">
-                  <Phone className="w-3.5 h-3.5" /> Call
-                </a>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <a href={whatsappUrl(primaryPhone)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs font-medium text-green-300 bg-green-600/20 hover:bg-green-600/35 border border-green-700/30 px-2.5 py-1 rounded-lg transition-colors">
+                    <MessageCircle className="w-3.5 h-3.5" /> WhatsApp
+                  </a>
+                  <a href={`tel:${primaryPhone}`} className="flex items-center gap-1.5 text-xs font-medium text-indigo-200 bg-indigo-600/30 hover:bg-indigo-600/50 px-2.5 py-1 rounded-lg transition-colors">
+                    <Phone className="w-3.5 h-3.5" /> Call
+                  </a>
+                </div>
               </div>
             )}
 
