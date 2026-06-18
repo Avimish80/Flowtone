@@ -11,7 +11,7 @@ const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const CAL_BASE = 'https://www.googleapis.com/calendar/v3';
 
 export const CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar.app.created';
-export const FLOWTONE_CALENDAR_SUMMARY = 'Flow Gigs';
+export const FLOWTONE_CALENDAR_SUMMARY = 'Flow';
 export const SYNC_TIME_ZONE = 'Europe/London';
 
 /**
@@ -123,7 +123,19 @@ async function parseOrThrow(res, context) {
 export async function ensureFlowtoneCalendar(accessToken, existingId) {
   if (existingId) {
     const res = await googleApi(accessToken, `/calendars/${encodeURIComponent(existingId)}`);
-    if (res.ok) return existingId;
+    if (res.ok) {
+      // Keep the name aligned with FLOWTONE_CALENDAR_SUMMARY so renaming it in
+      // code (e.g. "Flow Gigs" -> "Flow") propagates to already-connected users
+      // on their next sync, instead of only applying to new connections.
+      const cal = await res.json().catch(() => null);
+      if (cal && cal.summary !== FLOWTONE_CALENDAR_SUMMARY) {
+        await googleApi(accessToken, `/calendars/${encodeURIComponent(existingId)}`, {
+          method: 'PATCH',
+          body: { summary: FLOWTONE_CALENDAR_SUMMARY },
+        }).catch(() => {});
+      }
+      return existingId;
+    }
     // 404/410 → calendar was deleted; fall through and recreate.
   }
   const created = await parseOrThrow(
