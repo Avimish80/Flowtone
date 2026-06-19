@@ -30,7 +30,7 @@
 - [ ] **WhatsApp AI assistant** — build once Meta creds exist (`WHATSAPP_PLAN.md`): webhook, number→account linking, server-side action agent
 - [ ] **"How to connect" help page** for testers (Gmail · Calendar · CSV import) + how to get past the "unverified app" screen
 - [ ] **iPhone contact-picker fallback** — clean message + manual entry on iOS so it doesn't look broken
-- [ ] **Finish the bug audit** — the verified sweep only covered invoices/estimates/driving before the session limit hit; auth, integrations-when-not-connected, empty-data edge cases, and mobile/PWA still need a verified pass
+- [ ] (low) **Silent Gmail connect failure** — a non-whitelisted tester who tries to connect Gmail is bounced back with only a `console.error` (App.jsx:57); Calendar shows a message but Gmail doesn't. Surface a visible "couldn't connect" notice (root cause is whitelisting, an Avi task)
 - [ ] **EmailInbox is a dead scaffold** — reachable by URL (`/EmailInbox`), shows a fake "synced via Gmail" empty inbox that nothing populates (Gmail is send-only). Hide from routing or show an honest "coming soon" state so a tester can't stumble in
 - [ ] **Rewrite README.md** — materially wrong: still "Defiant Harmony Flow App", "no Base44", localStorage-only, port 5173; should describe Flowtone + Supabase/Express/Stripe cloud stack
 - [ ] **Refresh CLAUDE.md** — stale: describes the removed "Docs" event section; dev port is 5173 (not 3000); header brand is "Flow" (not "Musician OS")
@@ -69,6 +69,7 @@
 
 ## DONE — recently shipped
 - **Interactive onboarding tour (19 Jun):** tap-through coach-marks spotlighting the real nav + AI button, replacing the talk-heavy AI monologues; auto-runs after onboarding + "Replay app tour" in Settings
+- **Bug audit completed (19 Jun):** full verified sweep across auth/first-run, integrations-when-not-connected, empty-account edge cases, and mobile/PWA. Result: the app is defensively coded (guarded lists/dates/money; Gmail/AI errors surfaced). One new bug fixed — push notifications read `client.phone` instead of `phones[]` so the "Call" action never showed (`5c3ca16`)
 - **Audit + bug fixes (19 Jun):** stopped invoice **payment-doubling** (paid→unpaid→paid no longer stacks Payment rows), stopped draft invoices **clobbering hand-edited amounts**, draft **estimates convert directly**, **Driving Mode** reads the real fields (start_time + nav app)
 - **Board reconciled to real repo state**; the three plan docs committed so the links resolve on GitHub; `.claude/worktrees/` gitignored
 - **Calendar renamed "Flow"** + auto-renames already-connected testers (`406101b`)
