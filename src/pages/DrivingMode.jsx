@@ -16,6 +16,7 @@ function buildUberUrl(address) {
 export default function DrivingMode() {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [navApp, setNavApp] = useState("google_maps"); // from AppSettings.default_nav_app
 
   useEffect(() => {
     // Fetch next 7 days of confirmed events with locations
@@ -30,6 +31,11 @@ export default function DrivingMode() {
       setEvents(upcoming);
       setLoading(false);
     });
+    // Preferred nav app lives on AppSettings (per-user), not on the event.
+    appClient.entities.AppSettings.list().then(rows => {
+      const s = rows?.[0];
+      if (s?.default_nav_app) setNavApp(s.default_nav_app);
+    }).catch(() => {});
   }, []);
 
   const dayLabel = (dateStr) => {
@@ -64,10 +70,10 @@ export default function DrivingMode() {
                       <Calendar className="w-3.5 h-3.5" />
                       {dayLabel(event.date)}
                     </span>
-                    {event.time && (
+                    {event.start_time && (
                       <span className="flex items-center gap-1">
                         <Clock className="w-3.5 h-3.5" />
-                        {event.time}
+                        {event.start_time}{event.end_time ? "–" + event.end_time : ""}
                       </span>
                     )}
                   </div>
@@ -81,14 +87,14 @@ export default function DrivingMode() {
               {/* Navigation buttons */}
               <div className="grid grid-cols-3 gap-2">
                 <a
-                  href={buildNavUrl(event.location_address, event.default_nav_app)}
+                  href={buildNavUrl(event.location_address, navApp)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white rounded-xl py-3 flex flex-col items-center gap-1 text-xs font-medium transition-colors"
                 >
                   <Car className="w-5 h-5" />
                   Drive
-                  <span className="text-blue-200 text-[10px]">{event.default_nav_app === "waze" ? "Waze" : "Google"}</span>
+                  <span className="text-blue-200 text-[10px]">{navApp === "waze" ? "Waze" : "Google"}</span>
                 </a>
                 <a
                   href={buildUberUrl(event.location_address)}

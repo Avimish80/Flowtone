@@ -155,7 +155,9 @@ export default function DocumentDetail() {
               // Skip multi-event invoices: their line items intentionally cover
               // several events, so collapsing them to one event's fee is wrong.
               const isMultiEvent = Array.isArray(d.work_event_ids) && d.work_event_ids.length > 1;
-              if (d.document_type === "invoice" && d.status === "draft" && !d.is_locked && !isMultiEvent) {
+              // ...unless the user has hand-edited the line items: never silently
+              // overwrite a deliberate amount change with the event's fee.
+              if (d.document_type === "invoice" && d.status === "draft" && !d.is_locked && !isMultiEvent && !d.line_items_user_edited) {
                 const eventFee = evt.total_price || evt.base_price || 0;
                 const currentFee = d.line_items?.[0]?.unit_price || 0;
                 // Only sync if event fee changed and there's a single event-derived line item
@@ -429,14 +431,14 @@ export default function DocumentDetail() {
     const item = { description: newItem.description, quantity: qty, unit_price: price, total: qty * price };
     const updated = [...(doc.line_items || []), item];
     const totals = recalcTotals(updated, doc.discount_type, doc.discount_value, doc.tax_rate);
-    setDoc(prev => ({ ...prev, line_items: updated, ...totals }));
+    setDoc(prev => ({ ...prev, line_items: updated, ...totals, line_items_user_edited: true }));
     setNewItem({ description: "", quantity: 1, unit_price: "" });
   };
 
   const removeLineItem = (idx) => {
     const updated = (doc.line_items || []).filter((_, i) => i !== idx);
     const totals = recalcTotals(updated, doc.discount_type, doc.discount_value, doc.tax_rate);
-    setDoc(prev => ({ ...prev, line_items: updated, ...totals }));
+    setDoc(prev => ({ ...prev, line_items: updated, ...totals, line_items_user_edited: true }));
     if (editingItem === idx) setEditingItem(null);
   };
 
@@ -448,7 +450,7 @@ export default function DocumentDetail() {
       return next;
     });
     const totals = recalcTotals(updated, doc.discount_type, doc.discount_value, doc.tax_rate);
-    setDoc(prev => ({ ...prev, line_items: updated, ...totals }));
+    setDoc(prev => ({ ...prev, line_items: updated, ...totals, line_items_user_edited: true }));
   };
 
   const updateDiscountOrTax = (field, value) => {
@@ -570,6 +572,13 @@ export default function DocumentDetail() {
     setDoc(prev => ({ ...prev, ...updates }));
     try {
       if (id) {
+        // Delete the Payment rows created when this was marked paid. recordPayment
+        // recomputes paid_amount as the SUM of all rows, so leaving them behind
+        // would double paid_amount (and the PDF "PAID" total) on the next
+        // Mark paid -> Mark unpaid -> Mark paid cycle.
+        const pays = await appClient.entities.Payment.filter({ document_id: id });
+        await Promise.all((pays || []).map(p => appClient.entities.Payment.delete(p.id)));
+        setPayments([]);
         await appClient.entities.Document.update(id, updates);
         await appClient.helpers.logDocumentActivity(id, "reopened", "paid", "sent");
       }
@@ -1180,7 +1189,7 @@ export default function DocumentDetail() {
                   </button>
                 </>
               )}
-              {(doc.status === "accepted" || doc.status === "rejected") && doc.status !== "converted" && (
+              {doc.status !== "converted" && (
                 <button onClick={handleConvertToInvoice} className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl py-2.5 text-sm font-medium flex items-center justify-center gap-2 transition-colors">
                   <ArrowRightLeft className="w-4 h-4" /> Convert to Invoice
                 </button>
