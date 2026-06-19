@@ -32,3 +32,6 @@ dist-ssr
 # Server
 server/.env
 server/node_modules
+
+# Claude Code local worktrees (dev scratch, never project source)
+.claude/worktrees/

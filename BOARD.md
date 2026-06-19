@@ -30,7 +30,11 @@
 - [ ] **WhatsApp AI assistant** — build once Meta creds exist (`WHATSAPP_PLAN.md`): webhook, number→account linking, server-side action agent
 - [ ] **"How to connect" help page** for testers (Gmail · Calendar · CSV import) + how to get past the "unverified app" screen
 - [ ] **iPhone contact-picker fallback** — clean message + manual entry on iOS so it doesn't look broken
-- [ ] Refresh **CLAUDE.md** (outdated: still describes the removed "Docs" event section) + stale README
+- [ ] **Interactive onboarding tutorial** — replace the talk-heavy AI intro + "Connect/Create" buttons with a tap-through coach-mark walkthrough on the real app (needs `data-tour` anchors on nav/+New/AI button, a spotlight overlay, "Replay tour" in Settings). Concept agreed; not built yet.
+- [ ] **Finish the bug audit** — the verified sweep only covered invoices/estimates/driving before the session limit hit; auth, integrations-when-not-connected, empty-data edge cases, and mobile/PWA still need a verified pass
+- [ ] **EmailInbox is a dead scaffold** — reachable by URL (`/EmailInbox`), shows a fake "synced via Gmail" empty inbox that nothing populates (Gmail is send-only). Hide from routing or show an honest "coming soon" state so a tester can't stumble in
+- [ ] **Rewrite README.md** — materially wrong: still "Defiant Harmony Flow App", "no Base44", localStorage-only, port 5173; should describe Flowtone + Supabase/Express/Stripe cloud stack
+- [ ] **Refresh CLAUDE.md** — stale: describes the removed "Docs" event section; dev port is 5173 (not 3000); header brand is "Flow" (not "Musician OS")
 - [ ] (optional) Invoice **line-item "type-then-+" trap** fix in DocumentDetail (same bug class as the client one — `CLIENT_AUTOSAVE_PLAN.md`)
 - [ ] **Railway push store** is ephemeral — mount a volume so scheduled pushes survive redeploys (`TODO.md`)
 - [ ] **Per-user push** → unlocks closed-app alerts for new Google gigs + the app-icon badge (`TODO.md`, `APP_ICON_BADGE_PLAN.md`)
@@ -60,10 +64,13 @@
 ## TIERS / PRICING
 - [ ] Define the three tiers — what features land in each, trial vs paid, what's gated.
   _(To be filled in with Avi.)_
+- ⚠️ **Launch blocker:** nothing is wired in code beyond access gating — no Stripe products/tiers exist in `server/routes/billing.js`. Access currently fails *open* (no paywall) when Stripe is unconfigured, which is fine for the beta but must be decided before real pricing.
 
 ---
 
 ## DONE — recently shipped
+- **Audit + bug fixes (19 Jun):** stopped invoice **payment-doubling** (paid→unpaid→paid no longer stacks Payment rows), stopped draft invoices **clobbering hand-edited amounts**, draft **estimates convert directly**, **Driving Mode** reads the real fields (start_time + nav app)
+- **Board reconciled to real repo state**; the three plan docs committed so the links resolve on GitHub; `.claude/worktrees/` gitignored
 - **Calendar renamed "Flow"** + auto-renames already-connected testers (`406101b`)
 - **Privacy policy page** at `/privacy` — for Google verification (`406101b`)
 - **Event invoicing moved into Financials** — removed "Docs" section + per-event calendar sync; **Create invoice** button now always works, fixing the calendar-synced-gig dead-end (`3ebb92b`)
