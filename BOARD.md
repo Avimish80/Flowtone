@@ -30,7 +30,6 @@
 - [ ] **WhatsApp AI assistant** — build once Meta creds exist (`WHATSAPP_PLAN.md`): webhook, number→account linking, server-side action agent
 - [ ] **"How to connect" help page** for testers (Gmail · Calendar · CSV import) + how to get past the "unverified app" screen
 - [ ] **iPhone contact-picker fallback** — clean message + manual entry on iOS so it doesn't look broken
-- [ ] **Interactive onboarding tutorial** — replace the talk-heavy AI intro + "Connect/Create" buttons with a tap-through coach-mark walkthrough on the real app (needs `data-tour` anchors on nav/+New/AI button, a spotlight overlay, "Replay tour" in Settings). Concept agreed; not built yet.
 - [ ] **Finish the bug audit** — the verified sweep only covered invoices/estimates/driving before the session limit hit; auth, integrations-when-not-connected, empty-data edge cases, and mobile/PWA still need a verified pass
 - [ ] **EmailInbox is a dead scaffold** — reachable by URL (`/EmailInbox`), shows a fake "synced via Gmail" empty inbox that nothing populates (Gmail is send-only). Hide from routing or show an honest "coming soon" state so a tester can't stumble in
 - [ ] **Rewrite README.md** — materially wrong: still "Defiant Harmony Flow App", "no Base44", localStorage-only, port 5173; should describe Flowtone + Supabase/Express/Stripe cloud stack
@@ -69,6 +68,7 @@
 ---
 
 ## DONE — recently shipped
+- **Interactive onboarding tour (19 Jun):** tap-through coach-marks spotlighting the real nav + AI button, replacing the talk-heavy AI monologues; auto-runs after onboarding + "Replay app tour" in Settings
 - **Audit + bug fixes (19 Jun):** stopped invoice **payment-doubling** (paid→unpaid→paid no longer stacks Payment rows), stopped draft invoices **clobbering hand-edited amounts**, draft **estimates convert directly**, **Driving Mode** reads the real fields (start_time + nav app)
 - **Board reconciled to real repo state**; the three plan docs committed so the links resolve on GitHub; `.claude/worktrees/` gitignored
 - **Calendar renamed "Flow"** + auto-renames already-connected testers (`406101b`)
