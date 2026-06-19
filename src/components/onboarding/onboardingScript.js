@@ -56,24 +56,12 @@ export const STEPS = [
     input: { kind: "chips", options: CURRENCY_OPTIONS },
   },
   {
-    id: "tour_events",
-    type: "say",
-    text: (a) => `Alright ${a.user_name}, quick backstage tour. Events is where your gigs, lessons and rehearsals live — dates, venues, fees. No more notes scribbled on napkins.`,
-  },
-  {
-    id: "tour_invoices",
-    type: "say",
-    text: () => "Invoices? Built right in. Create one from any gig, fire it off, and I'll flag the late payers in your daily briefing. I never get tired of chasing money for you.",
-  },
-  {
-    id: "tour_ai",
-    type: "say",
-    text: (a) => `And me — ${a.assistant_name}? Tap the sparkle button anytime and just talk. "Book a wedding gig next Friday for £400" — done before the drummer counts in.`,
-  },
-  {
+    // The four old "tour" monologues are replaced by the interactive coach-mark
+    // walkthrough (src/components/tour/CoachMarks.jsx) that runs on the real app
+    // after onboarding. Keep only the one tip the tour can't show: the logo.
     id: "tour_settings",
     type: "say",
-    text: (a) => `I've already set up "${a.business_name || a.user_name}" and ${a.currency || "GBP"} for your invoices. One thing only you can do: drop your logo into Settings → Business Profile, and your invoices go from plain to pro.`,
+    text: (a) => `I've set up "${a.business_name || a.user_name}" and ${a.currency || "GBP"} for your invoices. One thing only you can do: drop your logo into Settings → Business Profile and your invoices go from plain to pro. I'll give you a quick tap-through tour of the app in a sec.`,
   },
   {
     id: "connect",

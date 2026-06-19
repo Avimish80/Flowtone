@@ -11,6 +11,7 @@ export default function AIAssistantButton({ onClick }) {
     <button
       type="button"
       onClick={onClick}
+      data-tour="ai"
       aria-label="Open Flow Assistant"
       title="Flow Assistant"
       className={[

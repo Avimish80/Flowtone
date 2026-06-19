@@ -298,6 +298,14 @@ export default function AppSettings() {
 
       <div className="space-y-6">
 
+        {/* Replay the guided coach-mark tour */}
+        <button
+          onClick={() => window.dispatchEvent(new CustomEvent("flowtone:start-tour"))}
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-gray-800 hover:bg-gray-700 text-gray-300 transition-colors"
+        >
+          <RefreshCw className="w-4 h-4 text-indigo-400" /> Replay app tour
+        </button>
+
         {/* ── Business Profile ─────────────────────────────────────── */}
         <section>
           <SectionHeader icon={Building2} label="Business Profile" sectionKey="profile" />

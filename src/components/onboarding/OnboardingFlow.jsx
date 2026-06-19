@@ -174,6 +174,8 @@ export default function OnboardingFlow({ onFinish }) {
     if (saving) return;
     setSaving(true);
     await persistProfile({ skipped });
+    // Queue the guided coach-mark tour to run once the real app renders.
+    try { localStorage.setItem("flowtone_tour_pending", "1"); } catch {}
     onFinish();
     if (after) after();
   };

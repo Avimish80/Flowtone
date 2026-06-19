@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import AIAssistantButton from "@/components/AIAssistant/AIAssistantButton";
 import AIAssistantPanel from "@/components/AIAssistant/AIAssistantPanel";
+import CoachMarks from "@/components/tour/CoachMarks";
 import { useAIAssistant } from "@/components/AIAssistant/useAIAssistant";
 import { isPushActive, schedulePushNotifications, reRegisterSubscription } from "@/lib/pushManager";
 import { maybeSyncOnOpen } from "@/lib/calendarClient";
@@ -291,6 +292,9 @@ export default function Layout({ children, currentPageName }) {
         }}
       />
 
+      {/* Guided coach-mark tour (auto-runs once after onboarding) */}
+      <CoachMarks />
+
       {/* AI Assistant */}
       <AIAssistantButton onClick={openPanel} />
       <AIAssistantPanel
@@ -313,6 +317,7 @@ export default function Layout({ children, currentPageName }) {
             <Link
               key={page}
               to={createPageUrl(page)}
+              data-tour={`nav-${label.toLowerCase()}`}
               className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg transition-colors ${
                 active ? "text-indigo-400" : "text-gray-500 hover:text-gray-300"
               }`}
@@ -324,6 +329,7 @@ export default function Layout({ children, currentPageName }) {
         })}
         <button
           onClick={() => setShowMore(v => !v)}
+          data-tour="nav-more"
           className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg transition-colors ${
             isMoreActive || showMore ? "text-indigo-400" : "text-gray-500 hover:text-gray-300"
           }`}
