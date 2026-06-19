@@ -233,9 +233,10 @@ export async function schedulePushNotifications(
         actions.push({ action: 'navigate', title: '🗺️ Route' });
         actionUrls.navigate = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(venue)}&travelmode=driving`;
       }
-      if (client?.phone) {
+      const clientPhone = client?.phones?.[0];
+      if (clientPhone) {
         actions.push({ action: 'contact', title: '📞 Call' });
-        actionUrls.contact = `tel:${client.phone}`;
+        actionUrls.contact = `tel:${clientPhone}`;
       }
 
       tasks.push(push({
