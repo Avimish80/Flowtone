@@ -55,6 +55,7 @@ export const ENTITY_CONFIG = {
       "resolved_at",
       "resolved_by",
       "dismissed_at",
+      "snoozed_until",
     ],
     jsonColumns: [],
   },

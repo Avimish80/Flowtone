@@ -3,31 +3,29 @@ import { useNavigate } from "react-router-dom";
 import { appClient } from "@/api/appClient";
 import { createPageUrl } from "@/utils";
 import {
-  MapPin, Mail, Phone, FileText, AlertCircle, Send, Banknote,
-  Check, X, Target,
+  MapPin, FileText, AlertCircle, Send, Banknote, Download,
+  Check, X, Target, Ban,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 const ITEM_ICONS = {
-  client_missing_email: Mail,
-  client_missing_phone: Phone,
   gig_missing_location: MapPin,
   gig_missing_fee: Banknote,
   gig_ready_to_invoice: FileText,
   invoice_overdue: AlertCircle,
   invoice_draft_stale: FileText,
   invoice_ready_to_send: Send,
+  invoice_ready_no_email: Download,
 };
 
 const ITEM_COLORS = {
-  client_missing_email: "text-gray-400",
-  client_missing_phone: "text-gray-400",
   gig_missing_location: "text-indigo-400",
   gig_missing_fee: "text-indigo-400",
   gig_ready_to_invoice: "text-green-400",
   invoice_overdue: "text-red-400",
   invoice_draft_stale: "text-gray-400",
   invoice_ready_to_send: "text-green-400",
+  invoice_ready_no_email: "text-green-400",
 };
 
 const TABS = [
@@ -54,7 +52,7 @@ export default function Missions() {
 
   const filtered = useMemo(() => {
     let list = items;
-    if (tab === "open") list = items.filter((i) => i.status === "open");
+    if (tab === "open") list = items.filter((i) => i.status === "open" || i.status === "snoozed");
     else if (tab === "resolved") list = items.filter((i) => i.status === "resolved" || i.status === "dismissed");
 
     return list.sort((a, b) => {
@@ -67,18 +65,46 @@ export default function Missions() {
 
   const openCount = useMemo(() => items.filter((i) => i.status === "open").length, [items]);
 
-  async function handleDismiss(item) {
-    await appClient.entities.ActionItem.update(item.id, {
-      status: "dismissed",
-      dismissed_at: new Date().toISOString(),
-    });
-    loadItems();
-  }
-
   function handleAction(item) {
     if (item.action_target) {
       navigate(createPageUrl(item.action_target));
     }
+  }
+
+  async function handleMarkSent(item) {
+    if (item.entity_type !== "invoice" || !item.entity_id) return;
+    const now = new Date().toISOString();
+    await appClient.entities.Document.update(item.entity_id, {
+      status: "sent",
+      sent_date: now,
+      is_locked: true,
+      locked_at: now,
+    }).catch(() => {});
+    await appClient.entities.ActionItem.update(item.id, {
+      status: "resolved",
+      resolved_at: now,
+      resolved_by: "user",
+    }).catch(() => {});
+    loadItems();
+  }
+
+  async function handleSnooze(item) {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(9, 0, 0, 0);
+    await appClient.entities.ActionItem.update(item.id, {
+      status: "snoozed",
+      snoozed_until: tomorrow.toISOString(),
+    }).catch(() => {});
+    loadItems();
+  }
+
+  async function handleIgnoreForever(item) {
+    await appClient.entities.ActionItem.update(item.id, {
+      status: "dismissed",
+      dismissed_at: new Date().toISOString(),
+    }).catch(() => {});
+    loadItems();
   }
 
   function timeAgo(dateStr) {
@@ -142,7 +168,8 @@ export default function Missions() {
           const Icon = ITEM_ICONS[item.item_type] || FileText;
           const iconColor = ITEM_COLORS[item.item_type] || "text-gray-400";
           const isResolved = item.status === "resolved" || item.status === "dismissed";
-          const isOpportunity = item.item_type === "gig_ready_to_invoice" || item.item_type === "invoice_ready_to_send";
+          const isSnoozed = item.status === "snoozed";
+          const isOpen = item.status === "open";
 
           return (
             <div
@@ -150,9 +177,11 @@ export default function Missions() {
               className={`rounded-2xl border bg-gray-800/30 p-4 transition-colors ${
                 isResolved
                   ? "border-gray-700/20 opacity-60"
-                  : item.priority >= 2
-                    ? "border-red-700/30"
-                    : "border-gray-700/40"
+                  : isSnoozed
+                    ? "border-gray-700/30 opacity-50"
+                    : item.priority >= 2
+                      ? "border-red-700/30"
+                      : "border-gray-700/40"
               }`}
             >
               <div className="flex items-start gap-3">
@@ -166,87 +195,92 @@ export default function Missions() {
                   </p>
                   <p className="text-[10px] text-gray-600 mt-1">
                     {isResolved
-                      ? `Resolved ${timeAgo(item.resolved_at || item.dismissed_at || item.updated_at)}`
-                      : timeAgo(item.created_at)
+                      ? `${item.status === "dismissed" ? "Ignored" : "Resolved"} ${timeAgo(item.resolved_at || item.dismissed_at || item.updated_at)}`
+                      : isSnoozed
+                        ? `Snoozed until ${new Date(item.snoozed_until).toLocaleDateString()}`
+                        : timeAgo(item.created_at)
                     }
                   </p>
 
                   {/* Actions — only for open items */}
-                  {!isResolved && (
-                    <div className="flex flex-wrap gap-2 mt-2.5">
-                      {item.item_type === "gig_ready_to_invoice" && (
+                  {isOpen && (
+                    <div className="flex flex-wrap items-center gap-2 mt-2.5">
+                      {item.item_type === "gig_ready_to_invoice" && item.payload?.has_email && (
                         <>
-                          <button
-                            onClick={() => handleAction(item)}
-                            className="text-xs bg-green-600/20 border border-green-500/30 text-green-300 px-3 py-1 rounded-lg hover:bg-green-600/30 transition-colors"
-                          >
+                          <button onClick={() => handleAction(item)} className="text-xs bg-green-600/20 border border-green-500/30 text-green-300 px-3 py-1 rounded-lg hover:bg-green-600/30 transition-colors">
                             Review Invoice
                           </button>
-                          <button
-                            onClick={() => handleAction(item)}
-                            className="text-xs bg-indigo-600/25 border border-indigo-500/30 text-indigo-300 px-3 py-1 rounded-lg hover:bg-indigo-600/40 transition-colors"
-                          >
+                          <button onClick={() => handleAction(item)} className="text-xs bg-indigo-600/25 border border-indigo-500/30 text-indigo-300 px-3 py-1 rounded-lg hover:bg-indigo-600/40 transition-colors">
+                            Send
+                          </button>
+                        </>
+                      )}
+                      {item.item_type === "gig_ready_to_invoice" && !item.payload?.has_email && (
+                        <button onClick={() => handleAction(item)} className="text-xs bg-indigo-600/25 border border-indigo-500/30 text-indigo-300 px-3 py-1 rounded-lg hover:bg-indigo-600/40 transition-colors">
+                          Create Invoice
+                        </button>
+                      )}
+
+                      {item.item_type === "invoice_ready_to_send" && (
+                        <>
+                          <button onClick={() => handleAction(item)} className="text-xs bg-green-600/20 border border-green-500/30 text-green-300 px-3 py-1 rounded-lg hover:bg-green-600/30 transition-colors">
+                            Review
+                          </button>
+                          <button onClick={() => handleAction(item)} className="text-xs bg-indigo-600/25 border border-indigo-500/30 text-indigo-300 px-3 py-1 rounded-lg hover:bg-indigo-600/40 transition-colors">
                             Send
                           </button>
                         </>
                       )}
 
-                      {item.item_type === "invoice_ready_to_send" && (
+                      {item.item_type === "invoice_ready_no_email" && (
                         <>
-                          <button
-                            onClick={() => handleAction(item)}
-                            className="text-xs bg-green-600/20 border border-green-500/30 text-green-300 px-3 py-1 rounded-lg hover:bg-green-600/30 transition-colors"
-                          >
-                            Review
+                          <button onClick={() => handleAction(item)} className="text-xs bg-green-600/20 border border-green-500/30 text-green-300 px-3 py-1 rounded-lg hover:bg-green-600/30 transition-colors">
+                            Get PDF
                           </button>
-                          <button
-                            onClick={() => handleAction(item)}
-                            className="text-xs bg-indigo-600/25 border border-indigo-500/30 text-indigo-300 px-3 py-1 rounded-lg hover:bg-indigo-600/40 transition-colors"
-                          >
-                            Send
+                          <button onClick={() => handleMarkSent(item)} className="text-xs bg-indigo-600/25 border border-indigo-500/30 text-indigo-300 px-3 py-1 rounded-lg hover:bg-indigo-600/40 transition-colors">
+                            Mark sent
                           </button>
                         </>
                       )}
 
                       {item.item_type === "invoice_overdue" && (
-                        <button
-                          onClick={() => handleAction(item)}
-                          className="text-xs bg-amber-600/20 border border-amber-500/30 text-amber-300 px-3 py-1 rounded-lg hover:bg-amber-600/30 transition-colors"
-                        >
+                        <button onClick={() => handleAction(item)} className="text-xs bg-amber-600/20 border border-amber-500/30 text-amber-300 px-3 py-1 rounded-lg hover:bg-amber-600/30 transition-colors">
                           Chase
                         </button>
                       )}
 
                       {(item.item_type === "gig_missing_location" ||
                         item.item_type === "gig_missing_fee" ||
-                        item.item_type === "client_missing_email" ||
-                        item.item_type === "client_missing_phone" ||
                         item.item_type === "invoice_draft_stale") && (
-                        <button
-                          onClick={() => handleAction(item)}
-                          className="text-xs bg-indigo-600/25 border border-indigo-500/30 text-indigo-300 px-3 py-1 rounded-lg hover:bg-indigo-600/40 transition-colors"
-                        >
+                        <button onClick={() => handleAction(item)} className="text-xs bg-indigo-600/25 border border-indigo-500/30 text-indigo-300 px-3 py-1 rounded-lg hover:bg-indigo-600/40 transition-colors">
                           {item.item_type === "gig_missing_location" && "Add location"}
                           {item.item_type === "gig_missing_fee" && "Add fee"}
-                          {item.item_type === "client_missing_email" && "Add email"}
-                          {item.item_type === "client_missing_phone" && "Add phone"}
                           {item.item_type === "invoice_draft_stale" && "Review draft"}
                         </button>
                       )}
+
+                      {/* Snooze + Ignore forever */}
+                      <div className="flex items-center gap-1 ml-auto">
+                        <button
+                          onClick={() => handleSnooze(item)}
+                          className="text-gray-600 hover:text-gray-400 transition-colors p-1"
+                          aria-label="Not now"
+                          title="Not now"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleIgnoreForever(item)}
+                          className="text-gray-600 hover:text-red-400 transition-colors p-1"
+                          aria-label="Ignore forever"
+                          title="Ignore forever"
+                        >
+                          <Ban className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
-
-                {/* Dismiss button — only for open items */}
-                {!isResolved && (
-                  <button
-                    onClick={() => handleDismiss(item)}
-                    className="text-gray-600 hover:text-gray-400 transition-colors flex-shrink-0 mt-0.5"
-                    aria-label="Dismiss"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                )}
               </div>
             </div>
           );

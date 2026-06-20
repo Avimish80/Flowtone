@@ -555,22 +555,20 @@ router.post('/compose-missions', async (req, res) => {
     const itemDescriptions = items.map((item) => {
       const p = item.payload || {};
       switch (item.item_type) {
-        case 'client_missing_email':
-          return `{ key: "${item.item_type}::${item.entity_id}", type: "problem", client: "${p.client_name}", issue: "no email address on file" }`;
-        case 'client_missing_phone':
-          return `{ key: "${item.item_type}::${item.entity_id}", type: "problem", client: "${p.client_name}", issue: "no phone number on file" }`;
         case 'gig_missing_location':
           return `{ key: "${item.item_type}::${item.entity_id}", type: "problem", gig: "${p.event_title}", date: "${p.event_date}", issue: "no venue address — can't plan travel" }`;
         case 'gig_missing_fee':
           return `{ key: "${item.item_type}::${item.entity_id}", type: "problem", gig: "${p.event_title}", date: "${p.event_date}", issue: "no fee set — can't create invoice" }`;
         case 'gig_ready_to_invoice':
-          return `{ key: "${item.item_type}::${item.entity_id}", type: "opportunity", gig: "${p.event_title}", client: "${p.client_name}", fee: ${p.fee}, currency: "${p.currency || 'GBP'}", issue: "ready to invoice — all info present" }`;
+          return `{ key: "${item.item_type}::${item.entity_id}", type: "opportunity", gig: "${p.event_title}", client: "${p.client_name}", fee: ${p.fee}, currency: "${p.currency || 'GBP'}", issue: "needs an invoice" }`;
         case 'invoice_overdue':
           return `{ key: "${item.item_type}::${item.entity_id}", type: "urgent", invoice: "${p.invoice_title}", client: "${p.client_name}", due: "${p.due_date}", total: ${p.total}, currency: "${p.currency || 'GBP'}" }`;
         case 'invoice_draft_stale':
           return `{ key: "${item.item_type}::${item.entity_id}", type: "problem", invoice: "${p.invoice_title}", client: "${p.client_name}", issue: "draft sitting for over a week" }`;
         case 'invoice_ready_to_send':
           return `{ key: "${item.item_type}::${item.entity_id}", type: "opportunity", invoice: "${p.invoice_title}", client: "${p.client_name}", total: ${p.total}, currency: "${p.currency || 'GBP'}", issue: "draft is complete — ready to send" }`;
+        case 'invoice_ready_no_email':
+          return `{ key: "${item.item_type}::${item.entity_id}", type: "opportunity", invoice: "${p.invoice_title}", client: "${p.client_name}", total: ${p.total}, currency: "${p.currency || 'GBP'}", issue: "invoice is ready but there's no email on file — suggest grabbing the PDF to send by WhatsApp or another way" }`;
         default:
           return `{ key: "${item.item_type}::${item.entity_id}", type: "unknown" }`;
       }
