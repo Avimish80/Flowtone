@@ -1,182 +1,101 @@
 import { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { flowtoneJson } from "@/lib/flowtoneApi";
-import { isPreviewModeEnabled } from "@/lib/supabaseClient";
-import { useAuth } from "@/lib/AuthContext";
-import { Sparkles, X } from "lucide-react";
-import { isPast, parseISO } from "date-fns";
-import { getCachedProfileSync, deriveFallbackName, DEFAULT_LANGUAGE, DEFAULT_ASSISTANT_NAME } from "@/lib/assistantProfile";
-import { gigsMissingFee, gigsMissingLocation, hasLocation, hasFee, hasInvoice } from "@/lib/missingInfo";
+import { appClient } from "@/api/appClient";
+import { Sparkles, X, ChevronRight, MapPin, Mail, Phone, FileText, AlertCircle, Send, Banknote } from "lucide-react";
+import { getCachedProfileSync, DEFAULT_ASSISTANT_NAME } from "@/lib/assistantProfile";
+import { hasLocation, hasFee, hasInvoice } from "@/lib/missingInfo";
 
-function buildNavUrl(address) {
-  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}&travelmode=driving`;
-}
+const ITEM_ICONS = {
+  client_missing_email: Mail,
+  client_missing_phone: Phone,
+  gig_missing_location: MapPin,
+  gig_missing_fee: Banknote,
+  gig_ready_to_invoice: FileText,
+  invoice_overdue: AlertCircle,
+  invoice_draft_stale: FileText,
+  invoice_ready_to_send: Send,
+};
 
-function getTimeOfDay() {
-  const hour = new Date().getHours();
-  if (hour < 12) return "morning";
-  if (hour < 18) return "afternoon";
-  return "evening";
-}
+const MAX_VISIBLE = 4;
 
 export function AIDashboardBriefing({ events = [], documents = [] }) {
   const today = new Date().toISOString().slice(0, 10);
-  const timeOfDay = getTimeOfDay();
-  // Profile cache is warm: OnboardingGate loads it before any page mounts
+  const dismissKey = `flowtone_missions_dismissed_${today}`;
   const profile = getCachedProfileSync();
-  const language = profile?.language || DEFAULT_LANGUAGE;
-  const cacheKey = `flowtone_briefing_${today}_${timeOfDay}_${language}`;
-  const dismissKey = `flowtone_briefing_dismissed_${today}`;
 
-  const [briefing, setBriefing] = useState(() => {
-    try {
-      const cached = sessionStorage.getItem(cacheKey);
-      return cached ? JSON.parse(cached) : null;
-    } catch {
-      return null;
-    }
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [dismissed, setDismissed] = useState(() => {
+    try { return sessionStorage.getItem(dismissKey) === "1"; } catch { return false; }
   });
-  const [loading, setLoading] = useState(!briefing);
-  const [dismissed, setDismissed] = useState(() => sessionStorage.getItem(dismissKey) === "1");
   const navigate = useNavigate();
-  const { user } = useAuth();
 
   const eventMap = useMemo(
     () => Object.fromEntries(events.map((e) => [e.id, e])),
     [events]
   );
-
   const invoices = useMemo(
     () => documents.filter((d) => d.document_type === "invoice"),
     [documents]
-  );
-  const invoiceMap = useMemo(
-    () => Object.fromEntries(invoices.map((i) => [i.id, i])),
-    [invoices]
   );
   const invoicedEventIds = useMemo(
     () => new Set(invoices.map((i) => i.work_event_id).filter(Boolean)),
     [invoices]
   );
-
-  // The briefing copy is cached for the day-part (one Haiku call), so it can go
-  // stale the moment the user fills a gap (adds a location, a fee, an invoice).
-  // Reconcile each actionable item against LIVE data before rendering so a
-  // resolved item disappears immediately — no refetch, no extra AI cost.
-  const visibleItems = useMemo(() => {
-    if (!briefing?.items) return [];
-    return briefing.items.filter((item) => {
-      if (item.entity_type === "event" && item.entity_id) {
-        const event = eventMap[item.entity_id];
-        if (!event) return false; // event deleted since the briefing was built
-        if (item.type === "location_missing") return !hasLocation(event);
-        if (item.type === "fee_missing") return !hasFee(event) && !hasInvoice(event, invoices);
-        if (item.type === "invoice_missing") return !invoicedEventIds.has(event.id);
-      }
-      if (item.type === "invoice_overdue" && item.entity_id) {
-        const inv = invoiceMap[item.entity_id];
-        if (!inv) return false; // invoice deleted
-        return inv.status === "sent"; // paid/cancelled → no longer needs chasing
-      }
-      return true;
-    });
-  }, [briefing, eventMap, invoices, invoiceMap, invoicedEventIds]);
+  const invoiceMap = useMemo(
+    () => Object.fromEntries(invoices.map((i) => [i.id, i])),
+    [invoices]
+  );
 
   useEffect(() => {
-    if (isPreviewModeEnabled()) {
-      setLoading(false);
-      return;
-    }
-
-    // Already have today's briefing for this part of the day — no refetch
-    if (briefing) {
-      setLoading(false);
-      return;
-    }
-
-    const todayEvents = events
-      .filter((e) => e.date === today && e.status !== "cancelled")
-      .slice(0, 3)
-      .map((e) => ({
-        id: e.id,
-        title: e.title,
-        start_time: e.start_time,
-        location_address: e.location_address,
-      }));
-
-    const invoices = documents.filter((d) => d.document_type === "invoice");
-    const overdueInvoices = invoices
-      .filter((i) => i.status === "sent" && i.due_date && isPast(parseISO(i.due_date)))
-      .slice(0, 3)
-      .map((i) => ({ id: i.id, title: i.title, client_name: i.client_name, due_date: i.due_date }));
-
-    const invoicedEventIds = new Set(invoices.map((i) => i.work_event_id).filter(Boolean));
-    const noInvoiceEvents = events
-      .filter(
-        (e) =>
-          e.status !== "cancelled" &&
-          (e.base_price > 0 || e.total_price > 0) &&
-          !invoicedEventIds.has(e.id) &&
-          e.date >= today
-      )
-      .slice(0, 3)
-      .map((e) => ({ id: e.id, title: e.title, date: e.date, total_price: e.total_price || e.base_price }));
-
-    // Blocking gaps the standard briefing filter above hides (it requires a
-    // fee and a future date). Shared finders keep these in sync with the pushes.
-    const now = Date.now();
-    const feeMissingEvents = gigsMissingFee(events, invoices, now)
-      .slice(0, 3)
-      .map((e) => ({ id: e.id, title: e.title, date: e.date }));
-    const locationMissingEvents = gigsMissingLocation(events, invoices, now)
-      .slice(0, 3)
-      .map((e) => ({ id: e.id, title: e.title, date: e.date }));
-
-    flowtoneJson("/api/ai/briefing", {
-      method: "POST",
-      body: JSON.stringify({
-        today,
-        timeOfDay,
-        name: profile?.user_name || deriveFallbackName(user),
-        language,
-        assistantName: profile?.assistant_name || "",
-        todayEvents,
-        overdueInvoices,
-        noInvoiceEvents,
-        feeMissingEvents,
-        locationMissingEvents,
-      }),
-    })
-      .then((data) => {
-        setBriefing(data);
-        try {
-          sessionStorage.setItem(cacheKey, JSON.stringify(data));
-        } catch {
-          // storage full or unavailable — briefing just won't be cached
-        }
+    appClient.entities.ActionItem.filter({ status: "open" })
+      .then((result) => {
+        result.sort((a, b) => (b.priority || 0) - (a.priority || 0));
+        setItems(result);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
-  function handleItemAction(item, actionType) {
-    if (actionType === "navigate") {
-      const event = eventMap[item.entity_id];
-      if (event?.location_address) {
-        window.open(buildNavUrl(event.location_address), "_blank", "noopener,noreferrer");
+  // Live reconciliation — if the user fixed an issue since the scan,
+  // hide it immediately without waiting for the next scan run.
+  const visibleItems = useMemo(() => {
+    return items.filter((item) => {
+      if (item.entity_type === "event" && item.entity_id) {
+        const event = eventMap[item.entity_id];
+        if (!event) return false;
+        if (item.item_type === "gig_missing_location") return !hasLocation(event);
+        if (item.item_type === "gig_missing_fee") return !hasFee(event) && !hasInvoice(event, invoices);
+        if (item.item_type === "gig_ready_to_invoice") return !invoicedEventIds.has(event.id);
       }
-    } else if (actionType === "create_invoice") {
-      navigate(createPageUrl(`DocumentDetail?event_id=${item.entity_id}&type=invoice`));
-    } else if (item.entity_type === "event") {
-      navigate(createPageUrl(`WorkEventDetail?id=${item.entity_id}`));
-    } else if (item.entity_type === "invoice") {
+      if (item.entity_type === "invoice" && item.entity_id) {
+        const inv = invoiceMap[item.entity_id];
+        if (!inv) return false;
+        if (item.item_type === "invoice_overdue") return inv.status === "sent";
+        if (item.item_type === "invoice_ready_to_send") return inv.status === "draft";
+        if (item.item_type === "invoice_draft_stale") return inv.status === "draft";
+      }
+      return true;
+    });
+  }, [items, eventMap, invoices, invoiceMap, invoicedEventIds]);
+
+  const shown = visibleItems.slice(0, MAX_VISIBLE);
+  const extraCount = visibleItems.length - shown.length;
+
+  function handleAction(item) {
+    if (item.action_target) {
+      navigate(createPageUrl(item.action_target));
+    }
+  }
+
+  function handleSend(item) {
+    if (item.entity_type === "invoice" && item.entity_id) {
       navigate(createPageUrl(`DocumentDetail?id=${item.entity_id}`));
     }
   }
 
   if (dismissed) return null;
-  if (isPreviewModeEnabled()) return null;
 
   if (loading) {
     return (
@@ -193,30 +112,30 @@ export function AIDashboardBriefing({ events = [], documents = [] }) {
     );
   }
 
-  if (!briefing || visibleItems.length === 0) return null;
+  if (shown.length === 0) return null;
 
   return (
     <div className="rounded-2xl border border-gray-700/40 bg-gray-900/60 overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700/30">
-        {/* Greeting lives in the Dashboard hero now — header is just the assistant's name */}
         <div className="flex items-center gap-2 min-w-0">
           <Sparkles className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0" />
           <span className="text-sm font-medium text-gray-200 truncate">
             {profile?.assistant_name || DEFAULT_ASSISTANT_NAME}
           </span>
+          {visibleItems.length > 0 && (
+            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-indigo-600/30 text-indigo-300 border border-indigo-500/20">
+              {visibleItems.length}
+            </span>
+          )}
         </div>
         <button
           onClick={() => {
             setDismissed(true);
-            try {
-              sessionStorage.setItem(dismissKey, "1");
-            } catch {
-              // unavailable storage — dismissal just won't persist
-            }
+            try { sessionStorage.setItem(dismissKey, "1"); } catch { /* ignore */ }
           }}
           className="text-gray-600 hover:text-gray-400 transition-colors ml-3 flex-shrink-0"
-          aria-label="Dismiss briefing"
+          aria-label="Dismiss"
         >
           <X className="w-3.5 h-3.5" />
         </button>
@@ -224,80 +143,127 @@ export function AIDashboardBriefing({ events = [], documents = [] }) {
 
       {/* Items */}
       <div className="divide-y divide-gray-700/30">
-        {visibleItems.map((item, i) => {
-          const hasEntity = item.entity_id && item.type !== "general";
-          const event = item.entity_type === "event" ? eventMap[item.entity_id] : null;
-          const hasLocation = event?.location_address;
+        {shown.map((item) => {
+          const Icon = ITEM_ICONS[item.item_type] || FileText;
+          const isOpportunity = item.item_type === "gig_ready_to_invoice" || item.item_type === "invoice_ready_to_send";
+          const isUrgent = item.item_type === "invoice_overdue";
 
           return (
-            <div key={i} className="px-4 py-3">
-              <p className="text-sm text-gray-300 leading-snug mb-2">{item.text}</p>
+            <div key={item.id} className="px-4 py-3">
+              <div className="flex items-start gap-2.5 mb-2">
+                <Icon className={`w-3.5 h-3.5 mt-0.5 flex-shrink-0 ${
+                  isUrgent ? "text-red-400" : isOpportunity ? "text-green-400" : "text-gray-500"
+                }`} />
+                <p className="text-sm text-gray-300 leading-snug">{item.title}</p>
+              </div>
 
-              {hasEntity && (
-                <div className="flex flex-wrap gap-2">
-                  {/* View button — always shown for entity items */}
+              <div className="flex flex-wrap gap-2 pl-6">
+                {/* Primary CTA */}
+                {item.item_type === "gig_ready_to_invoice" && (
+                  <>
+                    <button
+                      onClick={() => handleAction(item)}
+                      className="text-xs bg-green-600/20 border border-green-500/30 text-green-300 px-3 py-1 rounded-lg hover:bg-green-600/30 transition-colors"
+                    >
+                      Review Invoice
+                    </button>
+                    <button
+                      onClick={() => handleAction(item)}
+                      className="text-xs bg-indigo-600/25 border border-indigo-500/30 text-indigo-300 px-3 py-1 rounded-lg hover:bg-indigo-600/40 transition-colors"
+                    >
+                      Send
+                    </button>
+                  </>
+                )}
+
+                {item.item_type === "invoice_ready_to_send" && (
+                  <>
+                    <button
+                      onClick={() => handleSend(item)}
+                      className="text-xs bg-green-600/20 border border-green-500/30 text-green-300 px-3 py-1 rounded-lg hover:bg-green-600/30 transition-colors"
+                    >
+                      Review
+                    </button>
+                    <button
+                      onClick={() => handleSend(item)}
+                      className="text-xs bg-indigo-600/25 border border-indigo-500/30 text-indigo-300 px-3 py-1 rounded-lg hover:bg-indigo-600/40 transition-colors"
+                    >
+                      Send
+                    </button>
+                  </>
+                )}
+
+                {item.item_type === "invoice_overdue" && (
                   <button
-                    onClick={() => handleItemAction(item, "view")}
-                    className="text-xs bg-gray-700/60 border border-gray-600/40 text-gray-300 px-3 py-1 rounded-lg hover:bg-gray-600/60 active:bg-gray-700 transition-colors"
+                    onClick={() => handleAction(item)}
+                    className="text-xs bg-amber-600/20 border border-amber-500/30 text-amber-300 px-3 py-1 rounded-lg hover:bg-amber-600/30 transition-colors"
                   >
-                    View
+                    Chase
                   </button>
+                )}
 
-                  {/* Navigate — only for events with an address */}
-                  {item.entity_type === "event" && hasLocation && (
-                    <button
-                      onClick={() => handleItemAction(item, "navigate")}
-                      className="text-xs bg-indigo-600/25 border border-indigo-500/30 text-indigo-300 px-3 py-1 rounded-lg hover:bg-indigo-600/40 active:bg-indigo-600/50 transition-colors"
-                    >
-                      Navigate
-                    </button>
-                  )}
+                {item.item_type === "gig_missing_location" && (
+                  <button
+                    onClick={() => handleAction(item)}
+                    className="text-xs bg-indigo-600/25 border border-indigo-500/30 text-indigo-300 px-3 py-1 rounded-lg hover:bg-indigo-600/40 transition-colors"
+                  >
+                    Add location
+                  </button>
+                )}
 
-                  {/* Chase — overdue invoices */}
-                  {item.type === "invoice_overdue" && (
-                    <button
-                      onClick={() => handleItemAction(item, "view")}
-                      className="text-xs bg-amber-600/20 border border-amber-500/30 text-amber-300 px-3 py-1 rounded-lg hover:bg-amber-600/30 transition-colors"
-                    >
-                      Chase
-                    </button>
-                  )}
+                {item.item_type === "gig_missing_fee" && (
+                  <button
+                    onClick={() => handleAction(item)}
+                    className="text-xs bg-indigo-600/25 border border-indigo-500/30 text-indigo-300 px-3 py-1 rounded-lg hover:bg-indigo-600/40 transition-colors"
+                  >
+                    Add fee
+                  </button>
+                )}
 
-                  {/* Create Invoice — events missing one */}
-                  {item.type === "invoice_missing" && (
-                    <button
-                      onClick={() => handleItemAction(item, "create_invoice")}
-                      className="text-xs bg-indigo-600/25 border border-indigo-500/30 text-indigo-300 px-3 py-1 rounded-lg hover:bg-indigo-600/40 transition-colors"
-                    >
-                      Create Invoice
-                    </button>
-                  )}
+                {item.item_type === "client_missing_email" && (
+                  <button
+                    onClick={() => handleAction(item)}
+                    className="text-xs bg-indigo-600/25 border border-indigo-500/30 text-indigo-300 px-3 py-1 rounded-lg hover:bg-indigo-600/40 transition-colors"
+                  >
+                    Add email
+                  </button>
+                )}
 
-                  {/* Add fee — past gig with no amount, blocks the invoice */}
-                  {item.type === "fee_missing" && (
-                    <button
-                      onClick={() => handleItemAction(item, "view")}
-                      className="text-xs bg-indigo-600/25 border border-indigo-500/30 text-indigo-300 px-3 py-1 rounded-lg hover:bg-indigo-600/40 transition-colors"
-                    >
-                      Add fee
-                    </button>
-                  )}
+                {item.item_type === "client_missing_phone" && (
+                  <button
+                    onClick={() => handleAction(item)}
+                    className="text-xs bg-indigo-600/25 border border-indigo-500/30 text-indigo-300 px-3 py-1 rounded-lg hover:bg-indigo-600/40 transition-colors"
+                  >
+                    Add phone
+                  </button>
+                )}
 
-                  {/* Add location — upcoming gig with no address */}
-                  {item.type === "location_missing" && (
-                    <button
-                      onClick={() => handleItemAction(item, "view")}
-                      className="text-xs bg-indigo-600/25 border border-indigo-500/30 text-indigo-300 px-3 py-1 rounded-lg hover:bg-indigo-600/40 transition-colors"
-                    >
-                      Add location
-                    </button>
-                  )}
-                </div>
-              )}
+                {item.item_type === "invoice_draft_stale" && (
+                  <button
+                    onClick={() => handleAction(item)}
+                    className="text-xs bg-indigo-600/25 border border-indigo-500/30 text-indigo-300 px-3 py-1 rounded-lg hover:bg-indigo-600/40 transition-colors"
+                  >
+                    Review draft
+                  </button>
+                )}
+              </div>
             </div>
           );
         })}
       </div>
+
+      {/* View all footer */}
+      {(extraCount > 0 || visibleItems.length > 0) && (
+        <Link
+          to={createPageUrl("Missions")}
+          className="flex items-center justify-between px-4 py-2.5 border-t border-gray-700/30 hover:bg-gray-800/40 transition-colors"
+        >
+          <span className="text-xs text-gray-500">
+            {extraCount > 0 ? `+${extraCount} more` : "View all missions"}
+          </span>
+          <ChevronRight className="w-3.5 h-3.5 text-gray-600" />
+        </Link>
+      )}
     </div>
   );
 }

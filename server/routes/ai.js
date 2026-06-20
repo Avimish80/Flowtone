@@ -534,4 +534,104 @@ ${JSON.stringify(locationMissingEvents)}`;
   }
 });
 
+// ─── POST /api/ai/compose-missions ─────────────────────────────────
+// Takes structured findings from the deterministic scanner and asks
+// Haiku to write natural, human-like text for each one.
+// Body: { items: [{ item_type, payload }], name, language, assistantName }
+// Returns: { titles: { "item_type::entity_id": "natural text" } }
+router.post('/compose-missions', async (req, res) => {
+  try {
+    const {
+      items = [],
+      name = '',
+      language = 'English',
+      assistantName = '',
+    } = req.body;
+
+    if (!items.length) return res.json({ titles: {} });
+
+    const client = getClient();
+
+    const itemDescriptions = items.map((item) => {
+      const p = item.payload || {};
+      switch (item.item_type) {
+        case 'client_missing_email':
+          return `{ key: "${item.item_type}::${item.entity_id}", type: "problem", client: "${p.client_name}", issue: "no email address on file" }`;
+        case 'client_missing_phone':
+          return `{ key: "${item.item_type}::${item.entity_id}", type: "problem", client: "${p.client_name}", issue: "no phone number on file" }`;
+        case 'gig_missing_location':
+          return `{ key: "${item.item_type}::${item.entity_id}", type: "problem", gig: "${p.event_title}", date: "${p.event_date}", issue: "no venue address — can't plan travel" }`;
+        case 'gig_missing_fee':
+          return `{ key: "${item.item_type}::${item.entity_id}", type: "problem", gig: "${p.event_title}", date: "${p.event_date}", issue: "no fee set — can't create invoice" }`;
+        case 'gig_ready_to_invoice':
+          return `{ key: "${item.item_type}::${item.entity_id}", type: "opportunity", gig: "${p.event_title}", client: "${p.client_name}", fee: ${p.fee}, currency: "${p.currency || 'GBP'}", issue: "ready to invoice — all info present" }`;
+        case 'invoice_overdue':
+          return `{ key: "${item.item_type}::${item.entity_id}", type: "urgent", invoice: "${p.invoice_title}", client: "${p.client_name}", due: "${p.due_date}", total: ${p.total}, currency: "${p.currency || 'GBP'}" }`;
+        case 'invoice_draft_stale':
+          return `{ key: "${item.item_type}::${item.entity_id}", type: "problem", invoice: "${p.invoice_title}", client: "${p.client_name}", issue: "draft sitting for over a week" }`;
+        case 'invoice_ready_to_send':
+          return `{ key: "${item.item_type}::${item.entity_id}", type: "opportunity", invoice: "${p.invoice_title}", client: "${p.client_name}", total: ${p.total}, currency: "${p.currency || 'GBP'}", issue: "draft is complete — ready to send" }`;
+        default:
+          return `{ key: "${item.item_type}::${item.entity_id}", type: "unknown" }`;
+      }
+    });
+
+    const prompt = `You are Flow, a personal assistant for ${name || 'a professional musician'}.${assistantName ? ` Your name is "${assistantName}".` : ''}${language !== 'English' ? `\nIMPORTANT: Write ALL text values in ${language}.` : ''}
+
+Write a short, natural message for each item below. You are speaking directly to the user.
+
+Rules:
+- Max 15 words per message
+- Sound like a real human assistant — warm, direct, no BS
+- For opportunities: state what's ready and the key detail (client + fee). Don't list what info you have.
+- For problems: say what's missing and why it matters
+- For urgent items: be direct about the urgency
+- Speak in first person as the assistant ("I can...", "Your...", "The...")
+- Return ONLY raw JSON — no markdown fences
+
+Items:
+[${itemDescriptions.join(',\n')}]
+
+Return this exact format:
+{
+  "titles": {
+    "<key>": "natural message text",
+    ...
+  }
+}`;
+
+    const apiResponse = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 1024,
+      temperature: 0,
+      messages: [{ role: 'user', content: prompt }],
+    });
+
+    const rawText = apiResponse.content
+      .filter((b) => b.type === 'text')
+      .map((b) => b.text)
+      .join('');
+
+    let parsed;
+    try {
+      const cleaned = rawText
+        .replace(/^```(?:json)?\s*/i, '')
+        .replace(/\s*```\s*$/i, '')
+        .trim();
+      parsed = JSON.parse(cleaned);
+    } catch {
+      parsed = { titles: {} };
+    }
+
+    return res.json(parsed);
+  } catch (err) {
+    console.error('[AI compose-missions error]', err);
+    if (err.message === 'ANTHROPIC_API_KEY is not set') {
+      return res.status(500).json({ error: 'Server configuration error: API key missing' });
+    }
+    const status = err.status ?? 500;
+    return res.status(status).json({ error: err.message ?? 'Unexpected error' });
+  }
+});
+
 export default router;

@@ -75,6 +75,7 @@ const InvoiceDetail = lazy(() => import('./pages/InvoiceDetail'));
 const Invoices = lazy(() => import('./pages/Invoices'));
 const Practice = lazy(() => import('./pages/Practice'));
 const WorkEventDetail = lazy(() => import('./pages/WorkEventDetail'));
+const Missions = lazy(() => import('./pages/Missions'));
 const WorkEvents = lazy(() => import('./pages/WorkEvents'));
 
 
@@ -95,6 +96,7 @@ export const PAGES = {
     "Finance": Finance,
     "InvoiceDetail": InvoiceDetail,
     "Invoices": Invoices,
+    "Missions": Missions,
     "Practice": Practice,
     "WorkEventDetail": WorkEventDetail,
     "WorkEvents": WorkEvents,

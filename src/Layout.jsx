@@ -5,7 +5,7 @@ import { useTheme } from "@/lib/ThemeContext";
 import {
   Music2, CalendarDays, CalendarRange, Users, Receipt,
   Package, Mail, Car, Settings, LayoutDashboard, MoreHorizontal, X, Sun, Moon,
-  Music, Dumbbell, FileText, Bell, Loader2
+  Music, Dumbbell, FileText, Bell, Loader2, Target
 } from "lucide-react";
 import AIAssistantButton from "@/components/AIAssistant/AIAssistantButton";
 import AIAssistantPanel from "@/components/AIAssistant/AIAssistantPanel";
@@ -16,6 +16,7 @@ import { maybeSyncOnOpen } from "@/lib/calendarClient";
 import { appClient } from "@/api/appClient";
 import { refreshAppBadge, getUnreadCount } from "@/lib/appBadge";
 import NotificationsPanel from "@/components/notifications/NotificationsPanel";
+import { runMissionScan } from "@/lib/missionScanRunner";
 
 const primaryNav = [
   { icon: LayoutDashboard, label: "Home",     page: "Dashboard" },
@@ -25,6 +26,7 @@ const primaryNav = [
 ];
 
 const moreItems = [
+  { icon: Target,   label: "Missions",   page: "Missions" },
   { icon: Users,    label: "Clients",    page: "Clients" },
   { icon: Music,    label: "Library",    page: "Charts" },
   { icon: Dumbbell, label: "Practice",   page: "Practice" },
@@ -52,6 +54,7 @@ const NAV_GROUP = {
   Practice: "Practice",
   Equipment: "Equipment",
   EmailInbox: "EmailInbox",
+  Missions: "Missions",
   DrivingMode: "DrivingMode",
   AppSettings: "AppSettings",
 };
@@ -71,6 +74,7 @@ const SECTION_LABELS = {
   ChartDetail: "Library",
   Practice: "Practice",
   Equipment: "Gear",
+  Missions: "Missions",
   EmailInbox: "Inbox",
   DrivingMode: "Drive",
   AppSettings: "Settings",
@@ -89,6 +93,7 @@ const SECTION_ICONS = {
   ChartDetail: Music,
   Practice: Dumbbell,
   Equipment: Package,
+  Missions: Target,
   EmailInbox: Mail,
   DrivingMode: Car,
   AppSettings: Settings,
@@ -155,6 +160,20 @@ export default function Layout({ children, currentPageName }) {
       .then((res) => {
         try { localStorage.setItem("flowtone_recurrence_topup_at", String(Date.now())); } catch { /* ignore */ }
         if (res?.added) console.info(`Recurrence top-up: added ${res.added} event(s) across ${res.series} series`);
+      })
+      .catch(() => {});
+  }, []);
+
+  // Persistent missions scanner — detects problems + opportunities in user data,
+  // stores findings in Supabase, and only calls AI when something changed.
+  useEffect(() => {
+    try {
+      const last = Number(localStorage.getItem("flowtone_mission_scan_at") || 0);
+      if (Date.now() - last < 10 * 60 * 1000) return; // throttle: 10 min minimum
+    } catch { /* ignore */ }
+    runMissionScan()
+      .then(() => {
+        try { localStorage.setItem("flowtone_mission_scan_at", String(Date.now())); } catch { /* ignore */ }
       })
       .catch(() => {});
   }, []);

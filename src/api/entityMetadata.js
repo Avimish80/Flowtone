@@ -41,6 +41,23 @@ export const ENTITY_DEFAULTS = {
 };
 
 export const ENTITY_CONFIG = {
+  ActionItem: {
+    table: "action_items",
+    columns: [
+      "item_type",
+      "entity_type",
+      "entity_id",
+      "title",
+      "priority",
+      "status",
+      "action_type",
+      "action_target",
+      "resolved_at",
+      "resolved_by",
+      "dismissed_at",
+    ],
+    jsonColumns: [],
+  },
   AppSettings: {
     table: "app_settings",
     singleton: true,

@@ -9,6 +9,7 @@ import { eventsNoun } from "@/utils";
 
 // ─── Entity Registry ───────────────────────────────────────────────
 const entityNames = [
+  "ActionItem",
   "AppSettings",
   "BusinessProfile",
   "Chart",
