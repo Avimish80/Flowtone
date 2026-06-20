@@ -764,15 +764,41 @@ export function generateInvoiceHTML(doc, profile, settings, templateId = 1) {
 }
 
 /**
- * Opens a new window with the rendered invoice and auto-triggers print.
+ * Prints the rendered invoice via a hidden iframe.
+ *
+ * We deliberately do NOT use window.open: in an iOS standalone PWA that
+ * replaces the entire app with the invoice and leaves the user with no way
+ * back (stuck on the PDF). An iframe keeps the app mounted — the print/share
+ * sheet appears on top, and dismissing it returns the user exactly where they
+ * were.
  */
 export function printInvoice(doc, profile, settings, templateId = 1) {
   const html = generateInvoiceHTML(doc, profile, settings, templateId);
-  const win = window.open("", "_blank", "width=900,height=700");
-  if (!win) return;
-  win.document.write(html);
-  win.document.close();
-  setTimeout(() => { win.focus(); win.print(); }, 400);
+
+  const existing = document.getElementById("flowtone-print-frame");
+  if (existing) existing.remove();
+
+  const iframe = document.createElement("iframe");
+  iframe.id = "flowtone-print-frame";
+  iframe.setAttribute("aria-hidden", "true");
+  iframe.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden;";
+
+  iframe.onload = () => {
+    const win = iframe.contentWindow;
+    if (!win) return;
+    // Small delay lets fonts settle before the print snapshot
+    setTimeout(() => {
+      win.onafterprint = () => setTimeout(() => iframe.remove(), 500);
+      try { win.focus(); win.print(); } catch { /* ignore */ }
+    }, 300);
+    // Safety net: never let the hidden frame linger if afterprint never fires
+    setTimeout(() => {
+      if (document.getElementById("flowtone-print-frame")) iframe.remove();
+    }, 120000);
+  };
+
+  iframe.srcdoc = html;
+  document.body.appendChild(iframe);
 }
 
 /**
