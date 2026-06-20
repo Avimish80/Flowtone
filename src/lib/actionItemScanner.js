@@ -63,64 +63,101 @@ export function scanForActionItems(events, documents, clients, now) {
   for (const e of events) {
     if (!isBillableGig(e)) continue;
 
-    if (isUpcoming(e, now) && !hasLocation(e)) {
-      const start = eventStartMs(e);
-      const daysAway = start ? (start - now) / (24 * 60 * 60 * 1000) : 999;
-      const payload = { event_title: e.title, event_date: e.date };
-      payload.payload_sig = payloadSignature(payload);
-      items.push({
-        item_type: "gig_missing_location",
-        entity_type: "event",
-        entity_id: e.id,
-        priority: daysAway < 7 ? 2 : 1,
-        action_type: "navigate",
-        action_target: `WorkEventDetail?id=${e.id}`,
-        payload,
-      });
+    const start = eventStartMs(e);
+    const daysAway = start ? (start - now) / (24 * 60 * 60 * 1000) : 999;
+
+    if (isUpcoming(e, now)) {
+      if (daysAway > 7) continue; // Skip events more than 7 days in the future to avoid clutter
+
+      // 1. Missing Location (only if in the next 7 days)
+      if (!hasLocation(e)) {
+        const payload = { event_title: e.title, event_date: e.date };
+        payload.payload_sig = payloadSignature(payload);
+        items.push({
+          item_type: "gig_missing_location",
+          entity_type: "event",
+          entity_id: e.id,
+          priority: daysAway < 7 ? 2 : 1,
+          action_type: "navigate",
+          action_target: `WorkEventDetail?id=${e.id}`,
+          payload,
+        });
+      }
+
+      // 2. Upcoming Invoice Nudge (only if in the next 2 days, has fee, and no invoice yet)
+      if (
+        daysAway <= 2 &&
+        hasFee(e) &&
+        !invoicedEventIds.has(e.id) &&
+        e.client_id &&
+        clientMap[e.client_id]
+      ) {
+        const client = clientMap[e.client_id];
+        const clientHasEmail = hasEmail(client);
+        const payload = {
+          event_title: e.title,
+          event_date: e.date,
+          client_name: client.name,
+          fee: e.total_price || e.base_price,
+          currency: e.currency,
+          has_email: clientHasEmail,
+        };
+        payload.payload_sig = payloadSignature(payload);
+        items.push({
+          item_type: "gig_ready_to_invoice",
+          entity_type: "event",
+          entity_id: e.id,
+          priority: 1,
+          action_type: "create_invoice",
+          action_target: `DocumentDetail?event_id=${e.id}&type=invoice`,
+          payload,
+        });
+      }
     }
 
-    if (isPastGig(e, now) && !hasFee(e) && !hasInvoice(e, invoices)) {
-      const payload = { event_title: e.title, event_date: e.date };
-      payload.payload_sig = payloadSignature(payload);
-      items.push({
-        item_type: "gig_missing_fee",
-        entity_type: "event",
-        entity_id: e.id,
-        priority: 1,
-        action_type: "navigate",
-        action_target: `WorkEventDetail?id=${e.id}`,
-        payload,
-      });
-    }
+    if (isPastGig(e, now)) {
+      if (!hasFee(e) && !hasInvoice(e, invoices)) {
+        const payload = { event_title: e.title, event_date: e.date };
+        payload.payload_sig = payloadSignature(payload);
+        items.push({
+          item_type: "gig_missing_fee",
+          entity_type: "event",
+          entity_id: e.id,
+          priority: 1,
+          action_type: "navigate",
+          action_target: `WorkEventDetail?id=${e.id}`,
+          payload,
+        });
+      }
 
-    // Opportunity: past gig with fee but no invoice at all (email-agnostic)
-    if (
-      isPastGig(e, now) &&
-      hasFee(e) &&
-      !invoicedEventIds.has(e.id) &&
-      e.client_id &&
-      clientMap[e.client_id]
-    ) {
-      const client = clientMap[e.client_id];
-      const clientHasEmail = hasEmail(client);
-      const payload = {
-        event_title: e.title,
-        event_date: e.date,
-        client_name: client.name,
-        fee: e.total_price || e.base_price,
-        currency: e.currency,
-        has_email: clientHasEmail,
-      };
-      payload.payload_sig = payloadSignature(payload);
-      items.push({
-        item_type: "gig_ready_to_invoice",
-        entity_type: "event",
-        entity_id: e.id,
-        priority: 1,
-        action_type: "create_invoice",
-        action_target: `DocumentDetail?event_id=${e.id}&type=invoice`,
-        payload,
-      });
+      // Opportunity: past gig with fee but no invoice at all (email-agnostic)
+      if (
+        hasFee(e) &&
+        !invoicedEventIds.has(e.id) &&
+        e.client_id &&
+        clientMap[e.client_id]
+      ) {
+        const client = clientMap[e.client_id];
+        const clientHasEmail = hasEmail(client);
+        const payload = {
+          event_title: e.title,
+          event_date: e.date,
+          client_name: client.name,
+          fee: e.total_price || e.base_price,
+          currency: e.currency,
+          has_email: clientHasEmail,
+        };
+        payload.payload_sig = payloadSignature(payload);
+        items.push({
+          item_type: "gig_ready_to_invoice",
+          entity_type: "event",
+          entity_id: e.id,
+          priority: 1,
+          action_type: "create_invoice",
+          action_target: `DocumentDetail?event_id=${e.id}&type=invoice`,
+          payload,
+        });
+      }
     }
   }
 
