@@ -22,7 +22,7 @@ function whatsappUrl(phone) {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
-import { printInvoice, buildMailtoLink } from "@/lib/invoiceTemplates";
+import { printInvoice, buildMailtoLink, buildInvoiceEmailParts } from "@/lib/invoiceTemplates";
 import { isGmailConnected, getGmailEmail, sendGmailEmail } from "@/lib/gmailClient";
 
 const CURRENCIES = ["GBP", "USD", "EUR", "AUD", "CAD"];
@@ -86,6 +86,8 @@ export default function DocumentDetail() {
   const [editingItem, setEditingItem] = useState(null); // idx of line item being edited inline
   const [showEmailDialog, setShowEmailDialog] = useState(false);
   const [emailTo, setEmailTo] = useState("");
+  const [shareFile, setShareFile] = useState(null);   // pre-generated invoice PDF for the share sheet
+  const [preparingShare, setPreparingShare] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [showUnlockDialog, setShowUnlockDialog] = useState(false);
   const [unlockReason, setUnlockReason] = useState("");
@@ -679,6 +681,54 @@ export default function DocumentDetail() {
     setGeneratingPdf(false);
   };
 
+  // ─── Share PDF (no Gmail) ─────────────────────────────────────────
+  // When the email dialog opens without Gmail, pre-build the invoice PDF so the
+  // native share sheet can attach the actual file inside the tap gesture (iOS
+  // rejects navigator.share if a slow await runs first).
+  useEffect(() => {
+    if (!showEmailDialog || gmailConnected || !id) return;
+    if (shareFile || preparingShare) return;
+    let cancelled = false;
+    setPreparingShare(true);
+    appClient.functions
+      .invoke("generateAndSendInvoice", { document_id: id, send_email: false })
+      .then((res) => {
+        if (cancelled) return;
+        const fileName = `${doc.document_type}-${doc.document_number || id}.pdf`;
+        setShareFile(new File([res.data], fileName, { type: "application/pdf" }));
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setPreparingShare(false); });
+    return () => { cancelled = true; };
+  }, [showEmailDialog, gmailConnected, id, shareFile, preparingShare, doc.document_type, doc.document_number]);
+
+  // Drop the prepared PDF when the dialog closes so edits regenerate it next time.
+  useEffect(() => {
+    if (!showEmailDialog && shareFile) setShareFile(null);
+  }, [showEmailDialog, shareFile]);
+
+  // Not-connected send: share the real PDF via the native share sheet (this is
+  // what actually attaches the invoice), falling back to a PDF download + mailto
+  // on desktop / browsers without file sharing.
+  const handleShareInvoice = async () => {
+    const recipient = emailTo.trim();
+    const { subject, body } = buildInvoiceEmailParts(docForPrint, bizProfile, appSettings, recipient);
+    if (shareFile && navigator.canShare && navigator.canShare({ files: [shareFile] })) {
+      try {
+        await navigator.share({ files: [shareFile], title: subject, text: body });
+        setShowEmailDialog(false);
+        return;
+      } catch (err) {
+        if (err?.name === "AbortError") { setShowEmailDialog(false); return; }
+        // any other failure → fall through to the mailto fallback
+      }
+    }
+    // Fallback: download the PDF so it can be attached, then open the mail composer.
+    try { await handleDownloadPdf(); } catch { /* ignore */ }
+    window.location.href = buildMailtoLink(docForPrint, bizProfile, appSettings, recipient);
+    setShowEmailDialog(false);
+  };
+
   // ─── Email ───────────────────────────────────────────────────────
   function buildInvoiceHtml(doc, profile) {
     const cs = currencySymbol(doc.currency);
@@ -1118,7 +1168,7 @@ export default function DocumentDetail() {
             <p className="text-xs text-gray-400">
               {gmailConnected
                 ? `Sending from ${getGmailEmail()}. The ${typeLabel.toLowerCase()} will be delivered directly.`
-                : "Gmail not connected — we'll open your email app with a pre-filled message instead."}
+                : `Gmail not connected — we'll attach the ${typeLabel.toLowerCase()} PDF and open your share sheet (or email app) to send it.`}
             </p>
             <div>
               <label className="text-xs text-gray-400 mb-1 block">Recipient Email</label>
@@ -1134,19 +1184,25 @@ export default function DocumentDetail() {
             <div className="flex gap-2">
               <button
                 onClick={() => {
-                  const templateId = appSettings?.invoice_template || 1;
-                  // First open print dialog
-                  printInvoice(docForPrint, bizProfile, appSettings, templateId);
-                  // Then open email client
-                  setTimeout(() => {
-                    window.location.href = buildMailtoLink(docForPrint, bizProfile, appSettings, emailTo.trim());
-                  }, 600);
-                  setShowEmailDialog(false);
+                  if (gmailConnected) {
+                    const templateId = appSettings?.invoice_template || 1;
+                    // First open print dialog
+                    printInvoice(docForPrint, bizProfile, appSettings, templateId);
+                    // Then open email client
+                    setTimeout(() => {
+                      window.location.href = buildMailtoLink(docForPrint, bizProfile, appSettings, emailTo.trim());
+                    }, 600);
+                    setShowEmailDialog(false);
+                  } else {
+                    handleShareInvoice();
+                  }
                 }}
-                disabled={!emailTo?.trim()}
+                disabled={!emailTo?.trim() || (!gmailConnected && preparingShare)}
                 className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white rounded-lg py-2 text-sm font-medium flex items-center justify-center gap-2 transition-colors"
               >
-                <Mail className="w-4 h-4" /> Open Print + Email
+                {!gmailConnected && preparingShare
+                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Preparing PDF…</>
+                  : <><Mail className="w-4 h-4" /> {gmailConnected ? "Open Print + Email" : "Attach PDF + Email"}</>}
               </button>
               <button onClick={() => setShowEmailDialog(false)} className="bg-gray-700 hover:bg-gray-600 text-white rounded-lg px-4 py-2 text-sm transition-colors">Cancel</button>
             </div>

@@ -802,23 +802,28 @@ export function printInvoice(doc, profile, settings, templateId = 1) {
 }
 
 /**
- * Builds a mailto: link with invoice summary in the body.
+ * Builds the plain-text parts of an invoice email (recipient, subject, body),
+ * shared by the mailto link and the native Web Share sheet so both read the same.
  */
-export function buildMailtoLink(doc, profile, settings, recipientEmail) {
+export function buildInvoiceEmailParts(doc, profile, settings, recipientEmail) {
   const sym = CURRENCIES[doc.currency] || doc.currency + " ";
   const isInvoice = doc.document_type === "invoice";
   const typeLabel = isInvoice ? "Invoice" : "Estimate";
   const to = recipientEmail || doc.client_email || "";
-  const subject = encodeURIComponent(
-    `${typeLabel} ${doc.document_number || ""} – ${doc.title || profile?.business_name || ""}`
-  );
+  const subject = `${typeLabel} ${doc.document_number || ""} – ${doc.title || profile?.business_name || ""}`;
   const total = fmt(sym, doc.total || doc.subtotal);
   const due = isInvoice && doc.due_date ? `\nDue date: ${fmtDate(doc.due_date)}` : "";
   const payLine = profile?.bank_account_number
     ? `\n\nPayment details:\nBank: ${profile.bank_name || ""}\nAccount: ${profile.bank_account_number}${profile.bank_sort_code ? "\nSort code: " + profile.bank_sort_code : ""}`
     : "";
-  const body = encodeURIComponent(
-    `Hi,\n\nPlease find attached your ${typeLabel.toLowerCase()} ${doc.document_number || ""} for ${total}.${due}${payLine}\n\nIf you have any questions, please don't hesitate to get in touch.\n\nKind regards,\n${profile?.contact_name || profile?.business_name || ""}`
-  );
-  return `mailto:${to}?subject=${subject}&body=${body}`;
+  const body = `Hi,\n\nPlease find attached your ${typeLabel.toLowerCase()} ${doc.document_number || ""} for ${total}.${due}${payLine}\n\nIf you have any questions, please don't hesitate to get in touch.\n\nKind regards,\n${profile?.contact_name || profile?.business_name || ""}`;
+  return { to, subject, body };
+}
+
+/**
+ * Builds a mailto: link with invoice summary in the body.
+ */
+export function buildMailtoLink(doc, profile, settings, recipientEmail) {
+  const { to, subject, body } = buildInvoiceEmailParts(doc, profile, settings, recipientEmail);
+  return `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
