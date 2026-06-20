@@ -580,8 +580,10 @@ Write a short, natural message for each item below. You are speaking directly to
 
 Rules:
 - Max 15 words per message
+- ALWAYS name the specific client, gig, or invoice from the item — never say "this client", "their", or "the gig" vaguely. Use the actual name.
+- Include the key number (fee or total) when present.
 - Sound like a real human assistant — warm, direct, no BS
-- For opportunities: state what's ready and the key detail (client + fee). Don't list what info you have.
+- For opportunities: state what's ready and the key detail (client + amount)
 - For problems: say what's missing and why it matters
 - For urgent items: be direct about the urgency
 - Speak in first person as the assistant ("I can...", "Your...", "The...")
