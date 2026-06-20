@@ -2,9 +2,10 @@ import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { appClient } from "@/api/appClient";
 import { createPageUrl } from "@/utils";
+import { runMissionScan } from "@/lib/missionScanRunner";
 import {
   MapPin, FileText, AlertCircle, Send, Banknote, Download,
-  Check, X, Target, Ban,
+  Check, X, Target, Ban, RefreshCw,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
@@ -38,6 +39,7 @@ export default function Missions() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("open");
+  const [resetting, setResetting] = useState(false);
   const navigate = useNavigate();
 
   const loadItems = () => {
@@ -107,6 +109,28 @@ export default function Missions() {
     loadItems();
   }
 
+  // Full rescan — clears everything except "ignore forever" choices, then
+  // rebuilds the list from scratch against current data. Escape hatch for
+  // any item that gets stuck or goes stale.
+  async function handleReset() {
+    if (resetting) return;
+    setResetting(true);
+    try {
+      const toClear = items.filter((i) => i.status !== "dismissed");
+      for (const it of toClear) {
+        await appClient.entities.ActionItem.delete(it.id).catch(() => {});
+      }
+      try {
+        localStorage.removeItem("flowtone_mission_scan_at");
+        localStorage.removeItem("flowtone_mission_scan_data_at");
+      } catch { /* ignore */ }
+      await runMissionScan().catch(() => {});
+    } finally {
+      loadItems();
+      setResetting(false);
+    }
+  }
+
   function timeAgo(dateStr) {
     try {
       return formatDistanceToNow(new Date(dateStr), { addSuffix: true });
@@ -130,6 +154,18 @@ export default function Missions() {
 
   return (
     <div className="p-4 max-w-xl mx-auto">
+      {/* Header — rescan escape hatch */}
+      <div className="flex items-center justify-end mb-3">
+        <button
+          onClick={handleReset}
+          disabled={resetting}
+          className="text-gray-500 hover:text-gray-300 text-xs flex items-center gap-1.5 transition-colors disabled:opacity-50"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${resetting ? "animate-spin" : ""}`} />
+          {resetting ? "Rescanning…" : "Rescan"}
+        </button>
+      </div>
+
       {/* Tab bar */}
       <div className="flex gap-1 mb-4 bg-gray-800/40 rounded-xl p-1">
         {TABS.map((t) => (
