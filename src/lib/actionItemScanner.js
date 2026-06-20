@@ -198,17 +198,49 @@ export function scanForActionItems(events, documents, clients, now) {
     }
   }
 
+  for (const item of items) {
+    item.candidate_key = `${item.item_type}::${item.entity_id}`;
+  }
+
   return items;
+}
+
+export function extractCandidateFindings(events, documents, clients, now) {
+  const items = scanForActionItems(events, documents, clients, now);
+  return items.map((item) => {
+    const candidate_key = item.candidate_key || `${item.item_type}::${item.entity_id}`;
+    
+    // Set allowed alternates
+    const allowed_item_types = [item.item_type];
+    const action_targets = {
+      [item.item_type]: item.action_target,
+    };
+    
+    if (item.item_type === "gig_ready_to_invoice") {
+      allowed_item_types.push("invoice_ready_to_send");
+      action_targets["invoice_ready_to_send"] = `DocumentDetail?event_id=${item.entity_id}&type=invoice`;
+    }
+    
+    return {
+      candidate_key,
+      default_item_type: item.item_type,
+      allowed_item_types,
+      entity_type: item.entity_type,
+      entity_id: item.entity_id,
+      payload: item.payload || {},
+      action_targets,
+    };
+  });
 }
 
 // ─── Reconciler ───────────────────────────────────────────────────────────────
 
 export function reconcileActionItems(existingOpen, desired) {
   const desiredByKey = new Map(
-    desired.map((d) => [`${d.item_type}::${d.entity_id}`, d])
+    desired.map((d) => [d.candidate_key || `${d.item_type}::${d.entity_id}`, d])
   );
   const existingByKey = new Map(
-    existingOpen.map((e) => [`${e.item_type}::${e.entity_id}`, e])
+    existingOpen.map((e) => [e.candidate_key || e.payload?.candidate_key || `${e.item_type}::${e.entity_id}`, e])
   );
 
   const toCreate = [];

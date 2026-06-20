@@ -543,14 +543,113 @@ router.post('/compose-missions', async (req, res) => {
   try {
     const {
       items = [],
+      candidates = [],
+      context_notes = '',
       name = '',
       language = 'English',
       assistantName = '',
     } = req.body;
 
-    if (!items.length) return res.json({ titles: {} });
-
     const client = getClient();
+
+    // ─── Hybrid AI-Driven Scanning Path ──────────────────────────────
+    if (candidates.length > 0) {
+      const candidateJSONStr = JSON.stringify(
+        candidates.map(c => ({
+          candidate_key: c.candidate_key,
+          default_item_type: c.default_item_type,
+          allowed_item_types: c.allowed_item_types,
+          payload: c.payload,
+        })),
+        null,
+        2
+      );
+
+      const prompt = `You are ${assistantName || 'Flow'}, a warm, direct, personal assistant for ${name || 'a professional musician'}.${language !== 'English' ? `\nIMPORTANT: Write ALL text values in ${language}.` : ''}
+
+You are evaluating a list of "candidate findings" (potential alerts/opportunities) from their business database.
+The user has configured the following personal instructions or preferences ("context_notes") that define how you should act, prioritize, and adjust your alerts:
+=== USER CUSTOM PREFERENCES ===
+"${context_notes}"
+===============================
+
+Analyze each candidate finding in the list below. For each candidate:
+1. **Decide if it should be an active mission.** Set "keep" to false to suppress the alert if it violates the user's custom preferences (e.g. if the user says "ignore rehearsal locations" and the event title contains "rehearsal"). Otherwise, set "keep" to true.
+2. **Choose the item_type.** You can keep the candidate's default_item_type, or adjust/upgrade it based on user preferences.
+   - You MUST select only from the allowed_item_types array for that candidate.
+   - Example upgrade: If a gig is ready to invoice (default \`gig_ready_to_invoice\`) but the user preferences say "don't make me draft invoices, just make them ready to send", you can upgrade the type to \`invoice_ready_to_send\` (if it is listed in allowed_item_types).
+3. **Write a title (message).** Max 15 words. Be direct, natural, warm, and speak in the first person ("I...", "Your..."). Always specify the actual client, gig, or invoice name directly.
+4. **Choose priority.** Set to \`0\` (low), \`1\` (normal), or \`2\` (high).
+5. **Echo candidate_key exactly.** CRITICAL: You must return the candidate_key exactly as received in the "key" field. Do not modify, trim, or reconstruct the candidate_key in any way.
+
+Candidates:
+${candidateJSONStr}
+
+Return ONLY raw JSON in the following format (no markdown fences, no extra text):
+{
+  "items": [
+    {
+      "key": "candidate_key_exactly_as_received",
+      "keep": true | false,
+      "item_type": "one of the allowed_item_types",
+      "title": "Natural language title",
+      "priority": 0 | 1 | 2
+    }
+  ]
+}`;
+
+      const apiResponse = await client.messages.create({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 2048,
+        temperature: 0,
+        messages: [{ role: 'user', content: prompt }],
+      });
+
+      const rawText = apiResponse.content
+        .filter((b) => b.type === 'text')
+        .map((b) => b.text)
+        .join('');
+
+      let parsed;
+      try {
+        const cleaned = rawText
+          .replace(/^```(?:json)?\s*/i, '')
+          .replace(/\s*```\s*$/i, '')
+          .trim();
+        parsed = JSON.parse(cleaned);
+      } catch {
+        parsed = { items: [] };
+      }
+
+      if (parsed && Array.isArray(parsed.items)) {
+        const keptItems = parsed.items
+          .filter((item) => item.key && item.keep !== false)
+          .map((item) => {
+            const candidate = candidates.find((c) => c.candidate_key === item.key);
+            if (!candidate) return null;
+
+            let item_type = item.item_type;
+            if (!candidate.allowed_item_types.includes(item_type)) {
+              item_type = candidate.default_item_type;
+            }
+
+            return {
+              key: item.key,
+              item_type,
+              title: item.title || '',
+              priority: typeof item.priority === 'number' ? Math.max(0, Math.min(2, item.priority)) : 1,
+            };
+          })
+          .filter(Boolean);
+
+        return res.json({ items: keptItems });
+      }
+
+      return res.json({ items: [] });
+    }
+
+    // ─── Legacy Title Composition Path ───────────────────────────────
+    if (!items.length) return res.json({ titles: {} });
 
     const itemDescriptions = items.map((item) => {
       const p = item.payload || {};

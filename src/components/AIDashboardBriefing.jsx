@@ -198,25 +198,37 @@ export function AIDashboardBriefing({ events = [], documents = [] }) {
                     )}
 
                     {item.item_type === "invoice_ready_to_send" && (
-                      <>
-                        <button onClick={() => handleAction(item)} className="text-xs bg-green-600/20 border border-green-500/30 text-green-300 px-3 py-1 rounded-lg hover:bg-green-600/30 transition-colors">
-                          Review
-                        </button>
+                      item.entity_type === "event" ? (
                         <button onClick={() => handleAction(item)} className="text-xs bg-indigo-600/25 border border-indigo-500/30 text-indigo-300 px-3 py-1 rounded-lg hover:bg-indigo-600/40 transition-colors">
                           Send
                         </button>
-                      </>
+                      ) : (
+                        <>
+                          <button onClick={() => handleAction(item)} className="text-xs bg-green-600/20 border border-green-500/30 text-green-300 px-3 py-1 rounded-lg hover:bg-green-600/30 transition-colors">
+                            Review
+                          </button>
+                          <button onClick={() => handleAction(item)} className="text-xs bg-indigo-600/25 border border-indigo-500/30 text-indigo-300 px-3 py-1 rounded-lg hover:bg-indigo-600/40 transition-colors">
+                            Send
+                          </button>
+                        </>
+                      )
                     )}
 
                     {item.item_type === "invoice_ready_no_email" && (
-                      <>
-                        <button onClick={() => handleAction(item)} className="text-xs bg-green-600/20 border border-green-500/30 text-green-300 px-3 py-1 rounded-lg hover:bg-green-600/30 transition-colors">
-                          Get PDF
+                      item.entity_type === "event" ? (
+                        <button onClick={() => handleAction(item)} className="text-xs bg-indigo-600/25 border border-indigo-500/30 text-indigo-300 px-3 py-1 rounded-lg hover:bg-indigo-600/40 transition-colors">
+                          Create Invoice
                         </button>
-                        <button onClick={() => handleMarkSent(item)} className="text-xs bg-indigo-600/25 border border-indigo-500/30 text-indigo-300 px-3 py-1 rounded-lg hover:bg-indigo-600/40 transition-colors">
-                          Mark sent
-                        </button>
-                      </>
+                      ) : (
+                        <>
+                          <button onClick={() => handleAction(item)} className="text-xs bg-green-600/20 border border-green-500/30 text-green-300 px-3 py-1 rounded-lg hover:bg-green-600/30 transition-colors">
+                            Get PDF
+                          </button>
+                          <button onClick={() => handleMarkSent(item)} className="text-xs bg-indigo-600/25 border border-indigo-500/30 text-indigo-300 px-3 py-1 rounded-lg hover:bg-indigo-600/40 transition-colors">
+                            Mark sent
+                          </button>
+                        </>
+                      )
                     )}
 
                     {item.item_type === "invoice_overdue" && (
