@@ -120,7 +120,6 @@ export default function WorkEventDetail() {
       setClients(cls);
       if (evts && evts[0]) {
         const e = evts[0];
-        if (e.status === "confirmed" || e.status === "completed") e.base_price_locked = true;
         setEvent(e);
         seriesBaselineRef.current = e;
 
@@ -224,9 +223,6 @@ export default function WorkEventDetail() {
   const onChange = (field, value) => {
     setEvent(prev => {
       const updated = { ...prev, [field]: value };
-      if (field === "status" && (value === "confirmed" || value === "completed")) {
-        updated.base_price_locked = true;
-      }
       return updated;
     });
     // Auto-open the practice accordion when user picks Practice type

@@ -13,20 +13,53 @@ const docStatusColors = {
   cancelled: "bg-gray-600/20 text-gray-500 border-gray-600/30",
 };
 
+// Friendly label for the first (base) line of the fee breakdown, by event type.
+const FEE_LABELS = {
+  Gig: "Performance fee",
+  Lesson: "Lesson fee",
+  Session: "Session fee",
+  Rehearsal: "Rehearsal fee",
+  "Tour Day": "Day fee",
+  Residency: "Residency fee",
+  Practice: "Fee",
+};
+
 export default function EventFinancialsSection({ event, onChange, estimate, invoice, onCreateInvoice, creatingInvoice }) {
   const [newLabel, setNewLabel] = useState("");
   const [newAmount, setNewAmount] = useState("");
+  const [allowEdit, setAllowEdit] = useState(false);
 
-  const locked = event.base_price_locked;
+  // Lock the fee only once an invoice exists — so the event fee and the invoice
+  // stay in sync. Confirmed-but-not-invoiced gigs remain freely editable.
+  const locked = !!invoice;
+  const editable = !locked || allowEdit;
 
+  const sym = currencySymbol(event.currency);
   const adjustments = event.adjustments || [];
-  const total = (parseFloat(event.base_price) || 0) + adjustments.reduce((s, a) => s + (parseFloat(a.amount) || 0), 0);
+  const baseLabel = FEE_LABELS[event.event_type] || "Fee";
+  const sumTotal = (bp, adjs) =>
+    (parseFloat(bp) || 0) + adjs.reduce((s, a) => s + (parseFloat(a.amount) || 0), 0);
+  const total = sumTotal(event.base_price, adjustments);
+
+  const setBase = (val) => {
+    if (!editable) return;
+    const bp = parseFloat(val) || 0;
+    onChange("base_price", bp);
+    onChange("total_price", sumTotal(bp, adjustments));
+  };
+
+  const updateAdjustment = (idx, field, value) => {
+    if (!editable) return;
+    const updated = adjustments.map((a, i) => (i === idx ? { ...a, [field]: value } : a));
+    onChange("adjustments", updated);
+    onChange("total_price", sumTotal(event.base_price, updated));
+  };
 
   const addAdjustment = () => {
     if (!newLabel || !newAmount) return;
-    const updated = [...adjustments, { label: newLabel, amount: parseFloat(newAmount) }];
+    const updated = [...adjustments, { label: newLabel, amount: newAmount }];
     onChange("adjustments", updated);
-    onChange("total_price", (parseFloat(event.base_price) || 0) + updated.reduce((s, a) => s + (parseFloat(a.amount) || 0), 0));
+    onChange("total_price", sumTotal(event.base_price, updated));
     setNewLabel("");
     setNewAmount("");
   };
@@ -34,98 +67,121 @@ export default function EventFinancialsSection({ event, onChange, estimate, invo
   const removeAdjustment = (idx) => {
     const updated = adjustments.filter((_, i) => i !== idx);
     onChange("adjustments", updated);
-    onChange("total_price", (parseFloat(event.base_price) || 0) + updated.reduce((s, a) => s + (parseFloat(a.amount) || 0), 0));
-  };
-
-  const handleBasePrice = (val) => {
-    if (locked) return;
-    const bp = parseFloat(val) || 0;
-    onChange("base_price", bp);
-    onChange("total_price", bp + adjustments.reduce((s, a) => s + (parseFloat(a.amount) || 0), 0));
+    onChange("total_price", sumTotal(event.base_price, updated));
   };
 
   return (
     <div className="space-y-3">
-      {/* Currency */}
-      <div className="flex items-center gap-3">
-        <div className="flex-1">
-          <label className="text-xs text-gray-400 mb-1 block">Currency</label>
-          <select
-            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
-            value={event.currency || "GBP"}
-            onChange={e => onChange("currency", e.target.value)}
-          >
-            {["GBP", "USD", "EUR", "AUD", "CAD"].map(c => <option key={c}>{c}</option>)}
-          </select>
+      {/* Total — lead with the money */}
+      <div className="bg-indigo-950/40 border border-indigo-700/30 rounded-2xl p-4 flex items-end justify-between">
+        <div>
+          <p className="text-[11px] uppercase tracking-wider text-indigo-300/70">Total</p>
+          <p className="text-3xl font-bold text-white mt-0.5">{sym}{total.toFixed(2)}</p>
         </div>
+        {locked && !allowEdit && (
+          <button
+            onClick={() => setAllowEdit(true)}
+            className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-200 transition-colors"
+          >
+            <Lock className="w-3 h-3" /> Edit fee
+          </button>
+        )}
       </div>
 
-      {/* Base Price */}
-      <div>
-        <label className="text-xs text-gray-400 mb-1 block flex items-center gap-1">
-          Base Price {locked && <Lock className="w-3 h-3 text-yellow-500" />}
-        </label>
-        <div className="relative">
+      {/* Fee breakdown — one clean list; the first line is the fee itself */}
+      <div className="rounded-xl border border-gray-700/50 divide-y divide-gray-700/40 overflow-hidden">
+        {/* Base fee line */}
+        <div className="flex items-center gap-2 px-3 py-2.5 bg-gray-800/40">
+          <span className="flex-1 text-sm text-gray-300">{baseLabel}</span>
+          <span className="text-sm text-gray-500">{sym}</span>
           <input
             type="number"
-            className={`w-full bg-gray-800 border rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 ${
-              locked ? "border-yellow-700/50 cursor-not-allowed opacity-70" : "border-gray-700"
-            }`}
-            placeholder="0.00"
+            inputMode="decimal"
+            disabled={!editable}
             value={event.base_price || ""}
-            onChange={e => handleBasePrice(e.target.value)}
-            disabled={locked}
+            onChange={(e) => setBase(e.target.value)}
+            placeholder="0.00"
+            className={`w-24 bg-transparent text-right text-sm text-white placeholder-gray-600 focus:outline-none ${editable ? "" : "opacity-70 cursor-not-allowed"}`}
           />
-          {locked && (
-            <div className="absolute right-3 top-1/2 -translate-y-1/2">
-              <span className="text-xs text-yellow-500 font-medium">LOCKED</span>
-            </div>
-          )}
         </div>
-        {locked && <p className="text-xs text-yellow-600 mt-1">Base price is locked after confirmation. Use adjustments to modify total.</p>}
+
+        {/* Adjustment lines */}
+        {adjustments.map((adj, i) => {
+          const amt = parseFloat(adj.amount) || 0;
+          return (
+            <div key={i} className="flex items-center gap-2 px-3 py-2.5">
+              <input
+                type="text"
+                disabled={!editable}
+                value={adj.label || ""}
+                onChange={(e) => updateAdjustment(i, "label", e.target.value)}
+                placeholder="Label"
+                className="flex-1 bg-transparent text-sm text-gray-300 placeholder-gray-600 focus:outline-none min-w-0"
+              />
+              <span className="text-sm text-gray-500">{sym}</span>
+              <input
+                type="number"
+                inputMode="decimal"
+                disabled={!editable}
+                value={adj.amount ?? ""}
+                onChange={(e) => updateAdjustment(i, "amount", e.target.value)}
+                placeholder="0.00"
+                className={`w-20 bg-transparent text-right text-sm focus:outline-none placeholder-gray-600 ${amt < 0 ? "text-red-400" : "text-green-400"}`}
+              />
+              {editable && (
+                <button onClick={() => removeAdjustment(i)} className="text-gray-600 hover:text-red-400 transition-colors flex-shrink-0">
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          );
+        })}
+
+        {/* Add line */}
+        {editable && (
+          <div className="flex items-center gap-2 px-3 py-2 bg-gray-900/30">
+            <input
+              className="flex-1 bg-transparent text-sm text-white placeholder-gray-600 focus:outline-none min-w-0"
+              placeholder="Add a line (e.g. travel, overtime)"
+              value={newLabel}
+              onChange={(e) => setNewLabel(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") addAdjustment(); }}
+            />
+            <input
+              type="number"
+              inputMode="decimal"
+              className="w-20 bg-transparent text-right text-sm text-white placeholder-gray-600 focus:outline-none"
+              placeholder="Amount"
+              value={newAmount}
+              onChange={(e) => setNewAmount(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") addAdjustment(); }}
+            />
+            <button onClick={addAdjustment} className="text-indigo-400 hover:text-indigo-300 transition-colors flex-shrink-0">
+              <Plus className="w-4 h-4" />
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Adjustments */}
-      {adjustments.length > 0 && (
-        <div className="space-y-2">
-          {adjustments.map((adj, i) => (
-            <div key={i} className="flex items-center gap-2 bg-gray-800/60 rounded-lg px-3 py-2">
-              <span className="flex-1 text-sm text-gray-300">{adj.label}</span>
-              <span className={`text-sm font-medium ${adj.amount >= 0 ? "text-green-400" : "text-red-400"}`}>
-                {adj.amount >= 0 ? "+" : ""}{currencySymbol(event.currency)}{adj.amount}
-              </span>
-              <button onClick={() => removeAdjustment(i)} className="text-gray-600 hover:text-red-400 transition-colors">
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
-          ))}
-        </div>
+      {/* Locked note — calm, with a way out */}
+      {locked && (
+        <p className="text-xs text-gray-500 px-1">
+          {allowEdit
+            ? "Editing the fee — note the invoice below won't update automatically."
+            : "Locked to stay in sync with the invoice below."}
+        </p>
       )}
 
-      {/* Add Adjustment */}
-      <div className="flex gap-2">
-        <input
-          className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-indigo-500"
-          placeholder="Label (e.g. overtime)"
-          value={newLabel}
-          onChange={e => setNewLabel(e.target.value)}
-        />
-        <input
-          type="number"
-          className="w-24 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-indigo-500"
-          placeholder="Amount"
-          value={newAmount}
-          onChange={e => setNewAmount(e.target.value)}
-        />
-        <button onClick={addAdjustment} className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg px-3 py-2 transition-colors">
-          <Plus className="w-4 h-4" />
-        </button>
-      </div>
-
-      {/* Total */}
-      <div className="bg-indigo-950/50 border border-indigo-700/30 rounded-xl p-3 flex items-center justify-between">
-        <span className="text-gray-300 font-medium">Total</span>
-        <span className="text-xl font-bold text-indigo-300">{currencySymbol(event.currency)}{total.toFixed(2)}</span>
+      {/* Currency — secondary */}
+      <div className="flex items-center justify-between px-1">
+        <span className="text-xs text-gray-500">Currency</span>
+        <select
+          className="bg-gray-800 border border-gray-700 rounded-lg px-2 py-1 text-sm text-white focus:outline-none focus:border-indigo-500"
+          value={event.currency || "GBP"}
+          onChange={(e) => onChange("currency", e.target.value)}
+        >
+          {["GBP", "USD", "EUR", "AUD", "CAD"].map((c) => <option key={c}>{c}</option>)}
+        </select>
       </div>
 
       {/* Invoice — create or open. Estimate shown only if one already exists. */}
