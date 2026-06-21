@@ -2,12 +2,19 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Privacy mode — blur fees when "hide fees" is on. Class lives on <html> so it
-   also covers portaled dialogs/popovers. Tag any money element with `sensitive`. */
-.hide-fees .sensitive {
-  filter: blur(9px);
-  user-select: none;
-  transition: filter 0.12s ease;
+/* Privacy mode — mask fees as dots (like a password field) so it reads as
+   "hidden on purpose", not empty. The `*` also masks text inside tagged
+   containers (grouped totals). Class lives on <html>, so it covers portaled
+   dialogs too. Tag any money element with `sensitive`. */
+.hide-fees .sensitive,
+.hide-fees .sensitive * {
+  -webkit-text-security: disc;
+  text-security: disc;
+}
+.hide-fees .sensitive { user-select: none; }
+/* Firefox has no text-security — fall back to a blur so fees still aren't readable. */
+@supports not (-webkit-text-security: disc) {
+  .hide-fees .sensitive { filter: blur(8px); }
 }
 
 @layer base {
