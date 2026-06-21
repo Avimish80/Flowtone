@@ -173,7 +173,7 @@ export default function Dashboard() {
                   </span>
                 )}
                 {nextGigFee > 0 && (
-                  <span className="font-medium text-gray-200">
+                  <span className="font-medium text-gray-200 sensitive">
                     {formatMoney(nextGigFee, nextGig.currency || settings?.currency).replace(/\.00$/, "")}
                   </span>
                 )}

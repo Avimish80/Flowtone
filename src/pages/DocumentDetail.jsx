@@ -928,7 +928,7 @@ export default function DocumentDetail() {
                   {savingState === "saving" && <span className="text-[10px] text-indigo-300/70 flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> Saving…</span>}
                   {savingState === "saved" && <span className="text-[10px] text-green-400 flex items-center gap-1"><Check className="w-3 h-3" /> Saved</span>}
                 </div>
-                <h2 className="text-2xl font-bold text-white leading-tight mt-0.5">
+                <h2 className="text-2xl font-bold text-white leading-tight mt-0.5 sensitive">
                   {formatMoney(doc.total || 0, doc.currency || "GBP").replace(/\.00$/, "")}
                 </h2>
               </div>
@@ -1103,7 +1103,7 @@ export default function DocumentDetail() {
             <Send className="w-4 h-4 text-indigo-400 flex-shrink-0" />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-indigo-200">
-                Ready to send · {sym}{(doc.total || 0).toFixed(2)}
+                Ready to send · <span className="sensitive">{sym}{(doc.total || 0).toFixed(2)}</span>
               </p>
               <p className="text-xs text-indigo-400/70 truncate">
                 {gmailConnected ? `via Gmail to ${quickSendEmail}` : `to ${quickSendEmail}`}
@@ -1506,10 +1506,10 @@ export default function DocumentDetail() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-white">{item.description}</p>
                     {item.quantity !== 1 && (
-                      <p className="text-xs text-gray-500">{item.quantity} ×  {sym}{(item.unit_price || 0).toFixed(2)}</p>
+                      <p className="text-xs text-gray-500 sensitive">{item.quantity} ×  {sym}{(item.unit_price || 0).toFixed(2)}</p>
                     )}
                   </div>
-                  <span className="text-sm font-semibold text-white flex-shrink-0">
+                  <span className="text-sm font-semibold text-white flex-shrink-0 sensitive">
                     {sym}{((item.quantity || 1) * (item.unit_price || 0)).toFixed(2)}
                   </span>
                   {!doc.is_locked && (
@@ -1552,7 +1552,7 @@ export default function DocumentDetail() {
           )}
 
           {/* Total footer */}
-          <div className="px-4 py-4 border-t border-gray-700/40 bg-gray-800/50">
+          <div className="px-4 py-4 border-t border-gray-700/40 bg-gray-800/50 sensitive">
             {(doc.discount_amount > 0 || doc.tax_amount > 0) && (
               <div className="space-y-1 mb-3">
                 {doc.discount_amount > 0 && (
@@ -1590,7 +1590,7 @@ export default function DocumentDetail() {
               {payments.map(p => (
                 <div key={p.id} className="bg-gray-800 rounded-lg px-3 py-2 flex items-center justify-between text-sm">
                   <div>
-                    <span className="text-white">{sym}{Number(p.amount).toFixed(2)}</span>
+                    <span className="text-white sensitive">{sym}{Number(p.amount).toFixed(2)}</span>
                     {p.payment_method && <span className="text-gray-500 ml-2">({p.payment_method})</span>}
                   </div>
                   <span className="text-gray-500 text-xs">{p.payment_date}</span>

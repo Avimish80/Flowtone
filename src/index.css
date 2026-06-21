@@ -2,6 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Privacy mode — blur fees when "hide fees" is on. Class lives on <html> so it
+   also covers portaled dialogs/popovers. Tag any money element with `sensitive`. */
+.hide-fees .sensitive {
+  filter: blur(9px);
+  user-select: none;
+  transition: filter 0.12s ease;
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;

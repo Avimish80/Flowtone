@@ -241,7 +241,7 @@ export default function Invoices() {
             ${filterStatus === "outstanding" ? "ring-2 ring-indigo-500 scale-[1.01]" : ""}`}
         >
           <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-1">Outstanding</p>
-          <p className={`text-2xl font-bold mb-1 leading-tight ${overview.overdue.length > 0 ? "text-yellow-300" : "text-white"}`}>
+          <p className={`sensitive text-2xl font-bold mb-1 leading-tight ${overview.overdue.length > 0 ? "text-yellow-300" : "text-white"}`}>
             {overview.fmt(overview.sum(overview.sent))}
           </p>
           <div className="flex items-center gap-2 text-xs flex-wrap">
@@ -274,6 +274,7 @@ export default function Invoices() {
             label: "Overdue",
             icon: AlertTriangle,
             value: overview.overdue.length > 0 ? overview.fmt(overview.sum(overview.overdue)) : "—",
+            sensitive: true,
             sub: `${overview.overdue.length}`,
             colors: overview.overdue.length > 0
               ? "bg-red-950/60 border-red-800/40 text-red-300"
@@ -286,6 +287,7 @@ export default function Invoices() {
             label: "Paid",
             icon: TrendingUp,
             value: overview.fmt(overview.sum(overview.paid)),
+            sensitive: true,
             sub: `${overview.paid.length}`,
             colors: "bg-green-950/30 border-green-800/20 text-green-300",
             iconColor: "text-green-400",
@@ -322,7 +324,7 @@ export default function Invoices() {
             >
               <Icon className={`w-3 h-3 mb-1.5 ${tile.iconColor}`} />
               <p className={`text-[9px] font-bold uppercase tracking-wider mb-0.5 ${tile.labelColor}`}>{tile.label}</p>
-              <p className="text-sm font-bold leading-tight truncate">{tile.value}</p>
+              <p className={`text-sm font-bold leading-tight truncate ${tile.sensitive ? "sensitive" : ""}`}>{tile.value}</p>
             </button>
           );
         })}
@@ -421,7 +423,7 @@ export default function Invoices() {
                   </div>
                 </div>
                 <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
-                  <p className="font-bold text-white text-sm">{currencySymbol(item.currency)}{(item.total ?? item.subtotal ?? 0).toFixed(2)}</p>
+                  <p className="font-bold text-white text-sm sensitive">{currencySymbol(item.currency)}{(item.total ?? item.subtotal ?? 0).toFixed(2)}</p>
                   {!selectMode && item.status === "sent" && (
                     <button
                       onClick={async (e) => {

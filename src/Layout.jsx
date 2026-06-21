@@ -2,10 +2,11 @@ import { useState, useEffect, Suspense } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { useTheme } from "@/lib/ThemeContext";
+import { usePrivacy } from "@/lib/PrivacyContext";
 import {
   Music2, CalendarDays, CalendarRange, Users, Receipt,
   Package, Mail, Car, Settings, LayoutDashboard, MoreHorizontal, X, Sun, Moon,
-  Music, Dumbbell, FileText, Bell, Loader2, Target
+  Music, Dumbbell, FileText, Bell, Loader2, Target, Eye, EyeOff
 } from "lucide-react";
 import AIAssistantButton from "@/components/AIAssistant/AIAssistantButton";
 import AIAssistantPanel from "@/components/AIAssistant/AIAssistantPanel";
@@ -75,6 +76,7 @@ const SECTION_LABELS = {
   Practice: "Practice",
   Equipment: "Gear",
   Missions: "Missions",
+  MissionDetail: "Task",
   EmailInbox: "Inbox",
   DrivingMode: "Drive",
   AppSettings: "Settings",
@@ -94,6 +96,7 @@ const SECTION_ICONS = {
   Practice: Dumbbell,
   Equipment: Package,
   Missions: Target,
+  MissionDetail: Target,
   EmailInbox: Mail,
   DrivingMode: Car,
   AppSettings: Settings,
@@ -107,6 +110,7 @@ export default function Layout({ children, currentPageName }) {
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const { theme, toggleTheme } = useTheme();
+  const { hideFees, toggleHideFees } = usePrivacy();
 
   // Schedule push notifications on app open (if user has push enabled)
   useEffect(() => {
@@ -246,6 +250,14 @@ export default function Layout({ children, currentPageName }) {
                 {unreadCount > 9 ? "9+" : unreadCount}
               </span>
             )}
+          </button>
+          <button
+            onClick={toggleHideFees}
+            className={`p-1.5 rounded-lg transition-colors ${hideFees ? "text-indigo-400 hover:text-indigo-300 hover:bg-gray-800" : "text-gray-400 hover:text-white hover:bg-gray-800"}`}
+            title={hideFees ? "Show fees" : "Hide fees (privacy mode)"}
+            aria-pressed={hideFees}
+          >
+            {hideFees ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
           </button>
           <button
             onClick={toggleTheme}

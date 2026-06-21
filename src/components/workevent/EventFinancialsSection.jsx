@@ -76,7 +76,7 @@ export default function EventFinancialsSection({ event, onChange, estimate, invo
       <div className="bg-indigo-950/40 border border-indigo-700/30 rounded-2xl p-4 flex items-end justify-between">
         <div>
           <p className="text-[11px] uppercase tracking-wider text-indigo-300/70">Total</p>
-          <p className="text-3xl font-bold text-white mt-0.5">{sym}{total.toFixed(2)}</p>
+          <p className="text-3xl font-bold text-white mt-0.5 sensitive">{sym}{total.toFixed(2)}</p>
         </div>
         {locked && !allowEdit && (
           <button
@@ -89,7 +89,7 @@ export default function EventFinancialsSection({ event, onChange, estimate, invo
       </div>
 
       {/* Fee breakdown — one clean list; the first line is the fee itself */}
-      <div className="rounded-xl border border-gray-700/50 divide-y divide-gray-700/40 overflow-hidden">
+      <div className="rounded-xl border border-gray-700/50 divide-y divide-gray-700/40 overflow-hidden sensitive">
         {/* Base fee line */}
         <div className="flex items-center gap-2 px-3 py-2.5 bg-gray-800/40">
           <span className="flex-1 text-sm text-gray-300">{baseLabel}</span>
@@ -195,7 +195,7 @@ export default function EventFinancialsSection({ event, onChange, estimate, invo
               <FileText className="w-4 h-4 text-indigo-400 flex-shrink-0" />
               <div className="flex-1 min-w-0">
                 <p className="text-xs text-gray-500 uppercase tracking-wide">Estimate</p>
-                <p className="text-sm text-white truncate">{currencySymbol(estimate.currency)}{(estimate.total || estimate.subtotal || 0).toFixed(2)}</p>
+                <p className="text-sm text-white truncate sensitive">{currencySymbol(estimate.currency)}{(estimate.total || estimate.subtotal || 0).toFixed(2)}</p>
               </div>
               <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${docStatusColors[estimate.status] || docStatusColors.draft}`}>
                 {estimate.status}
@@ -212,7 +212,7 @@ export default function EventFinancialsSection({ event, onChange, estimate, invo
               <Receipt className="w-4 h-4 text-green-400 flex-shrink-0" />
               <div className="flex-1 min-w-0">
                 <p className="text-xs text-gray-500 uppercase tracking-wide">Invoice</p>
-                <p className="text-sm text-white truncate">{currencySymbol(invoice.currency)}{(invoice.total || invoice.subtotal || 0).toFixed(2)}</p>
+                <p className="text-sm text-white truncate sensitive">{currencySymbol(invoice.currency)}{(invoice.total || invoice.subtotal || 0).toFixed(2)}</p>
               </div>
               <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${docStatusColors[invoice.status] || docStatusColors.draft}`}>
                 {invoice.status}

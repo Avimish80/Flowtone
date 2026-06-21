@@ -40,11 +40,11 @@ export default function ClientFinancialSummary({ clientId }) {
       <div className="grid grid-cols-2 gap-3">
         <div className="bg-gray-800 rounded-xl p-3">
           <p className="text-xs text-gray-500 mb-1">Total Earned</p>
-          <p className="text-lg font-bold text-green-400">{currencySymbol()}{totalEarned.toFixed(2)}</p>
+          <p className="text-lg font-bold text-green-400 sensitive">{currencySymbol()}{totalEarned.toFixed(2)}</p>
         </div>
         <div className="bg-gray-800 rounded-xl p-3">
           <p className="text-xs text-gray-500 mb-1">Outstanding</p>
-          <p className="text-lg font-bold text-yellow-400">{currencySymbol()}{totalOutstanding.toFixed(2)}</p>
+          <p className="text-lg font-bold text-yellow-400 sensitive">{currencySymbol()}{totalOutstanding.toFixed(2)}</p>
         </div>
       </div>
 
@@ -58,7 +58,7 @@ export default function ClientFinancialSummary({ clientId }) {
                 <Receipt className="w-3.5 h-3.5 text-gray-500 flex-shrink-0" />
                 <span className="flex-1 text-sm text-gray-200 truncate">{inv.title || "Invoice"}</span>
                 <span className={`text-xs font-medium ${statusColors[inv.status] || "text-gray-400"}`}>{inv.status}</span>
-                <span className="text-xs text-gray-400">{currencySymbol(inv.currency)}{(inv.total || inv.subtotal || 0).toFixed(2)}</span>
+                <span className="text-xs text-gray-400 sensitive">{currencySymbol(inv.currency)}{(inv.total || inv.subtotal || 0).toFixed(2)}</span>
                 <ChevronRight className="w-3 h-3 text-gray-600" />
               </Link>
             ))}
@@ -76,7 +76,7 @@ export default function ClientFinancialSummary({ clientId }) {
                 <FileText className="w-3.5 h-3.5 text-gray-500 flex-shrink-0" />
                 <span className="flex-1 text-sm text-gray-200 truncate">{est.title || "Estimate"}</span>
                 <span className={`text-xs font-medium ${statusColors[est.status] || "text-gray-400"}`}>{est.status}</span>
-                <span className="text-xs text-gray-400">{currencySymbol(est.currency)}{(est.total || est.subtotal || 0).toFixed(2)}</span>
+                <span className="text-xs text-gray-400 sensitive">{currencySymbol(est.currency)}{(est.total || est.subtotal || 0).toFixed(2)}</span>
                 <ChevronRight className="w-3 h-3 text-gray-600" />
               </Link>
             ))}

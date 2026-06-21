@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from '@/App.jsx'
 import { ThemeProvider } from '@/lib/ThemeContext'
+import { PrivacyProvider } from '@/lib/PrivacyContext'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import '@/index.css'
 
@@ -9,6 +10,7 @@ import '@/index.css'
 try {
   const saved = localStorage.getItem("mos_theme") || "dark";
   if (saved === "dark") document.documentElement.classList.add("dark");
+  if (localStorage.getItem("flowtone_hide_fees") === "1") document.documentElement.classList.add("hide-fees");
 } catch {}
 
 // Register service worker for PWA / offline support
@@ -26,7 +28,9 @@ try { clearTimeout(window.__bootReload); } catch {}
 ReactDOM.createRoot(document.getElementById('root')).render(
   <ErrorBoundary>
     <ThemeProvider>
-      <App />
+      <PrivacyProvider>
+        <App />
+      </PrivacyProvider>
     </ThemeProvider>
   </ErrorBoundary>
 )

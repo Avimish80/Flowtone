@@ -418,7 +418,7 @@ export default function WorkEventDetail() {
               <h2 className="text-2xl font-bold text-white leading-tight">{event.title || "Untitled Event"}</h2>
               <div className="flex flex-col items-end gap-1 flex-shrink-0">
                 {eventFee > 0 && (
-                  <span className="text-xl font-bold text-white whitespace-nowrap">
+                  <span className="text-xl font-bold text-white whitespace-nowrap sensitive">
                     {formatMoney(eventFee, event.currency || "GBP").replace(/\.00$/, "")}
                   </span>
                 )}
