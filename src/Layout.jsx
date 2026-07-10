@@ -6,7 +6,7 @@ import { usePrivacy } from "@/lib/PrivacyContext";
 import {
   Music2, CalendarDays, CalendarRange, Users, Receipt,
   Package, Mail, Car, Settings, LayoutDashboard, MoreHorizontal, X, Sun, Moon,
-  Music, Dumbbell, FileText, Bell, Loader2, Target, Eye, EyeOff
+  Music, Dumbbell, FileText, Bell, Loader2, Target, Eye, EyeOff, UserPlus
 } from "lucide-react";
 import AIAssistantButton from "@/components/AIAssistant/AIAssistantButton";
 import AIAssistantPanel from "@/components/AIAssistant/AIAssistantPanel";
@@ -28,6 +28,7 @@ const primaryNav = [
 
 const moreItems = [
   { icon: Target,   label: "Missions",   page: "Missions" },
+  { icon: UserPlus, label: "Leads",      page: "Leads" },
   { icon: Users,    label: "Clients",    page: "Clients" },
   { icon: Music,    label: "Library",    page: "Charts" },
   { icon: Dumbbell, label: "Practice",   page: "Practice" },
@@ -56,6 +57,9 @@ const NAV_GROUP = {
   Equipment: "Equipment",
   EmailInbox: "EmailInbox",
   Missions: "Missions",
+  Leads: "Leads",
+  LeadDetail: "Leads",
+  Packages: "Leads",
   DrivingMode: "DrivingMode",
   AppSettings: "AppSettings",
 };
@@ -77,6 +81,9 @@ const SECTION_LABELS = {
   Equipment: "Gear",
   Missions: "Missions",
   MissionDetail: "Task",
+  Leads: "Leads",
+  LeadDetail: "Lead",
+  Packages: "Packages",
   EmailInbox: "Inbox",
   DrivingMode: "Drive",
   AppSettings: "Settings",
@@ -97,6 +104,9 @@ const SECTION_ICONS = {
   Equipment: Package,
   Missions: Target,
   MissionDetail: Target,
+  Leads: UserPlus,
+  LeadDetail: UserPlus,
+  Packages: UserPlus,
   EmailInbox: Mail,
   DrivingMode: Car,
   AppSettings: Settings,
@@ -218,7 +228,7 @@ export default function Layout({ children, currentPageName }) {
   const SectionIcon = SECTION_ICONS[currentPageName] || null;
 
   const activeGroup = NAV_GROUP[currentPageName] || currentPageName;
-  const isMoreActive = ["Charts", "ChartDetail", "Practice", "Equipment", "EmailInbox", "DrivingMode", "AppSettings"].includes(activeGroup);
+  const isMoreActive = ["Charts", "ChartDetail", "Practice", "Equipment", "EmailInbox", "DrivingMode", "AppSettings", "Leads"].includes(activeGroup);
 
   return (
     <div className="min-h-screen bg-gray-950 text-white flex flex-col">
@@ -226,7 +236,7 @@ export default function Layout({ children, currentPageName }) {
       <header className="flex items-center justify-between px-4 py-3 border-b border-gray-800 bg-gray-950 sticky top-0 z-30" style={{ paddingTop: "max(12px, env(safe-area-inset-top))" }}>
         <div className="flex items-center gap-2.5">
           <Music2 className="w-5 h-5 text-indigo-400" />
-          <span className="font-bold text-white tracking-tight">Flow</span>
+          <span className="font-bold text-white tracking-tight">Flowtone</span>
           {sectionLabel && (
             <>
               <span className="text-gray-600 text-sm">/</span>

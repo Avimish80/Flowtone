@@ -53,13 +53,18 @@ const store = load();
 console.log(`[db] JSON store ready at ${STORE_PATH} — ${Object.keys(store.subscriptions).length} subscriptions, ${Object.keys(store.scheduledPushes).length} scheduled pushes`);
 
 // ─── Subscription helpers ────────────────────────────────────────────
-export function upsertSubscription({ endpoint, p256dh, auth, user_agent, notification_level }) {
-  store.subscriptions[endpoint] = { endpoint, p256dh, auth, user_agent, notification_level };
+export function upsertSubscription({ endpoint, p256dh, auth, user_agent, notification_level, user_id }) {
+  store.subscriptions[endpoint] = { endpoint, p256dh, auth, user_agent, notification_level, user_id: user_id ?? null };
   save(store);
 }
 
 export function getSubscription(endpoint) {
   return store.subscriptions[endpoint] ?? null;
+}
+
+export function getSubscriptionsByUserId(userId) {
+  if (!userId) return [];
+  return Object.values(store.subscriptions).filter((s) => s.user_id === userId);
 }
 
 export function deleteSubscription(endpoint) {

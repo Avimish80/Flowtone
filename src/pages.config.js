@@ -73,9 +73,13 @@ const Estimates = lazy(() => import('./pages/Estimates'));
 const Finance = lazy(() => import('./pages/Finance'));
 const InvoiceDetail = lazy(() => import('./pages/InvoiceDetail'));
 const Invoices = lazy(() => import('./pages/Invoices'));
+const LeadDetail = lazy(() => import('./pages/LeadDetail'));
+const Leads = lazy(() => import('./pages/Leads'));
+const Packages = lazy(() => import('./pages/Packages'));
 const Practice = lazy(() => import('./pages/Practice'));
 const WorkEventDetail = lazy(() => import('./pages/WorkEventDetail'));
 const Missions = lazy(() => import('./pages/Missions'));
+const MissionDetail = lazy(() => import('./pages/MissionDetail'));
 const WorkEvents = lazy(() => import('./pages/WorkEvents'));
 
 
@@ -96,7 +100,11 @@ export const PAGES = {
     "Finance": Finance,
     "InvoiceDetail": InvoiceDetail,
     "Invoices": Invoices,
+    "LeadDetail": LeadDetail,
+    "Leads": Leads,
     "Missions": Missions,
+    "MissionDetail": MissionDetail,
+    "Packages": Packages,
     "Practice": Practice,
     "WorkEventDetail": WorkEventDetail,
     "WorkEvents": WorkEvents,

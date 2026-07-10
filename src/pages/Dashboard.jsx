@@ -60,6 +60,7 @@ export default function Dashboard() {
   const [documents, setDocuments] = useState([]);
   const [clients, setClients] = useState([]);
   const [settings, setSettings] = useState(null);
+  const [newLeads, setNewLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
   const profile = getCachedProfileSync();
@@ -72,11 +73,13 @@ export default function Dashboard() {
       appClient.entities.Document.list("-created_at"),
       appClient.entities.Client.list(),
       appClient.entities.AppSettings.list(),
-    ]).then(([evts, docs, cls, settingsArr]) => {
+      appClient.entities.Lead.filter({ status: "new" }),
+    ]).then(([evts, docs, cls, settingsArr, newLeadRows]) => {
       setEvents(evts);
       setDocuments(docs);
       setClients(cls);
       setSettings(settingsArr[0] || null);
+      setNewLeads(newLeadRows);
       setLoading(false);
     });
   }, []);
@@ -238,6 +241,27 @@ export default function Dashboard() {
 
       {/* ── AI Briefing ── */}
       <AIDashboardBriefing events={events} documents={documents} />
+
+      {/* ── New Leads Alert ── */}
+      {newLeads.length > 0 && (
+        <Link
+          to={newLeads.length === 1
+            ? createPageUrl(`LeadDetail?id=${newLeads[0].id}`)
+            : createPageUrl("Leads")}
+          className="flex items-center gap-3 bg-indigo-950/40 border border-indigo-800/30 rounded-xl px-4 py-3 transition-colors hover:bg-indigo-950/60"
+        >
+          <Users className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm text-indigo-300 font-medium">
+              {newLeads.length} new lead{newLeads.length > 1 ? "s" : ""}
+            </p>
+            {newLeads.length === 1 && newLeads[0].contact_name && (
+              <p className="text-xs text-indigo-400/70 truncate">{newLeads[0].contact_name}</p>
+            )}
+          </div>
+          <ChevronRight className="w-4 h-4 text-indigo-500" />
+        </Link>
+      )}
 
       {/* ── Overdue Alert ── */}
       {overdueCount > 0 && (

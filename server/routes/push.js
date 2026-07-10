@@ -32,7 +32,7 @@ router.get('/vapid-public-key', (_req, res) => {
 // Body: { subscription: { endpoint, keys: { p256dh, auth } }, userAgent?, notificationLevel? }
 router.post('/subscribe', (req, res) => {
   try {
-    const { subscription, userAgent, notificationLevel } = req.body;
+    const { subscription, userAgent, notificationLevel, userId } = req.body;
 
     if (!subscription?.endpoint || !subscription?.keys?.p256dh || !subscription?.keys?.auth) {
       return res.status(400).json({ error: 'Missing required subscription fields' });
@@ -44,6 +44,7 @@ router.post('/subscribe', (req, res) => {
       auth: subscription.keys.auth,
       user_agent: userAgent ?? null,
       notification_level: notificationLevel ?? 'standard',
+      user_id: typeof userId === 'string' ? userId : null,
     });
 
     res.status(201).json({ ok: true });

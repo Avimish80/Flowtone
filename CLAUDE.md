@@ -4,6 +4,33 @@
 
 ---
 
+## ⏳ SESSION HANDOFF — 10 Jul 2026 (read this first, delete when all done)
+
+Everything below is built and verified locally but **uncommitted**. Launch order matters: **run the 4 migrations in Supabase FIRST, then commit+push** (push auto-deploys Vercel + Railway together).
+
+### 1. Run these in the Supabase SQL editor (in order)
+1. `supabase/migrations/20260615_notifications_and_ai_usage.sql` — verified via live REST probe: `notifications` + `ai_usage_events` tables are MISSING in prod. NotificationsPanel/app badge fail in prod until this runs. (All other migrations up to 20260624 ARE applied — verified.)
+2. `supabase/migrations/20260704_profiles_privileges_and_uniques.sql` — **security**: closes paywall bypass (users could PATCH their own `subscription_status`; server access gate trusts it) + enforces one `app_settings`/`business_profiles` row per user.
+3. `supabase/migrations/20260710_service_packages_and_leads.sql` — Leads feature: `service_packages` + `leads` tables, plus `public_slug`/`enquiry_headline`/`enquiry_intro` columns on `business_profiles`. Run AFTER 20260704 (both alter `business_profiles`).
+4. `supabase/migrations/20260710_package_photos_bucket.sql` — public `package-photos` storage bucket + owner-path policies for package photo uploads.
+
+### 2. Uncommitted work in this tree (commit as feature commits, then push)
+- **Boot-splash white-stripe fix** — gradient `background-clip:text` fails on iOS and painted a blank bar instead of "FLOWTONE". Now solid color in `index.html` splash, `AuthGate.jsx`, and invoice template `.doc-type` (which would also have printed blank).
+- **Push notification banner fix** — iOS ignores `renotify`; daily reminders reusing the same tag were silently replaced (no banner). Recurring tags (`inv-overdue`, `needs-fee`, `imported-incomplete`, `unconfirmed`) now date-suffixed in `src/lib/pushManager.js`.
+- **Accent themes (Pro)** — Settings → Appearance: Indigo (default, unchanged) + Jade/Gold/Crimson. All `indigo-*` utilities resolve through `--accent-*` CSS vars (`tailwind.config.js` + `src/index.css` + `ThemeContext.jsx`). Dark/light toggle untouched and independent. Pro badge shown but NOT enforced yet — gate on `accessState.has_access` when billing goes live.
+- **Brand unification** — app said "Flow" in ~20 places (tab title, PWA name, header, AI assistant, onboarding, server AI prompts); all now "Flowtone". Assistant default persona also renamed Flow→Flowtone (`assistantProfile.js`) — Avi may still want "Flow" back as the assistant character name; ask if it comes up. Note: existing home-screen icons keep the old "Flow" label until removed and re-added after deploy.
+- **Missions/task-tickets feature** (earlier sessions) — code done; its DB columns are already live in prod.
+- **Leads feature (10 Jul)** — Studio Ninja-style pipeline: public enquiry page `/p/<slug>` showing service packages (name/photo/price/description), enquiry form → lead in the app; Leads inbox + LeadDetail (hero pattern, auto-save, send-quote reusing the estimate system); public quote page `/q/<token>` with online accept → server creates Client + confirmed WorkEvent + marks estimate accepted (idempotent, race-guarded); Missions chasing tickets (`lead_new_unanswered` >24h, `lead_quote_no_reply` >3d) with one-tap Gmail follow-up. New pieces: `server/routes/public.js` (anonymous API via `getSupabaseAdmin()`, IP rate limit, honeypot, daily lead cap), public-route carve-out in `App.jsx` (public pages are isolated ~6KB lazy chunks — no appClient/supabase imports), `Packages.jsx` CRUD + `src/lib/packagePhotos.js` (client-side resize → Supabase Storage), push subscriptions now carry `user_id` (pushManager + server/db.js) so the server can push "new lead"/"quote accepted" to the owner. Verified locally: build, preview-mode UI flows, mock-API public pages incl. accept idempotency. Real end-to-end (enquiry → prod DB → accept) only possible after migrations 3–4 run.
+- Production build passes (`npm run build`); `server/routes/ai.js` syntax-checked.
+
+### 3. Open issues (not blocking deploy)
+- **iPhone push banner test never completed** — Railway CLI pairing codes expired twice before approval (need ~30s on the phone: say "new code" to Claude, tap the link, approve). Zero-setup alternative: Flowtone → Settings → test notification → lock phone immediately; report *banner* vs *silent*. If silent → check iOS Settings → Notifications → Flowtone → Banners on, not in Scheduled Summary, Focus/Sleep allows it.
+- **Railway push store is ephemeral** — `store.json` (subs + queue) wiped on every Railway redeploy; self-heals when the app is reopened. Real fix: mount a Railway volume at `/app/data`.
+- **Google OAuth still in Testing mode** — calendar re-link forced every 7 days; needs Google verification (separate mission).
+- Post-launch DB hardening steps (bottom of `20260624_db_hardening.sql`): VALIDATE the NOT VALID FKs; enable `documents_user_number_uniq` after dup check.
+
+---
+
 ## Project identity
 
 **App name:** Flowtone (was "Musician OS" / "Defiant Harmony Flow App")

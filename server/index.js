@@ -9,6 +9,7 @@ import gmailRoutes from './routes/gmail.js';
 import calendarRoutes from './routes/calendar.js';
 import billingRoutes, { handleStripeWebhook } from './routes/billing.js';
 import meRoutes from './routes/me.js';
+import publicRoutes from './routes/public.js';
 import { requireAuthenticatedUser } from './lib/auth.js';
 import { startScheduler } from './scheduler.js';
 
@@ -70,6 +71,7 @@ app.use('/api/gmail', gmailRoutes);
 app.use('/api/calendar', calendarRoutes);
 app.use('/api/billing', billingRoutes);
 app.use('/api/me', meRoutes);
+app.use('/api/public', publicRoutes);
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

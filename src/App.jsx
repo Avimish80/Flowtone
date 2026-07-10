@@ -7,8 +7,19 @@ import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import AuthGate from '@/components/auth/AuthGate';
 import OnboardingGate from '@/components/onboarding/OnboardingGate';
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { saveGmailTokens } from '@/lib/gmailClient';
+
+// Public prospect-facing pages (no auth, no app shell). Kept as lazy chunks
+// so the authenticated app never pays for them and vice versa.
+const PublicEnquiryPage = lazy(() => import('./pages/public/PublicEnquiryPage'));
+const PublicQuotePage = lazy(() => import('./pages/public/PublicQuotePage'));
+
+const publicFallback = (
+  <div className="min-h-screen bg-gray-950 flex items-center justify-center">
+    <div className="w-8 h-8 border-2 border-gray-700 border-t-indigo-400 rounded-full animate-spin" />
+  </div>
+);
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
@@ -74,7 +85,11 @@ function App() {
     <AuthProvider>
       <QueryClientProvider client={queryClientInstance}>
         <Router>
-          <AuthenticatedApp />
+          <Routes>
+            <Route path="/p/:slug" element={<Suspense fallback={publicFallback}><PublicEnquiryPage /></Suspense>} />
+            <Route path="/q/:token" element={<Suspense fallback={publicFallback}><PublicQuotePage /></Suspense>} />
+            <Route path="/*" element={<AuthenticatedApp />} />
+          </Routes>
         </Router>
         <Toaster />
       </QueryClientProvider>

@@ -18,11 +18,13 @@ const entityNames = [
   "DocumentActivityLog",
   "EmailMessage",
   "Equipment",
+  "Lead",
   "Payment",
   "Notification",
   "PracticeGoal",
   "PracticeSession",
   "Reminder",
+  "ServicePackage",
   "Setlist",
   "WorkEvent",
 ];
@@ -128,6 +130,22 @@ const ensureSingletonEntity = async (entityName) => {
  */
 const getNextDocumentNumber = async (documentType) => {
   const s = await ensureSingletonEntity("AppSettings");
+
+  // Cloud mode: increment the counter atomically in the database so two
+  // documents created at the same instant (e.g. "invoice all my June gigs") can
+  // never be handed the same number. Falls back to the read-modify-write below
+  // if the RPC is missing (older DB) or in preview mode.
+  if (!isPreviewModeEnabled()) {
+    try {
+      const supabase = getSupabaseClient();
+      const { data, error } = await supabase.rpc("next_document_number", {
+        p_document_type: documentType,
+      });
+      if (!error && typeof data === "string" && data) return data;
+    } catch {
+      // fall through to the local counter
+    }
+  }
 
   const isInvoice = documentType === "invoice";
   const prefix = isInvoice
