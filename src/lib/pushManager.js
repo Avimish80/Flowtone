@@ -3,6 +3,20 @@
 
 import { getEffectivePrefs, timingToMinutes } from './notificationPrefs.js';
 import { gigsMissingFee, importedEventsIncomplete, hasFee } from './missingInfo.js';
+import { getSupabaseClient, isPreviewModeEnabled } from './supabaseClient.js';
+
+/** Signed-in user's id, so the server can map push endpoints to users
+ *  (needed for server-initiated pushes like "new lead received"). */
+async function getUserId() {
+  if (isPreviewModeEnabled()) return null;
+  try {
+    const supabase = getSupabaseClient();
+    const { data } = await supabase.auth.getUser();
+    return data?.user?.id ?? null;
+  } catch {
+    return null;
+  }
+}
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 const VAPID_PUBLIC_KEY =
@@ -61,6 +75,14 @@ function fmtTime(t) {
   return t || '';
 }
 
+/** Local "yyyy-MM-dd" of a Date — used to date-suffix recurring tags.
+ *  iOS/WebKit ignores `renotify`, so a push reusing an existing tag silently
+ *  replaces the old notification (no banner, no sound). Recurring daily
+ *  reminders must get a fresh tag per fire-date to actually pop. */
+function localDay(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 // ─── Public API ─────────────────────────────────────────────────────────────
 
 export async function registerPush(notificationLevel = 'standard') {
@@ -79,7 +101,7 @@ export async function registerPush(notificationLevel = 'standard') {
   await fetch(`${API_BASE}/api/push/subscribe`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ subscription, userAgent: navigator.userAgent, notificationLevel }),
+    body: JSON.stringify({ subscription, userAgent: navigator.userAgent, notificationLevel, userId: await getUserId() }),
   });
 
   return { success: true };
@@ -105,7 +127,7 @@ export async function reRegisterSubscription(notificationLevel = 'standard') {
     await fetch(`${API_BASE}/api/push/subscribe`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ subscription: sub, userAgent: navigator.userAgent, notificationLevel }),
+      body: JSON.stringify({ subscription: sub, userAgent: navigator.userAgent, notificationLevel, userId: await getUserId() }),
     });
   } catch { /* silent */ }
 }
@@ -119,7 +141,7 @@ export async function sendTestPush() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         endpoint: sub.endpoint,
-        title: '🎵 Flow Notifications Working!',
+        title: '🎵 Flowtone Notifications Working!',
         body: 'You will receive reminders for gigs, lessons and invoices.',
         url: '/',
         tag: `test-${Date.now()}`,
@@ -415,7 +437,7 @@ export async function schedulePushNotifications(
       if (fireAt.getTime() <= now) fireAt.setDate(fireAt.getDate() + 1);
       tasks.push(push({
         fireAt: fireAt.toISOString(),
-        tag: `needs-fee-${event.id}`,
+        tag: `needs-fee-${event.id}-${localDay(fireAt)}`,
         title: `I need the fee for ${event.title}`,
         body: `That gig's done but you never told me the fee, so I can't make the invoice. Tap to add the amount.`,
         url: `/WorkEventDetail?id=${event.id}`,
@@ -462,7 +484,7 @@ export async function schedulePushNotifications(
       if (fireAt.getTime() <= now) fireAt.setDate(fireAt.getDate() + 1);
       tasks.push(push({
         fireAt: fireAt.toISOString(),
-        tag: `inv-overdue-${inv.id}`,
+        tag: `inv-overdue-${inv.id}-${localDay(fireAt)}`,
         title: `Overdue invoice: ${inv.title || inv.document_number}`,
         body: `Overdue by ${daysOver} day${daysOver !== 1 ? 's' : ''} · ${fmt(inv.total, currency)}`,
         url: `/DocumentDetail?id=${inv.id}`,
@@ -541,7 +563,7 @@ export async function schedulePushNotifications(
           : 'the fee';
       tasks.push(push({
         fireAt: fireAt.toISOString(),
-        tag: `imported-incomplete-${event.id}`,
+        tag: `imported-incomplete-${event.id}-${localDay(fireAt)}`,
         title: `I added "${event.title}" from your calendar`,
         body: `It's missing ${miss} — I can't plan around it yet. Tap to fill in the details.`,
         url: `/WorkEventDetail?id=${event.id}`,
@@ -564,7 +586,7 @@ export async function schedulePushNotifications(
       fireAt.setHours(9, 0, 0, 0);
       tasks.push(push({
         fireAt: fireAt.toISOString(),
-        tag: `unconfirmed-${event.id}`,
+        tag: `unconfirmed-${event.id}-${localDay(fireAt)}`,
         title: `Still tentative: ${event.title}`,
         body: `${daysUntil} days away — is this confirmed yet?`,
         url: `/WorkEventDetail?id=${event.id}`,

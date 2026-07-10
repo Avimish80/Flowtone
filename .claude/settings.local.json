@@ -166,7 +166,9 @@
       "Bash(sort -t'\\(' -k1)",
       "Bash(echo \"=== exit: $? \\(1 = none found, good\\) ===\")",
       "Bash(node --check server/lib/googleCalendar.js)",
-      "Bash(echo \"exit:$?\")"
+      "Bash(echo \"exit:$?\")",
+      "Bash(sqlite3 flowtone.db \".tables\")",
+      "Bash(sqlite3 flowtone.db \"SELECT endpoint, user_agent, created_at FROM push_subscriptions;\")"
     ]
   }
 }
