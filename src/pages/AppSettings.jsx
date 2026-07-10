@@ -4,8 +4,9 @@ import { useAuth } from "@/lib/AuthContext";
 import {
   Check, Mail, Bell, Banknote, Building2, CalendarDays, RefreshCw,
   ChevronDown, ChevronUp, Upload, X, Download, Upload as UploadIcon,
-  LogOut, Sparkles, Link2
+  LogOut, Sparkles, Link2, Palette
 } from "lucide-react";
+import { useTheme, ACCENT_THEMES } from "@/lib/ThemeContext";
 import { formatDistanceToNow } from "date-fns";
 import { getAssistantProfile, DEFAULT_ASSISTANT_NAME, DEFAULT_LANGUAGE } from "@/lib/assistantProfile";
 import { LANGUAGE_OPTIONS } from "@/components/onboarding/onboardingScript";
@@ -20,6 +21,7 @@ import NotificationPrefsEditor, { Toggle } from "@/components/NotificationPrefsE
 
 export default function AppSettings() {
   const { logout, user, isPreviewMode } = useAuth();
+  const { accent, setAccent } = useTheme();
   const [settings, setSettings] = useState(null);
   const [profile, setProfile] = useState(null);
   const [saveState, setSaveState] = useState("idle"); // 'idle' | 'saving' | 'saved'
@@ -305,6 +307,44 @@ export default function AppSettings() {
         >
           <RefreshCw className="w-4 h-4 text-indigo-400" /> Replay app tour
         </button>
+
+        {/* ── Appearance ───────────────────────────────────────────── */}
+        {/* Accent themes only. Dark/light mode stays on the header toggle —
+            the two axes are independent and must not be coupled here. */}
+        <section>
+          <SectionHeader icon={Palette} label="Appearance" sectionKey="appearance" />
+          {openSections.has("appearance") && (
+            <div className="bg-gray-800 rounded-xl p-4">
+              <p className="text-xs text-gray-500 mb-3">Color theme — recolors the whole app. Themes beyond Indigo are a Pro feature.</p>
+              <div className="grid grid-cols-4 gap-2">
+                {ACCENT_THEMES.map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => setAccent(t.id)}
+                    className={`flex flex-col items-center gap-1.5 py-3 rounded-xl border transition-all ${
+                      accent === t.id
+                        ? "border-indigo-500 ring-2 ring-indigo-500 bg-gray-900"
+                        : "border-gray-700/60 hover:border-gray-600"
+                    }`}
+                  >
+                    <span
+                      className="w-7 h-7 rounded-full border border-white/10"
+                      style={{ background: t.swatch }}
+                    />
+                    <span className={`text-[11px] font-medium ${accent === t.id ? "text-white" : "text-gray-400"}`}>
+                      {t.label}
+                    </span>
+                    {t.pro && (
+                      <span className="text-[9px] font-semibold uppercase tracking-wider text-indigo-400 bg-indigo-600/20 px-1.5 py-0.5 rounded-full">
+                        Pro
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
 
         {/* ── Business Profile ─────────────────────────────────────── */}
         <section>

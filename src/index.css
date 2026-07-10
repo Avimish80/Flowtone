@@ -2,6 +2,71 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Accent themes ────────────────────────────────────────────────────────────
+   Every `indigo-*` utility in the app resolves through these variables
+   (see tailwind.config.js). :root holds stock indigo — the default look, so
+   nothing changes unless a theme is chosen. Picking a theme sets data-accent
+   on <html> and recolors the whole app. Dark/light mode is independent and
+   untouched. Values are RGB triplets (for Tailwind's <alpha-value>). */
+:root {
+  --accent-50: 238 242 255;
+  --accent-100: 224 231 255;
+  --accent-200: 199 210 254;
+  --accent-300: 165 180 252;
+  --accent-400: 129 140 248;
+  --accent-500: 99 102 241;
+  --accent-600: 79 70 229;
+  --accent-700: 67 56 202;
+  --accent-800: 55 48 163;
+  --accent-900: 49 46 129;
+  --accent-950: 30 27 75;
+}
+
+/* Jade — deep stage-light green */
+[data-accent='jade'] {
+  --accent-50: 236 253 245;
+  --accent-100: 209 250 229;
+  --accent-200: 167 243 208;
+  --accent-300: 110 231 183;
+  --accent-400: 52 211 153;
+  --accent-500: 16 185 129;
+  --accent-600: 5 150 105;
+  --accent-700: 4 120 87;
+  --accent-800: 6 95 70;
+  --accent-900: 6 78 59;
+  --accent-950: 2 44 34;
+}
+
+/* Gold — warm brass-section amber */
+[data-accent='gold'] {
+  --accent-50: 255 251 235;
+  --accent-100: 254 243 199;
+  --accent-200: 253 230 138;
+  --accent-300: 252 211 77;
+  --accent-400: 251 191 36;
+  --accent-500: 245 158 11;
+  --accent-600: 217 119 6;
+  --accent-700: 180 83 9;
+  --accent-800: 146 64 14;
+  --accent-900: 120 53 15;
+  --accent-950: 69 26 3;
+}
+
+/* Crimson — velvet-curtain red */
+[data-accent='crimson'] {
+  --accent-50: 255 241 242;
+  --accent-100: 255 228 230;
+  --accent-200: 254 205 211;
+  --accent-300: 253 164 175;
+  --accent-400: 251 113 133;
+  --accent-500: 244 63 94;
+  --accent-600: 225 29 72;
+  --accent-700: 190 18 60;
+  --accent-800: 159 18 57;
+  --accent-900: 136 19 55;
+  --accent-950: 76 5 25;
+}
+
 /* Privacy mode — mask fees as dots (like a password field) so it reads as
    "hidden on purpose", not empty. The `*` also masks text inside tagged
    containers (grouped totals). Class lives on <html>, so it covers portaled
@@ -98,23 +163,23 @@ html:not(.dark) [class*="bg-gray-700/"] { background-color: rgba(232,238,244,0.8
 /* ── Gradient cards (Dashboard hero "Next Up") ────────────────────── */
 /* Override the Tailwind CSS variables for gradient from/to classes */
 html:not(.dark) [class*="from-indigo-900"] {
-  --tw-gradient-from: #dde4ff !important;
+  --tw-gradient-from: rgb(var(--accent-100)) !important;
   --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to, rgba(221,228,255,0)) !important;
 }
 html:not(.dark) [class*="to-gray-900"] {
   --tw-gradient-to: #eef2f7 !important;
 }
 /* Also handle the border on gradient cards */
-html:not(.dark) [class*="from-indigo-900"] + * { border-color: rgba(99,102,241,0.2) !important; }
+html:not(.dark) [class*="from-indigo-900"] + * { border-color: rgb(var(--accent-500) / 0.2) !important; }
 
 /* ── Indigo background chips & badges ─────────────────────────────── */
-html:not(.dark) [class*="bg-indigo-900"]  { background-color: #e0e7ff !important; }
-html:not(.dark) [class*="bg-indigo-600/"] { background-color: rgba(99,102,241,0.12) !important; }
-html:not(.dark) [class*="bg-indigo-500/"] { background-color: rgba(99,102,241,0.10) !important; }
+html:not(.dark) [class*="bg-indigo-900"]  { background-color: rgb(var(--accent-100)) !important; }
+html:not(.dark) [class*="bg-indigo-600/"] { background-color: rgb(var(--accent-500) / 0.12) !important; }
+html:not(.dark) [class*="bg-indigo-500/"] { background-color: rgb(var(--accent-500) / 0.10) !important; }
 
 /* Keep solid indigo buttons looking sharp */
-html:not(.dark) .bg-indigo-600        { background-color: #4f46e5 !important; }
-html:not(.dark) .bg-indigo-500        { background-color: #6366f1 !important; }
+html:not(.dark) .bg-indigo-600        { background-color: rgb(var(--accent-600)) !important; }
+html:not(.dark) .bg-indigo-500        { background-color: rgb(var(--accent-500)) !important; }
 
 /* ── Status banner backgrounds ────────────────────────────────────── */
 html:not(.dark) [class*="bg-red-950"]    { background-color: rgba(255,241,241,1)   !important; }
@@ -138,17 +203,17 @@ html:not(.dark) .text-gray-500 { color: #94a3b8 !important; }
 html:not(.dark) .text-gray-600 { color: #94a3b8 !important; }
 
 /* Indigo text — darken for readability on light backgrounds */
-html:not(.dark) .text-indigo-100 { color: #312e81 !important; }
-html:not(.dark) .text-indigo-200 { color: #3730a3 !important; }
-html:not(.dark) .text-indigo-300 { color: #4338ca !important; }
-html:not(.dark) .text-indigo-400 { color: #4f46e5 !important; }
+html:not(.dark) .text-indigo-100 { color: rgb(var(--accent-900)) !important; }
+html:not(.dark) .text-indigo-200 { color: rgb(var(--accent-800)) !important; }
+html:not(.dark) .text-indigo-300 { color: rgb(var(--accent-700)) !important; }
+html:not(.dark) .text-indigo-400 { color: rgb(var(--accent-600)) !important; }
 
 /* ── Borders ──────────────────────────────────────────────────────── */
 html:not(.dark) .border-gray-800  { border-color: #e2e8f0 !important; }
 html:not(.dark) .border-gray-700  { border-color: #cbd5e1 !important; }
 html:not(.dark) .border-gray-600  { border-color: #94a3b8 !important; }
-html:not(.dark) [class*="border-indigo-700"]  { border-color: rgba(99,102,241,0.25) !important; }
-html:not(.dark) [class*="border-indigo-500"]  { border-color: rgba(99,102,241,0.30) !important; }
+html:not(.dark) [class*="border-indigo-700"]  { border-color: rgb(var(--accent-500) / 0.25) !important; }
+html:not(.dark) [class*="border-indigo-500"]  { border-color: rgb(var(--accent-500) / 0.30) !important; }
 html:not(.dark) [class*="border-gray-700/"]   { border-color: rgba(203,213,225,0.8) !important; }
 html:not(.dark) [class*="border-gray-800/"]   { border-color: rgba(226,232,240,0.9) !important; }
 html:not(.dark) [class*="border-red-700"]     { border-color: rgba(239,68,68,0.35)  !important; }
@@ -173,7 +238,7 @@ html:not(.dark) input::placeholder,
 html:not(.dark) textarea::placeholder { color: #94a3b8 !important; }
 html:not(.dark) input:focus,
 html:not(.dark) select:focus,
-html:not(.dark) textarea:focus { border-color: #6366f1 !important; outline-color: rgba(99,102,241,0.3) !important; }
+html:not(.dark) textarea:focus { border-color: rgb(var(--accent-500)) !important; outline-color: rgb(var(--accent-500) / 0.3) !important; }
 
 /* ── Structural elements ──────────────────────────────────────────── */
 

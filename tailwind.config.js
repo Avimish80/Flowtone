@@ -10,6 +10,23 @@ module.exports = {
   			sm: 'calc(var(--radius) - 4px)'
   		},
   		colors: {
+  			// Accent themes: `indigo` (the app-wide accent) resolves through CSS
+  			// variables set in index.css. Default values are Tailwind's stock
+  			// indigo, so with no data-accent attribute nothing changes. Other
+  			// palettes are applied via [data-accent="..."] on <html>.
+  			indigo: {
+  				'50': 'rgb(var(--accent-50) / <alpha-value>)',
+  				'100': 'rgb(var(--accent-100) / <alpha-value>)',
+  				'200': 'rgb(var(--accent-200) / <alpha-value>)',
+  				'300': 'rgb(var(--accent-300) / <alpha-value>)',
+  				'400': 'rgb(var(--accent-400) / <alpha-value>)',
+  				'500': 'rgb(var(--accent-500) / <alpha-value>)',
+  				'600': 'rgb(var(--accent-600) / <alpha-value>)',
+  				'700': 'rgb(var(--accent-700) / <alpha-value>)',
+  				'800': 'rgb(var(--accent-800) / <alpha-value>)',
+  				'900': 'rgb(var(--accent-900) / <alpha-value>)',
+  				'950': 'rgb(var(--accent-950) / <alpha-value>)'
+  			},
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',
   			card: {
