@@ -15,7 +15,7 @@ const STEPS = [
   { anchor: "nav-events", title: "Events", body: "Every gig, lesson and rehearsal lives here — with fees and venues." },
   { anchor: "nav-finance", title: "Finance", body: "Invoices, estimates, and exactly what you're owed." },
   { anchor: "nav-more", title: "Everything else", body: "Clients, gear, practice and settings are tucked in here." },
-  { anchor: "ai", title: "Meet Flow", body: "Tap me anytime — say \"book a wedding Friday for £400\" and it's done." },
+  { anchor: "ai", title: "Meet Flowtone", body: "Tap me anytime — say \"book a wedding Friday for £400\" and it's done." },
 ];
 
 const DONE_KEY = "flowtone_tour_done_v1";

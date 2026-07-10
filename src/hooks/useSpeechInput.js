@@ -35,7 +35,10 @@ export function useSpeechInput() {
     }
 
     const recognition = new SpeechRecognition();
-    recognition.lang = "en-US";
+    // Follow the device locale (e.g. en-GB) instead of forcing US English, so
+    // dictation matches how the user actually speaks.
+    recognition.lang =
+      (typeof navigator !== "undefined" && navigator.language) || "en-GB";
     recognition.continuous = false;
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;

@@ -1,6 +1,6 @@
 import { appClient } from "@/api/appClient";
 
-export const DEFAULT_ASSISTANT_NAME = "Flow";
+export const DEFAULT_ASSISTANT_NAME = "Flowtone";
 export const DEFAULT_LANGUAGE = "English";
 
 // undefined = not loaded yet; null = loaded, no profile saved

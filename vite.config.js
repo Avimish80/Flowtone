@@ -17,8 +17,8 @@ export default defineConfig({
       },
       includeAssets: ['icon.svg', 'icon-192x192.svg', 'icon-512x512.svg'],
       manifest: {
-        name: 'Flow',
-        short_name: 'Flow',
+        name: 'Flowtone',
+        short_name: 'Flowtone',
         description: "The musician's business OS",
         theme_color: '#1e1b4b',
         background_color: '#030712',

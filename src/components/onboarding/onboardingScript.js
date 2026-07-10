@@ -11,7 +11,7 @@ export const STEPS = [
   {
     id: "intro",
     type: "say",
-    text: () => "Hey, you made it! Welcome to Flow 🎉 I'm the AI living inside this app — think of me as your roadie, manager, and accountant rolled into one. Minus the attitude.",
+    text: () => "Hey, you made it! Welcome to Flowtone 🎉 I'm the AI living inside this app — think of me as your roadie, manager, and accountant rolled into one. Minus the attitude.",
   },
   {
     id: "user_name",
@@ -25,7 +25,7 @@ export const STEPS = [
     type: "ask",
     field: "assistant_name",
     prompt: (a) => `Nice to meet you, ${a.user_name}! Now the fun part — you get to name me. Go on, anything beats "Assistant".`,
-    input: { kind: "text", placeholder: "Flow", defaultValue: "Flow" },
+    input: { kind: "text", placeholder: "Flowtone", defaultValue: "Flowtone" },
   },
   {
     id: "language",
