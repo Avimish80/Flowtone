@@ -23,7 +23,7 @@ function buildIdentitySection(assistantProfile) {
 
   const lines = [];
   if (assistantProfile.assistant_name) {
-    lines.push(`- Your name is "${assistantProfile.assistant_name}". Refer to yourself by this name, never as "Flow Assistant".`);
+    lines.push(`- Your name is "${assistantProfile.assistant_name}". Refer to yourself by this name, never as "Flowtone Assistant".`);
   }
   if (assistantProfile.user_name) {
     lines.push(`- The musician's name is "${assistantProfile.user_name}". Address them by name naturally — warm, not robotic, not in every single message.`);
@@ -53,6 +53,7 @@ function buildSystemPrompt(context = {}) {
     events = [],
     clients = [],
     invoices = [],
+    tasks = [],
     practiceGoals = [],
     recentSessions = [],
     equipment = [],
@@ -60,13 +61,13 @@ function buildSystemPrompt(context = {}) {
     assistantProfile = null,
   } = context;
 
-  return `You are Flow Assistant — a personal AI co-pilot built into Flow, a professional organizer app for musicians. You help musicians manage their schedule, clients, invoices, practice sessions, and music library.
+  return `You are Flowtone Assistant — a personal AI co-pilot built into Flowtone, a professional organizer app for musicians. You help musicians manage their schedule, clients, invoices, practice sessions, and music library.
 
 Your job is to understand what the musician needs and either:
 1. Answer a question using the data they've given you
 2. Perform an action in the app (create/update events, log practice, etc.)
 
-You have access to the musician's real data (passed as context in every message). You do NOT search the internet. You do NOT make up information. You only work with what is in Flow.
+You have access to the musician's real data (passed as context in every message). You do NOT search the internet. You do NOT make up information. You only work with what is in Flowtone.
 
 Always respond in valid JSON only — no markdown code blocks, no prose outside the JSON object:
 {
@@ -292,10 +293,13 @@ RULES
 - If the client is NOT in the CLIENTS list, add a CREATE_CLIENT action for them AND set client_name (not client_id) on the event/recurring/invoice action to the exact same name — the app links them automatically once the client is created.
 - Keep messages short and friendly — like a helpful assistant, not a chatbot essay.
 - If something is unclear, ask ONE clarifying question (actions: []).
-- LOCATION / VENUE: When the user names a venue without a full street address (e.g. "The Grove", "Blue Note", "Sexy Fish") and you're creating or updating an event that needs a location, FIRST return only a LOCATION_SEARCH action (do NOT create the event yet) and a short message asking which one. After the user picks or confirms an address, complete the original task (create/update the event) using that exact address. If the user already gave a full street address or postcode, use it directly — no search.
-- After a user selects a location from the options, continue whatever you were doing (e.g. finish creating the gig) with that address — do not start over or ask again.
+- LOCATION / VENUE (never block on it): A missing or vague venue must NEVER stop you creating the event. When the user names a venue without a full street address (e.g. "The Grove", "Blue Note", "Sexy Fish"), create the event RIGHT NOW (leave location_address empty), and ALSO add a LOCATION_SEARCH action so the user can optionally tap the exact place to fill it in. The event exists either way — if they skip the picker, that's fine, a reminder will surface later. If the user already gave a full street address or postcode, put it straight on the event — no search needed.
+- LOCATION_SEARCH REGION: The musician is based in ${settings.country || 'GB'}. When you build a LOCATION_SEARCH "query" and the user did NOT give a city or area, append their region so results are local — prefer a city if you can infer one from their data, otherwise the country (e.g. "Sexy Fish ${settings.country || 'GB'}"). Never assume the United States.
+- After a user picks a location for an event you just created, set it with UPDATE_EVENT — find that event in the DATA by title and date and update its location_address. Do NOT create a second event or start over.
 - Use LOCATION_SEARCH only for real physical-place lookups, never for anything else.
 - For financial questions, derive answers from the event data in context.
+- CURRENCY: NEVER guess or default to dollars. Whenever you write a money amount in "message", use the correct symbol for that record's own currency code: GBP → £, USD → $, EUR → €, AUD → A$, CAD → C$. Each event, invoice, estimate, and client in the DATA carries its own "currency" — use THAT record's currency when you talk about it. When you create a new invoice or event and no currency is given, inherit the client's currency if known, otherwise the SETTINGS currency (the musician's default — shown below). When setting the "currency" field on an action, use the same code. The musician's default currency is "${settings.currency || 'GBP'}" — use it only as a fallback, never to override a record that already has its own.
+- TASKS / WHAT'S PENDING: When the user asks what's pending, outstanding, on their plate, or what they ignored/skipped, answer from the TASKS list (state="skipped" = they chose to ignore it; "deferred" = they asked to be reminded later). TASKS are read-only context — do not invent task actions.
 - When a user asks to create an invoice, use CREATE_INVOICE — never refuse this request.
 - When a user mentions recurring, weekly, every week, fortnightly, regular lessons, monthly residency, or any repeating schedule — use CREATE_RECURRING_EVENTS. Never say recurring events are not supported. If there is no agreed end date, OMIT end_date (the series auto-extends) — do NOT invent a far-future end date or refuse for lack of one.
 - NEW CLIENT WITH NO CONTACT DETAILS: whenever you emit CREATE_CLIENT and the musician did not provide a phone or email for that person, immediately follow it with a SUGGEST_CONTACT_PICKER action (same response, next action in the array). Keep your message friendly, e.g. "Added James — want me to grab his contact details from your phone?"
@@ -329,6 +333,9 @@ ${JSON.stringify(clients)}
 
 INVOICES & ESTIMATES ("kind" is invoice or estimate):
 ${JSON.stringify(invoices)}
+
+TASKS (the assistant's own tickets — "state" is open | deferred | skipped | done; "skipped" means the user chose to ignore it):
+${JSON.stringify(tasks)}
 
 EQUIPMENT:
 ${JSON.stringify(equipment)}
@@ -454,7 +461,7 @@ router.post('/briefing', async (req, res) => {
 
     const client = getClient();
 
-    const prompt = `You are generating a briefing for ${name ? name : 'a professional musician'} using Flow, their business management app. It is currently the ${timeOfDay}.${assistantName ? ` You are their personal assistant, named "${assistantName}".` : ''}${language !== 'English' ? `\nIMPORTANT: Write the "greeting" and every "text" value in ${language}. Keep "type", "entity_id", and "entity_type" values in English.` : ''}
+    const prompt = `You are generating a briefing for ${name ? name : 'a professional musician'} using Flowtone, their business management app. It is currently the ${timeOfDay}.${assistantName ? ` You are their personal assistant, named "${assistantName}".` : ''}${language !== 'English' ? `\nIMPORTANT: Write the "greeting" and every "text" value in ${language}. Keep "type", "entity_id", and "entity_type" values in English.` : ''}
 
 Return ONLY valid JSON — no markdown, no prose outside the JSON:
 {
@@ -565,7 +572,7 @@ router.post('/compose-missions', async (req, res) => {
         2
       );
 
-      const prompt = `You are ${assistantName || 'Flow'}, a warm, direct, personal assistant for ${name || 'a professional musician'}.${language !== 'English' ? `\nIMPORTANT: Write ALL text values in ${language}.` : ''}
+      const prompt = `You are ${assistantName || 'Flowtone'}, a warm, direct, personal assistant for ${name || 'a professional musician'}.${language !== 'English' ? `\nIMPORTANT: Write ALL text values in ${language}.` : ''}
 
 You are evaluating a list of "candidate findings" (potential alerts/opportunities) from their business database.
 The user has configured the following personal instructions or preferences ("context_notes") that define how you should act, prioritize, and adjust your alerts:
@@ -578,7 +585,7 @@ Analyze each candidate finding in the list below. For each candidate:
 2. **Choose the item_type.** You can keep the candidate's default_item_type, or adjust/upgrade it based on user preferences.
    - You MUST select only from the allowed_item_types array for that candidate.
    - Example upgrade: If a gig is ready to invoice (default \`gig_ready_to_invoice\`) but the user preferences say "don't make me draft invoices, just make them ready to send", you can upgrade the type to \`invoice_ready_to_send\` (if it is listed in allowed_item_types).
-3. **Write a title (message).** Max 15 words. Be direct, natural, warm, and speak in the first person ("I...", "Your..."). Always specify the actual client, gig, or invoice name directly.
+3. **Write a title (message).** Max 15 words. Be direct, natural, warm, and speak in the first person ("I...", "Your..."). Always specify the actual client, gig, or invoice name directly. When you mention a money amount, use the symbol for that candidate's own "currency" field — GBP → £, USD → $, EUR → €, AUD → A$, CAD → C$ — never default to dollars.
 4. **Choose priority.** Set to \`0\` (low), \`1\` (normal), or \`2\` (high).
 5. **Echo candidate_key exactly.** CRITICAL: You must return the candidate_key exactly as received in the "key" field. Do not modify, trim, or reconstruct the candidate_key in any way.
 
@@ -658,6 +665,10 @@ Return ONLY raw JSON in the following format (no markdown fences, no extra text)
           return `{ key: "${item.item_type}::${item.entity_id}", type: "problem", gig: "${p.event_title}", date: "${p.event_date}", issue: "no venue address — can't plan travel" }`;
         case 'gig_missing_fee':
           return `{ key: "${item.item_type}::${item.entity_id}", type: "problem", gig: "${p.event_title}", date: "${p.event_date}", issue: "no fee set — can't create invoice" }`;
+        case 'gig_missing_client':
+          return `{ key: "${item.item_type}::${item.entity_id}", type: "problem", gig: "${p.event_title}", date: "${p.event_date}", fee: ${p.fee}, currency: "${p.currency || 'GBP'}", issue: "no client on the gig — need to know who it's for before invoicing" }`;
+        case 'gig_missing_contact':
+          return `{ key: "${item.item_type}::${item.entity_id}", type: "problem", gig: "${p.event_title}", date: "${p.event_date}", client: "${p.client_name}", issue: "no email on file for this client — needed to send their invoice" }`;
         case 'gig_ready_to_invoice':
           return `{ key: "${item.item_type}::${item.entity_id}", type: "opportunity", gig: "${p.event_title}", client: "${p.client_name}", fee: ${p.fee}, currency: "${p.currency || 'GBP'}", issue: "needs an invoice" }`;
         case 'invoice_overdue':
@@ -673,14 +684,14 @@ Return ONLY raw JSON in the following format (no markdown fences, no extra text)
       }
     });
 
-    const prompt = `You are Flow, a personal assistant for ${name || 'a professional musician'}.${assistantName ? ` Your name is "${assistantName}".` : ''}${language !== 'English' ? `\nIMPORTANT: Write ALL text values in ${language}.` : ''}
+    const prompt = `You are Flowtone, a personal assistant for ${name || 'a professional musician'}.${assistantName ? ` Your name is "${assistantName}".` : ''}${language !== 'English' ? `\nIMPORTANT: Write ALL text values in ${language}.` : ''}
 
 Write a short, natural message for each item below. You are speaking directly to the user.
 
 Rules:
 - Max 15 words per message
 - ALWAYS name the specific client, gig, or invoice from the item — never say "this client", "their", or "the gig" vaguely. Use the actual name.
-- Include the key number (fee or total) when present.
+- Include the key number (fee or total) when present, using the symbol for that item's own "currency" field — GBP → £, USD → $, EUR → €, AUD → A$, CAD → C$ — never default to dollars.
 - Sound like a real human assistant — warm, direct, no BS
 - For opportunities: state what's ready and the key detail (client + amount)
 - For problems: say what's missing and why it matters
@@ -725,6 +736,91 @@ Return this exact format:
     return res.json(parsed);
   } catch (err) {
     console.error('[AI compose-missions error]', err);
+    if (err.message === 'ANTHROPIC_API_KEY is not set') {
+      return res.status(500).json({ error: 'Server configuration error: API key missing' });
+    }
+    const status = err.status ?? 500;
+    return res.status(status).json({ error: err.message ?? 'Unexpected error' });
+  }
+});
+
+// ─── POST /api/ai/task-reply ───────────────────────────────────────
+// Interprets a user's free-text reply to a single task "ticket" and returns the
+// structured outcome. The AI decides (defer/skip/done + a follow-up date it owns
+// + an optional "do it now"); the client applies it. Haiku — cheap and narrow.
+// Body: { task: { item_type, title, payload, decision }, message, today, name, language, assistantName }
+// Returns: { decision, follow_up_at, action, reply }
+router.post('/task-reply', async (req, res) => {
+  try {
+    const {
+      task = {},
+      message = '',
+      today = new Date().toISOString().slice(0, 10),
+      name = '',
+      language = 'English',
+      assistantName = '',
+    } = req.body;
+
+    if (!message || !message.trim()) return res.json({ decision: '', follow_up_at: null, action: null, reply: '' });
+
+    const client = getClient();
+    const p = task.payload || {};
+    const taskDesc = `type: ${task.item_type}; title: "${task.title || ''}"; client: "${p.client_name || ''}"; amount: ${p.total ?? p.fee ?? ''} ${p.currency || ''}; date: "${p.event_date || p.due_date || ''}"`;
+
+    const prompt = `You are ${assistantName || 'Flowtone'}, a warm, direct assistant for ${name || 'a professional musician'}.${language !== 'English' ? `\nIMPORTANT: write the "reply" value in ${language}.` : ''}
+TODAY: ${today}
+
+There is ONE open task (a "ticket") the assistant raised, and the user just replied to it in their own words. Decide what to do.
+
+TASK: { ${taskDesc} }
+USER REPLY: "${message.trim()}"
+
+Pick exactly ONE decision:
+- "deferred" — the user wants to deal with it later ("remind me next week", "after the gig", "tomorrow", "in 3 days"). Compute follow_up_at as an absolute YYYY-MM-DD relative to TODAY. This date is for YOU to know when to bring it back; NEVER mention the date to the user.
+- "skipped"  — the user does not want this / wants it ignored ("I don't need it", "forget it", "not relevant"). It will never be raised again.
+- "done"     — the user says it is already handled ("already sent", "done", "sorted").
+- ""         — they are just giving info or asking; no state change. BUT if they clearly want to do the action right now ("send it", "yes do it", "let's do it"), set "action" to "do".
+
+Return ONLY raw JSON, no markdown fences:
+{
+  "decision": "deferred" | "skipped" | "done" | "",
+  "follow_up_at": "YYYY-MM-DD or null",
+  "action": "do or null",
+  "reply": "one short, warm sentence to show the user (max 18 words). Never mention the follow-up date. If you mention the amount, use the symbol for the task's currency (GBP £, USD $, EUR €, AUD A$, CAD C$) — never default to dollars."
+}`;
+
+    const apiResponse = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 300,
+      temperature: 0,
+      messages: [{ role: 'user', content: prompt }],
+    });
+
+    const rawText = apiResponse.content
+      .filter((b) => b.type === 'text')
+      .map((b) => b.text)
+      .join('');
+
+    let parsed;
+    try {
+      const cleaned = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
+      parsed = JSON.parse(cleaned);
+    } catch {
+      parsed = { decision: '', follow_up_at: null, action: null, reply: '' };
+    }
+
+    const decision = ['deferred', 'skipped', 'done'].includes(parsed.decision) ? parsed.decision : '';
+    let follow_up_at = null;
+    if (decision === 'deferred' && parsed.follow_up_at && parsed.follow_up_at !== 'null') {
+      const d = new Date(`${parsed.follow_up_at}T09:00:00`);
+      if (!isNaN(d.getTime())) follow_up_at = d.toISOString();
+    }
+    const action = parsed.action && parsed.action !== 'null' ? String(parsed.action) : null;
+    const reply = typeof parsed.reply === 'string' ? parsed.reply : '';
+
+    return res.json({ decision, follow_up_at, action, reply });
+  } catch (err) {
+    console.error('[AI task-reply error]', err);
     if (err.message === 'ANTHROPIC_API_KEY is not set') {
       return res.status(500).json({ error: 'Server configuration error: API key missing' });
     }

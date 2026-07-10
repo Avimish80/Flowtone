@@ -14,17 +14,19 @@ function latestUpdatedAt(records) {
 }
 
 export async function runMissionScan() {
-  const [events, documents, clients, allItems] = await Promise.all([
+  const [events, documents, clients, allItems, leads] = await Promise.all([
     appClient.entities.WorkEvent.list("date"),
     appClient.entities.Document.list("-created_at"),
     appClient.entities.Client.list(),
     appClient.entities.ActionItem.list("-created_at"),
+    appClient.entities.Lead.list("-created_at"),
   ]);
 
   const dataTimestamp = Math.max(
     latestUpdatedAt(events),
     latestUpdatedAt(documents),
-    latestUpdatedAt(clients)
+    latestUpdatedAt(clients),
+    latestUpdatedAt(leads)
   );
 
   let lastScanData = 0;
@@ -32,8 +34,14 @@ export async function runMissionScan() {
     lastScanData = Number(localStorage.getItem("flowtone_mission_scan_data_at") || 0);
   } catch { /* ignore */ }
 
+  const now = Date.now();
   const openItems = allItems.filter((i) => i.status === "open");
-  const dataChanged = dataTimestamp > lastScanData || openItems.length === 0;
+  // A deferred (snoozed) task whose follow-up date has passed must wake up even
+  // if nothing else changed — otherwise it could stay buried until the next edit.
+  const hasDueSnooze = allItems.some(
+    (i) => i.status === "snoozed" && i.snoozed_until && new Date(i.snoozed_until).getTime() <= now
+  );
+  const dataChanged = dataTimestamp > lastScanData || openItems.length === 0 || hasDueSnooze;
 
   if (!dataChanged) return;
 
@@ -43,7 +51,6 @@ export async function runMissionScan() {
       .filter((i) => i.status === "dismissed")
       .map((i) => i.candidate_key || i.payload?.candidate_key || `${i.item_type}::${i.entity_id}`)
   );
-  const now = Date.now();
   const snoozedKeys = new Set(
     allItems
       .filter((i) => i.status === "snoozed" && i.snoozed_until && new Date(i.snoozed_until).getTime() > now)
@@ -54,7 +61,7 @@ export async function runMissionScan() {
   const contextNotes = profile?.context_notes || "";
   const hasContextNotes = typeof contextNotes === "string" && contextNotes.trim().length > 0;
 
-  const candidates = extractCandidateFindings(events, documents, clients, now);
+  const candidates = extractCandidateFindings(events, documents, clients, now, leads);
 
   let desired = [];
   let aiSucceeded = false;
@@ -112,7 +119,7 @@ export async function runMissionScan() {
 
   // Fallback / default path
   if (!aiSucceeded) {
-    desired = scanForActionItems(events, documents, clients, now);
+    desired = scanForActionItems(events, documents, clients, now, leads);
   }
 
   const { toCreate: rawCreate, toResolve, toRefresh } = reconcileActionItems(openItems, desired);
@@ -145,11 +152,12 @@ export async function runMissionScan() {
     }).catch(() => {});
   }
 
-  // Re-open expired snoozes
+  // Re-open expired snoozes (clear the AI's deferred label — it's active again)
   for (const item of expiredSnoozes) {
     await appClient.entities.ActionItem.update(item.id, {
       status: "open",
       snoozed_until: null,
+      decision: "",
     }).catch(() => {});
   }
 
@@ -226,6 +234,10 @@ function buildFallbackTitle(item) {
       return `Add a location for ${p.event_title || "your gig"}`;
     case "gig_missing_fee":
       return `Set the fee for ${p.event_title || "your gig"}`;
+    case "gig_missing_client":
+      return `Add the client for ${p.event_title || "your gig"} so I can invoice it`;
+    case "gig_missing_contact":
+      return `Add an email for ${p.client_name || "the client"} to send their invoice`;
     case "gig_ready_to_invoice":
       return `Invoice ready for ${p.event_title || "your gig"}`;
     case "invoice_overdue":
@@ -236,6 +248,10 @@ function buildFallbackTitle(item) {
       return `Invoice for ${p.client_name || "a client"} is ready to send`;
     case "invoice_ready_no_email":
       return `Invoice for ${p.client_name || "a client"} is ready — no email, grab the PDF`;
+    case "lead_new_unanswered":
+      return `New lead from ${p.client_name || "someone"} is waiting for a reply`;
+    case "lead_quote_no_reply":
+      return `${p.client_name || "A lead"} hasn't replied to your quote — chase it?`;
     default:
       return "Action needed";
   }

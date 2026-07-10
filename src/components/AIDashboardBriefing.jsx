@@ -2,13 +2,15 @@ import { useState, useEffect, useMemo } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { appClient } from "@/api/appClient";
-import { Sparkles, X, ChevronRight, MapPin, FileText, AlertCircle, Send, Banknote, Download } from "lucide-react";
+import { Sparkles, X, ChevronRight, MapPin, FileText, AlertCircle, Send, Banknote, Download, UserPlus, Mail } from "lucide-react";
 import { getCachedProfileSync, DEFAULT_ASSISTANT_NAME } from "@/lib/assistantProfile";
 import { hasLocation, hasFee, hasInvoice } from "@/lib/missingInfo";
 
 const ITEM_ICONS = {
   gig_missing_location: MapPin,
   gig_missing_fee: Banknote,
+  gig_missing_client: UserPlus,
+  gig_missing_contact: Mail,
   gig_ready_to_invoice: FileText,
   invoice_overdue: AlertCircle,
   invoice_draft_stale: FileText,
@@ -64,6 +66,8 @@ export function AIDashboardBriefing({ events = [], documents = [] }) {
         if (!event) return false;
         if (item.item_type === "gig_missing_location") return !hasLocation(event);
         if (item.item_type === "gig_missing_fee") return !hasFee(event) && !hasInvoice(event, invoices);
+        if (item.item_type === "gig_missing_client") return !event.client_id && !invoicedEventIds.has(event.id);
+        if (item.item_type === "gig_missing_contact") return Boolean(event.client_id) && !invoicedEventIds.has(event.id);
         if (item.item_type === "gig_ready_to_invoice") return !invoicedEventIds.has(event.id);
       }
       if (item.entity_type === "invoice" && item.entity_id) {
@@ -100,17 +104,6 @@ export function AIDashboardBriefing({ events = [], documents = [] }) {
       status: "resolved",
       resolved_at: now,
       resolved_by: "user",
-    }).catch(() => {});
-    setItems((prev) => prev.filter((i) => i.id !== item.id));
-  }
-
-  async function handleSnooze(item) {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    tomorrow.setHours(9, 0, 0, 0);
-    await appClient.entities.ActionItem.update(item.id, {
-      status: "snoozed",
-      snoozed_until: tomorrow.toISOString(),
     }).catch(() => {});
     setItems((prev) => prev.filter((i) => i.id !== item.id));
   }
@@ -177,7 +170,12 @@ export function AIDashboardBriefing({ events = [], documents = [] }) {
                   isUrgent ? "text-red-400" : isOpportunity ? "text-green-400" : "text-gray-500"
                 }`} />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-gray-300 leading-snug mb-2">{item.title}</p>
+                  <button
+                    onClick={() => navigate(createPageUrl("MissionDetail?id=" + item.id))}
+                    className="text-left w-full block mb-2"
+                  >
+                    <p className="text-sm text-gray-300 leading-snug">{item.title}</p>
+                  </button>
 
                   <div className="flex flex-wrap items-center gap-2">
                     {/* gig_ready_to_invoice — email-aware buttons */}
@@ -255,14 +253,6 @@ export function AIDashboardBriefing({ events = [], documents = [] }) {
                       </button>
                     )}
 
-                    {/* Snooze (not now) */}
-                    <button
-                      onClick={() => handleSnooze(item)}
-                      className="text-gray-600 hover:text-gray-400 transition-colors ml-auto"
-                      aria-label="Not now"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
                   </div>
                 </div>
               </div>

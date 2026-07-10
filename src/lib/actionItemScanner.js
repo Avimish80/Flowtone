@@ -1,5 +1,5 @@
 import {
-  isBillableGig, hasLocation, hasFee, hasInvoice,
+  isBillableGig, hasLocation, hasFee,
   isUpcoming, isPastGig, eventStartMs,
 } from "@/lib/missingInfo";
 
@@ -51,9 +51,21 @@ function payloadSignature(payload) {
   return parts.join("|");
 }
 
+// ─── Lead-level predicates ────────────────────────────────────────────────────
+
+function isLeadUnanswered(lead, now) {
+  if (lead.status !== "new" || !lead.created_at) return false;
+  return now - new Date(lead.created_at).getTime() > 24 * 60 * 60 * 1000;
+}
+
+function isQuoteUnreplied(lead, now) {
+  if (lead.status !== "quoted" || !lead.quote_sent_at) return false;
+  return now - new Date(lead.quote_sent_at).getTime() > 3 * 24 * 60 * 60 * 1000;
+}
+
 // ─── Main scanner ─────────────────────────────────────────────────────────────
 
-export function scanForActionItems(events, documents, clients, now) {
+export function scanForActionItems(events, documents, clients, now, leads = []) {
   const items = [];
   const invoices = documents.filter((d) => d.document_type === "invoice");
   const invoicedEventIds = new Set(invoices.map((i) => i.work_event_id).filter(Boolean));
@@ -66,10 +78,13 @@ export function scanForActionItems(events, documents, clients, now) {
     const start = eventStartMs(e);
     const daysAway = start ? (start - now) / (24 * 60 * 60 * 1000) : 999;
 
+    // ── BEFORE the gig: chase the location only ──
+    // Everything financial (fee, client, contact, invoice) is chased AFTER the
+    // gig — you can create an invoice early, but we never nag you to before it
+    // has happened.
     if (isUpcoming(e, now)) {
-      if (daysAway > 7) continue; // Skip events more than 7 days in the future to avoid clutter
+      if (daysAway > 7) continue; // Skip events more than 7 days out to avoid clutter
 
-      // 1. Missing Location (only if in the next 7 days)
       if (!hasLocation(e)) {
         const payload = { event_title: e.title, event_date: e.date };
         payload.payload_sig = payloadSignature(payload);
@@ -83,40 +98,17 @@ export function scanForActionItems(events, documents, clients, now) {
           payload,
         });
       }
-
-      // 2. Upcoming Invoice Nudge (only if in the next 2 days, has fee, and no invoice yet)
-      if (
-        daysAway <= 2 &&
-        hasFee(e) &&
-        !invoicedEventIds.has(e.id) &&
-        e.client_id &&
-        clientMap[e.client_id]
-      ) {
-        const client = clientMap[e.client_id];
-        const clientHasEmail = hasEmail(client);
-        const payload = {
-          event_title: e.title,
-          event_date: e.date,
-          client_name: client.name,
-          fee: e.total_price || e.base_price,
-          currency: e.currency,
-          has_email: clientHasEmail,
-        };
-        payload.payload_sig = payloadSignature(payload);
-        items.push({
-          item_type: "gig_ready_to_invoice",
-          entity_type: "event",
-          entity_id: e.id,
-          priority: 1,
-          action_type: "create_invoice",
-          action_target: `DocumentDetail?event_id=${e.id}&type=invoice`,
-          payload,
-        });
-      }
     }
 
-    if (isPastGig(e, now)) {
-      if (!hasFee(e) && !hasInvoice(e, invoices)) {
+    // ── AFTER the gig: walk it to a paid invoice, one blocker at a time ──
+    // A single gig only ever raises ONE of these tickets — the next one in the
+    // chain appears on the following scan once the current blocker is cleared:
+    //   no fee → no client → no email → ready to invoice.
+    if (isPastGig(e, now) && !invoicedEventIds.has(e.id)) {
+      const client = e.client_id ? clientMap[e.client_id] : null;
+
+      if (!hasFee(e)) {
+        // Can't invoice without knowing the amount.
         const payload = { event_title: e.title, event_date: e.date };
         payload.payload_sig = payloadSignature(payload);
         items.push({
@@ -128,24 +120,53 @@ export function scanForActionItems(events, documents, clients, now) {
           action_target: `WorkEventDetail?id=${e.id}`,
           payload,
         });
-      }
-
-      // Opportunity: past gig with fee but no invoice at all (email-agnostic)
-      if (
-        hasFee(e) &&
-        !invoicedEventIds.has(e.id) &&
-        e.client_id &&
-        clientMap[e.client_id]
-      ) {
-        const client = clientMap[e.client_id];
-        const clientHasEmail = hasEmail(client);
+      } else if (!client) {
+        // Fee is known but there's no client on the gig — can't invoice a no-one.
+        const payload = {
+          event_title: e.title,
+          event_date: e.date,
+          fee: e.total_price || e.base_price,
+          currency: e.currency,
+        };
+        payload.payload_sig = payloadSignature(payload);
+        items.push({
+          item_type: "gig_missing_client",
+          entity_type: "event",
+          entity_id: e.id,
+          priority: 1,
+          action_type: "navigate",
+          action_target: `WorkEventDetail?id=${e.id}`,
+          payload,
+        });
+      } else if (!hasEmail(client)) {
+        // Fee + client are set, but there's no email to send the invoice to.
         const payload = {
           event_title: e.title,
           event_date: e.date,
           client_name: client.name,
           fee: e.total_price || e.base_price,
           currency: e.currency,
-          has_email: clientHasEmail,
+          has_email: false,
+        };
+        payload.payload_sig = payloadSignature(payload);
+        items.push({
+          item_type: "gig_missing_contact",
+          entity_type: "event",
+          entity_id: e.id,
+          priority: 1,
+          action_type: "navigate",
+          action_target: `ClientDetail?id=${client.id}`,
+          payload,
+        });
+      } else {
+        // Everything's in place — make the invoice.
+        const payload = {
+          event_title: e.title,
+          event_date: e.date,
+          client_name: client.name,
+          fee: e.total_price || e.base_price,
+          currency: e.currency,
+          has_email: true,
         };
         payload.payload_sig = payloadSignature(payload);
         items.push({
@@ -235,6 +256,41 @@ export function scanForActionItems(events, documents, clients, now) {
     }
   }
 
+  // ── Lead chasing ──
+  for (const lead of leads) {
+    if (isLeadUnanswered(lead, now)) {
+      const payload = { client_name: lead.contact_name, event_date: lead.event_date || "" };
+      payload.payload_sig = payloadSignature(payload);
+      items.push({
+        item_type: "lead_new_unanswered",
+        entity_type: "lead",
+        entity_id: lead.id,
+        priority: 2,
+        action_type: "navigate",
+        action_target: `LeadDetail?id=${lead.id}`,
+        payload,
+      });
+    } else if (isQuoteUnreplied(lead, now)) {
+      const daysSinceQuote = (now - new Date(lead.quote_sent_at).getTime()) / (24 * 60 * 60 * 1000);
+      const payload = {
+        client_name: lead.contact_name,
+        event_date: lead.event_date || "",
+        contact_email: lead.contact_email || "",
+        public_token: lead.public_token || "",
+      };
+      payload.payload_sig = payloadSignature(payload);
+      items.push({
+        item_type: "lead_quote_no_reply",
+        entity_type: "lead",
+        entity_id: lead.id,
+        priority: daysSinceQuote > 7 ? 2 : 1,
+        action_type: "navigate",
+        action_target: `LeadDetail?id=${lead.id}`,
+        payload,
+      });
+    }
+  }
+
   for (const item of items) {
     item.candidate_key = `${item.item_type}::${item.entity_id}`;
   }
@@ -242,8 +298,8 @@ export function scanForActionItems(events, documents, clients, now) {
   return items;
 }
 
-export function extractCandidateFindings(events, documents, clients, now) {
-  const items = scanForActionItems(events, documents, clients, now);
+export function extractCandidateFindings(events, documents, clients, now, leads = []) {
+  const items = scanForActionItems(events, documents, clients, now, leads);
   return items.map((item) => {
     const candidate_key = item.candidate_key || `${item.item_type}::${item.entity_id}`;
     
