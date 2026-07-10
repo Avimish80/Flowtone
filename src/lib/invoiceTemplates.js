@@ -238,8 +238,7 @@ function templateClassic(doc, profile, settings) {
   .from { font-size:12px; color:#64748b; line-height:1.6; }
   .from strong { display:block; font-size:16px; color:#0f172a; margin-bottom:4px; }
   .meta-right { text-align:right; }
-  .doc-type { font-size:30px; font-weight:900; letter-spacing:-1px;
-    background:linear-gradient(135deg,#4f46e5,#7c3aed); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .doc-type { font-size:30px; font-weight:900; letter-spacing:-1px; color:#4f46e5; }
   .doc-number { font-size:13px; color:#64748b; margin-top:4px; }
   .meta-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:12px; font-size:12px; }
   .meta-grid span { color:#64748b; } .meta-grid strong { color:#1e293b; }

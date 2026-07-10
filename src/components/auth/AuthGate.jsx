@@ -94,7 +94,7 @@ function BrandSplash({ caption = "Tuning your workspace" }) {
 
         {/* Wordmark */}
         <div className="flex flex-col items-center gap-2">
-          <p className="bg-gradient-to-r from-indigo-200 via-white to-fuchsia-200 bg-clip-text text-2xl font-bold tracking-[0.3em] text-transparent">
+          <p className="text-2xl font-bold tracking-[0.3em] text-indigo-100">
             FLOWTONE
           </p>
           <p className="text-[11px] font-medium uppercase tracking-[0.25em] text-gray-500">{caption}</p>
