@@ -12,8 +12,8 @@ export default function AIAssistantButton({ onClick }) {
       type="button"
       onClick={onClick}
       data-tour="ai"
-      aria-label="Open Flow Assistant"
-      title="Flow Assistant"
+      aria-label="Open Flowtone Assistant"
+      title="Flowtone Assistant"
       className={[
         // Positioning — above the bottom nav bar
         "fixed right-4 z-40",

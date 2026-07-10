@@ -79,7 +79,25 @@ function ActionCard({ message, navigate, onClose }) {
 
 function LocationCard({ message, onPick }) {
   const locations = message.locations || [];
+  // The event has already been created — this picker only refines the address.
+  // "Add later" just dismisses it locally; the missing location resurfaces as a
+  // reminder, so the user is never stuck choosing a place to finish the gig.
+  const [dismissed, setDismissed] = useState(false);
   if (!locations.length) return null;
+
+  if (dismissed) {
+    return (
+      <div className="flex items-start gap-2.5 mb-3">
+        <div className="flex-shrink-0 w-7 h-7 rounded-full bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center">
+          <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+        </div>
+        <p className="text-[11px] text-gray-500 px-1 max-w-[85%] mt-1.5">
+          No problem — I'll remind you about the address later.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex items-start gap-2.5 mb-3">
       <div className="flex-shrink-0 w-7 h-7 rounded-full bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center">
@@ -100,6 +118,12 @@ function LocationCard({ message, onPick }) {
             </span>
           </button>
         ))}
+        <button
+          onClick={() => setDismissed(true)}
+          className="text-[11px] text-gray-500 hover:text-gray-300 px-1 pt-0.5 transition-colors"
+        >
+          Add later
+        </button>
       </div>
     </div>
   );
@@ -306,7 +330,7 @@ export default function AIAssistantPanel({
             </div>
             <div>
               <p className="text-sm font-semibold text-white leading-tight">
-                Flow Assistant
+                Flowtone Assistant
               </p>
               <p className="text-[10px] text-indigo-400 leading-tight">
                 AI-powered musician OS
@@ -454,7 +478,7 @@ export default function AIAssistantPanel({
           )}
           {!listening && (
             <p className="text-center text-[10px] text-gray-700 mt-1.5">
-              Flow AI · Your live account data
+              Flowtone AI · Your live account data
             </p>
           )}
         </div>

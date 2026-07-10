@@ -1,21 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { MapPin, Loader2 } from "lucide-react";
+import { searchPlaces } from "@/lib/geocode";
 
 // Type-and-pick address field. No AI, no API key, no billing: it uses the free
 // OpenStreetMap / Nominatim search (the same service the AI venue lookup uses in
-// useAIAssistant.js). The user can still free-type any address and ignore the
+// useAIAssistant.js, via the shared searchPlaces helper, which biases results to
+// the user's region). The user can still free-type any address and ignore the
 // suggestions — picking one just fills in the full, real address.
-
-// Short, human label for a Nominatim result (mirrors shortPlaceLabel in
-// useAIAssistant.js so the AI picker and this field read the same way).
-function shortPlaceLabel(r) {
-  const a = r.address || {};
-  const name =
-    a.amenity || a.building || a.shop || a.tourism || a.leisure ||
-    (r.display_name || "").split(",")[0];
-  const area = a.city || a.town || a.village || a.suburb || a.county || "";
-  return [name, area].filter(Boolean).join(", ") || (r.display_name || "Location");
-}
 
 export default function AddressAutocomplete({
   value = "",
@@ -50,14 +41,7 @@ export default function AddressAutocomplete({
     setLoading(true);
     const t = setTimeout(async () => {
       try {
-        const resp = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=5&q=${encodeURIComponent(q)}`,
-          { headers: { "User-Agent": "Flowtone/1.0" }, signal: controller.signal }
-        );
-        const data = await resp.json();
-        const list = Array.isArray(data)
-          ? data.slice(0, 5).map((r) => ({ label: shortPlaceLabel(r), address: r.display_name }))
-          : [];
+        const list = await searchPlaces(q, { limit: 5, signal: controller.signal });
         setResults(list);
         setOpen(list.length > 0);
       } catch {

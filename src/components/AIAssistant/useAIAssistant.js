@@ -3,6 +3,7 @@ import { askAI } from "@/api/aiClient";
 import { appClient } from "@/api/appClient";
 import { sanitizeCustom } from "@/lib/invoiceTemplates";
 import { getAssistantProfile } from "@/lib/assistantProfile";
+import { searchPlaces, getUserRegion } from "@/lib/geocode";
 import { notify } from "@/lib/appBadge";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -15,21 +16,11 @@ function makeMessage(role, content, extra = {}) {
   return { id: uid(), role, content, timestamp: new Date().toISOString(), ...extra };
 }
 
-// Build a short, human label for a place from a Nominatim result.
-function shortPlaceLabel(r) {
-  const a = r.address || {};
-  const name =
-    a.amenity || a.building || a.shop || a.tourism || a.leisure ||
-    (r.display_name || "").split(",")[0];
-  const area = a.city || a.town || a.village || a.suburb || a.county || "";
-  return [name, area].filter(Boolean).join(", ") || (r.display_name || "Location");
-}
-
 // ─── Context builder — returns a structured object for the server ────────────
 
 const EMPTY_CONTEXT = () => ({
   today: new Date().toISOString().slice(0, 10),
-  counts: {}, events: [], clients: [], invoices: [],
+  counts: {}, events: [], clients: [], invoices: [], tasks: [],
   practiceGoals: [], recentSessions: [], equipment: [], settings: {},
 });
 
@@ -45,7 +36,7 @@ async function buildContext() {
     const windowFuture = new Date(now.getTime() + 365 * day);
     const ago7Days = new Date(now.getTime() - 7 * day);
 
-    const [allEvents, allClients, allGoals, allSessions, allDocs, allEquipment, settingsList] =
+    const [allEvents, allClients, allGoals, allSessions, allDocs, allEquipment, settingsList, allTasks] =
       await Promise.all([
         appClient.entities.WorkEvent.list().catch(() => []),
         appClient.entities.Client.list().catch(() => []),
@@ -54,6 +45,7 @@ async function buildContext() {
         appClient.entities.Document.list().catch(() => []),
         appClient.entities.Equipment.list().catch(() => []),
         appClient.entities.AppSettings.list().catch(() => []),
+        appClient.entities.ActionItem.list("-created_at").catch(() => []),
       ]);
 
     const clientNameById = {};
@@ -128,9 +120,25 @@ async function buildContext() {
 
     const equipment = allEquipment.slice(0, 60).map((eq) => ({ id: eq.id, name: eq.name, category: eq.category }));
 
+    // Tickets (action items) so the AI can answer "what's pending / what did I ignore?".
+    // state: open | deferred (snoozed) | skipped (dismissed) | done.
+    const tasks = allTasks
+      .filter((t) => ["open", "snoozed", "dismissed"].includes(t.status))
+      .slice(0, 80)
+      .map((t) => ({
+        id: t.id,
+        title: t.title,
+        type: t.item_type,
+        state: t.decision || (t.status === "dismissed" ? "skipped" : t.status === "snoozed" ? "deferred" : "open"),
+        client: t.payload?.client_name || undefined,
+        directive: t.user_directive || undefined,
+      }));
+
     const s = settingsList[0] || {};
+    const { countryCode } = await getUserRegion().catch(() => ({ countryCode: "gb" }));
     const settings = {
       currency: s.currency || s.default_currency || "GBP",
+      country: (countryCode || "gb").toUpperCase(),
       invoice_prefix: s.invoice_number_prefix || undefined,
       invoice_next: s.invoice_number_next || undefined,
     };
@@ -144,7 +152,7 @@ async function buildContext() {
         clients_total: allClients.length,
         invoices_total: allDocs.length, invoices_shown: invoices.length,
       },
-      events, clients, invoices,
+      events, clients, invoices, tasks,
       practiceGoals, recentSessions, equipment, settings,
       assistantProfile,
     };
@@ -444,7 +452,7 @@ async function executeAction(action) {
 // ─── Hook ───────────────────────────────────────────────────────────────────
 
 const DEFAULT_GREETING =
-  "Hey! I'm your Flow Assistant. Ask me anything about your gigs, clients and invoices — I can create, find, update or cancel events and invoices, add clients, record payments, look up venues, and keep your schedule in order.";
+  "Hey! I'm your Flowtone Assistant. Ask me anything about your gigs, clients and invoices — I can create, find, update or cancel events and invoices, add clients, record payments, look up venues, and keep your schedule in order.";
 
 function personalGreeting(profile) {
   if (!profile?.user_name) return DEFAULT_GREETING;
@@ -550,17 +558,8 @@ export function useAIAssistant() {
           // picks from; the chosen address flows back so the AI can finish.
           if (action.type === "LOCATION_SEARCH") {
             try {
-              const query = encodeURIComponent(action.data?.query || "");
-              const resp = await fetch(
-                `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=5&q=${query}`,
-                { headers: { "User-Agent": "Flowtone/1.0" } }
-              );
-              const results = await resp.json();
-              if (Array.isArray(results) && results.length > 0) {
-                const locations = results.slice(0, 5).map((r) => ({
-                  label: shortPlaceLabel(r),
-                  address: r.display_name,
-                }));
+              const locations = await searchPlaces(action.data?.query || "", { limit: 5 });
+              if (locations.length > 0) {
                 setMessages((prev) => [
                   ...prev,
                   makeMessage("locations", "Tap the right place:", { locations }),
