@@ -1,9 +1,14 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { fetchEnquiryPage, submitEnquiry, money } from "./publicApi";
+import { fetchEnquiryPage, submitEnquiry } from "./publicApi";
+
+// Public landing page — the musician's shareable offer page. Deliberately
+// NOT tailored to anyone and NOT showing prices: it presents the options,
+// collects the prospect's details, and the personal quote (with the price)
+// comes afterwards on their own /q/ link.
 
 const inputClass =
-  "w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500";
+  "w-full bg-white border border-slate-200 rounded-xl px-4 py-3.5 text-[15px] text-slate-900 placeholder-slate-400 focus:outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100 transition-shadow";
 
 export default function PublicEnquiryPage() {
   const { slug } = useParams();
@@ -51,6 +56,7 @@ export default function PublicEnquiryPage() {
     try {
       await submitEnquiry(slug, { ...form, package_id: selectedId });
       setSubmitted(true);
+      window.scrollTo({ top: 0 });
     } catch (err) {
       setSubmitError(err.message || "Something went wrong. Please try again.");
     } finally {
@@ -61,9 +67,9 @@ export default function PublicEnquiryPage() {
   if (loadError) {
     return (
       <Shell>
-        <div className="text-center py-24">
-          <p className="text-lg font-semibold text-white">Page not found</p>
-          <p className="text-sm text-gray-500 mt-2">This enquiry link may have changed or been removed.</p>
+        <div className="text-center py-28 px-6">
+          <p className="text-xl font-semibold text-slate-900">Page not found</p>
+          <p className="text-sm text-slate-500 mt-2">This link may have changed or been removed.</p>
         </div>
       </Shell>
     );
@@ -72,7 +78,7 @@ export default function PublicEnquiryPage() {
   if (!page) {
     return (
       <Shell>
-        <div className="text-center py-24 text-gray-500 text-sm">Loading…</div>
+        <div className="text-center py-28 text-slate-400 text-sm">Loading…</div>
       </Shell>
     );
   }
@@ -83,15 +89,18 @@ export default function PublicEnquiryPage() {
     return (
       <Shell>
         <Header business={business} />
-        <div className="text-center py-16 px-4">
-          <div className="w-14 h-14 rounded-full bg-green-950/60 border border-green-700/40 mx-auto flex items-center justify-center">
-            <svg className="w-7 h-7 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+        <div className="text-center py-20 px-6 max-w-md mx-auto">
+          <div className="w-16 h-16 rounded-full bg-emerald-50 border border-emerald-200 mx-auto flex items-center justify-center">
+            <svg className="w-8 h-8 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
               <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <p className="text-lg font-semibold text-white mt-4">Thanks, {form.contact_name.split(" ")[0]}!</p>
-          <p className="text-sm text-gray-400 mt-2 max-w-xs mx-auto">
-            Your enquiry has been sent{business.business_name ? ` to ${business.business_name}` : ""}. You&apos;ll hear back soon.
+          <p className="text-2xl font-bold tracking-tight text-slate-900 mt-6">
+            Thanks, {form.contact_name.trim().split(" ")[0]}!
+          </p>
+          <p className="text-[15px] leading-relaxed text-slate-500 mt-3">
+            Your enquiry is on its way{business.business_name ? ` to ${business.business_name}` : ""}.
+            You&apos;ll receive a personal quote made just for your event.
           </p>
         </div>
       </Shell>
@@ -103,9 +112,11 @@ export default function PublicEnquiryPage() {
       <Header business={business} />
 
       {packages.length > 0 && (
-        <div className="px-4 mt-6">
-          <p className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mb-3">Choose an option</p>
-          <div className="space-y-3">
+        <section className="px-6 mt-10">
+          <p className="text-[11px] uppercase tracking-[0.25em] text-slate-400 font-semibold mb-4 text-center">
+            What would you like?
+          </p>
+          <div className="space-y-4">
             {packages.map((pkg) => {
               const selected = selectedId === pkg.id;
               return (
@@ -113,43 +124,52 @@ export default function PublicEnquiryPage() {
                   key={pkg.id}
                   type="button"
                   onClick={() => setSelectedId(selected ? null : pkg.id)}
-                  className={`w-full text-left rounded-2xl border overflow-hidden transition-all ${
+                  className={`w-full text-left rounded-3xl bg-white overflow-hidden transition-all shadow-sm ${
                     selected
-                      ? "border-indigo-500 ring-2 ring-indigo-500/50 bg-gray-800/60"
-                      : "border-gray-700/60 bg-gray-800/30 hover:border-gray-600"
+                      ? "ring-2 ring-slate-900 shadow-md"
+                      : "border border-slate-200 hover:shadow-md hover:border-slate-300"
                   }`}
                 >
                   {pkg.photo_url && (
-                    <img src={pkg.photo_url} alt={pkg.name} className="w-full h-44 object-cover" loading="lazy" />
+                    <img src={pkg.photo_url} alt={pkg.name} className="w-full h-52 object-cover" loading="lazy" />
                   )}
-                  <div className="p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <p className="text-base font-semibold text-white">{pkg.name}</p>
-                      {pkg.price != null && (
-                        <p className="text-base font-bold text-indigo-400 whitespace-nowrap">{money(pkg.price, pkg.currency)}</p>
-                      )}
+                  <div className="p-5 sm:p-6">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-lg font-bold tracking-tight text-slate-900">{pkg.name}</p>
+                      <span
+                        className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${
+                          selected ? "bg-slate-900 border-slate-900" : "border-slate-300"
+                        }`}
+                      >
+                        {selected && (
+                          <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                      </span>
                     </div>
-                    {pkg.description && <p className="text-sm text-gray-400 mt-1.5 whitespace-pre-line">{pkg.description}</p>}
-                    {selected && <p className="text-xs text-indigo-400 font-medium mt-2">Selected</p>}
+                    {pkg.description && (
+                      <p className="text-[15px] leading-relaxed text-slate-500 mt-1.5 whitespace-pre-line">{pkg.description}</p>
+                    )}
                   </div>
                 </button>
               );
             })}
           </div>
-        </div>
+        </section>
       )}
 
-      <form onSubmit={handleSubmit} className="px-4 mt-8 pb-16 space-y-3">
-        <p className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">Your details</p>
-        <input className={inputClass} placeholder="Your name *" value={form.contact_name} onChange={setField("contact_name")} autoComplete="name" />
+      <form onSubmit={handleSubmit} className="px-6 mt-12 pb-20 max-w-md mx-auto space-y-3">
+        <p className="text-[11px] uppercase tracking-[0.25em] text-slate-400 font-semibold text-center mb-4">
+          Tell us about your event
+        </p>
+        <input className={inputClass} placeholder="Your name" value={form.contact_name} onChange={setField("contact_name")} autoComplete="name" />
         <input className={inputClass} type="email" placeholder="Email" value={form.contact_email} onChange={setField("contact_email")} autoComplete="email" />
         <input className={inputClass} type="tel" placeholder="Phone" value={form.contact_phone} onChange={setField("contact_phone")} autoComplete="tel" />
-
-        <p className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold pt-3">Your event</p>
         <input className={inputClass} type="date" value={form.event_date} onChange={setField("event_date")} aria-label="Event date" />
         <input className={inputClass} placeholder="Type of event (wedding, party, corporate…)" value={form.event_type} onChange={setField("event_type")} />
         <input className={inputClass} placeholder="Location / venue" value={form.location} onChange={setField("location")} />
-        <textarea className={`${inputClass} min-h-[100px]`} placeholder="Tell us more about what you have in mind…" value={form.message} onChange={setField("message")} />
+        <textarea className={`${inputClass} min-h-[110px]`} placeholder="Tell us more about what you have in mind…" value={form.message} onChange={setField("message")} />
 
         <input
           type="text"
@@ -162,37 +182,50 @@ export default function PublicEnquiryPage() {
           aria-hidden="true"
         />
 
-        {submitError && <p className="text-sm text-red-400">{submitError}</p>}
+        {submitError && <p className="text-sm text-red-500 text-center">{submitError}</p>}
 
         <button
           type="submit"
           disabled={submitting}
-          className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white font-semibold rounded-xl py-3.5 text-sm transition-colors"
+          className="w-full bg-slate-900 hover:bg-slate-800 disabled:opacity-60 text-white font-semibold rounded-2xl py-4 text-[15px] tracking-tight transition-colors shadow-sm mt-2"
         >
-          {submitting ? "Sending…" : "Send enquiry"}
+          {submitting ? "Sending…" : "Get my personal quote"}
         </button>
+        <p className="text-xs text-slate-400 text-center pt-1">
+          No payment, no commitment — you&apos;ll receive a personal quote to review.
+        </p>
       </form>
+
+      <footer className="pb-10 text-center">
+        <p className="text-[11px] text-slate-300">{business.business_name || ""}</p>
+      </footer>
     </Shell>
   );
 }
 
 function Shell({ children }) {
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
-      <div className="max-w-xl mx-auto">{children}</div>
+    <div className="min-h-screen bg-[#fafaf7] text-slate-900" style={{ colorScheme: "light" }}>
+      <div className="max-w-2xl mx-auto">{children}</div>
     </div>
   );
 }
 
 function Header({ business }) {
   return (
-    <div className="px-4 pt-10 pb-2 text-center">
+    <header className="px-6 pt-14 pb-2 text-center">
       {business.logo_url && (
-        <img src={business.logo_url} alt="" className="w-16 h-16 rounded-2xl object-cover mx-auto mb-4" />
+        <img src={business.logo_url} alt="" className="w-16 h-16 rounded-full object-cover mx-auto mb-5 shadow-sm" />
       )}
-      <h1 className="text-2xl font-bold text-white">{business.business_name || "Get a quote"}</h1>
-      {business.enquiry_headline && <p className="text-base text-indigo-300 mt-2 font-medium">{business.enquiry_headline}</p>}
-      {business.enquiry_intro && <p className="text-sm text-gray-400 mt-2 max-w-md mx-auto whitespace-pre-line">{business.enquiry_intro}</p>}
-    </div>
+      <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-900">
+        {business.business_name || "Get a quote"}
+      </h1>
+      {business.enquiry_headline && (
+        <p className="text-lg text-slate-600 mt-3 font-medium">{business.enquiry_headline}</p>
+      )}
+      {business.enquiry_intro && (
+        <p className="text-[15px] leading-relaxed text-slate-500 mt-3 max-w-md mx-auto whitespace-pre-line">{business.enquiry_intro}</p>
+      )}
+    </header>
   );
 }

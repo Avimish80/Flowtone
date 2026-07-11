@@ -2,12 +2,17 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { fetchQuote, acceptQuote, declineQuote, money } from "./publicApi";
 
+// Personal offer page — prepared for one client, by name. Deliberately styled
+// as a light, editorial proposal (matching the invoice templates' feel), NOT
+// the app's dark dashboard UI: the client should feel this was made for them.
+
 export default function PublicQuotePage() {
   const { token } = useParams();
   const [data, setData] = useState(null);
   const [loadError, setLoadError] = useState(null);
   const [working, setWorking] = useState(false);
   const [actionError, setActionError] = useState(null);
+  const [confirmDecline, setConfirmDecline] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -48,9 +53,9 @@ export default function PublicQuotePage() {
   if (loadError) {
     return (
       <Shell>
-        <div className="text-center py-24">
-          <p className="text-lg font-semibold text-white">Quote not found</p>
-          <p className="text-sm text-gray-500 mt-2">This quote link may have changed or been removed.</p>
+        <div className="text-center py-28 px-6">
+          <p className="text-xl font-semibold text-slate-900">This page isn&apos;t available</p>
+          <p className="text-sm text-slate-500 mt-2">The link may have changed or expired.</p>
         </div>
       </Shell>
     );
@@ -59,134 +64,200 @@ export default function PublicQuotePage() {
   if (!data) {
     return (
       <Shell>
-        <div className="text-center py-24 text-gray-500 text-sm">Loading…</div>
+        <div className="text-center py-28 text-slate-400 text-sm">Loading…</div>
       </Shell>
     );
   }
 
   const { business, quote } = data;
+  const pkg = data.package;
+  const firstName = (quote.contact_name || "").trim().split(" ")[0];
   const items = quote.line_items || [];
+  const eventLine = [
+    quote.event_type,
+    quote.event_date ? formatDate(quote.event_date) : "",
+    quote.location,
+  ].filter(Boolean).join("  ·  ");
 
   return (
     <Shell>
-      <div className="px-4 pt-10 pb-2 text-center">
+      {/* Business mark */}
+      <header className="pt-12 pb-2 px-6 text-center">
         {business.logo_url && (
-          <img src={business.logo_url} alt="" className="w-16 h-16 rounded-2xl object-cover mx-auto mb-4" />
+          <img src={business.logo_url} alt="" className="w-14 h-14 rounded-full object-cover mx-auto mb-4 shadow-sm" />
         )}
-        <h1 className="text-xl font-bold text-white">{business.business_name || "Your quote"}</h1>
-        <p className="text-sm text-gray-400 mt-1">
-          Quote {quote.document_number}
-          {quote.contact_name ? ` for ${quote.contact_name}` : ""}
+        <p className="text-[11px] uppercase tracking-[0.25em] text-slate-400 font-semibold">
+          {business.business_name || "Your quote"}
         </p>
-        {quote.event_date && <p className="text-sm text-gray-500 mt-0.5">{formatDate(quote.event_date)}</p>}
-      </div>
+      </header>
 
-      <div className="px-4 mt-6 pb-16">
-        <div className="rounded-2xl border border-gray-700/60 bg-gray-800/30 overflow-hidden">
-          <div className="divide-y divide-gray-800">
-            {items.map((item, idx) => (
-              <div key={idx} className="flex items-start justify-between gap-4 px-4 py-3.5">
-                <div>
-                  <p className="text-sm text-white">{item.description}</p>
-                  {Number(item.quantity) > 1 && (
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      {item.quantity} × {money(item.unit_price, quote.currency)}
+      {/* Personal greeting */}
+      <section className="px-6 pt-6 pb-2 text-center">
+        <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-900">
+          {firstName ? `Prepared for ${firstName}` : "Your personal quote"}
+        </h1>
+        {eventLine && (
+          <p className="text-sm text-slate-500 mt-3">{eventLine}</p>
+        )}
+      </section>
+
+      <section className="px-6 mt-8">
+        {/* Package hero photo */}
+        {pkg?.photo_url && (
+          <img
+            src={pkg.photo_url}
+            alt={pkg.name}
+            className="w-full h-56 sm:h-72 object-cover rounded-3xl shadow-md"
+          />
+        )}
+
+        {/* The offer */}
+        <div className={`bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden ${pkg?.photo_url ? "-mt-8 relative mx-3 sm:mx-6" : ""}`}>
+          <div className="p-6 sm:p-8">
+            {pkg && (
+              <>
+                <h2 className="text-xl font-bold text-slate-900 tracking-tight">{pkg.name}</h2>
+                {pkg.description && (
+                  <p className="text-[15px] leading-relaxed text-slate-600 mt-2 whitespace-pre-line">{pkg.description}</p>
+                )}
+              </>
+            )}
+
+            {(items.length > 1 || !pkg) && (
+              <div className={`${pkg ? "mt-6 pt-5 border-t border-slate-100" : ""} space-y-2.5`}>
+                {items.map((item, idx) => (
+                  <div key={idx} className="flex items-baseline justify-between gap-4">
+                    <p className="text-sm text-slate-700">
+                      {item.description}
+                      {Number(item.quantity) > 1 && (
+                        <span className="text-slate-400"> × {item.quantity}</span>
+                      )}
                     </p>
-                  )}
-                </div>
-                <p className="text-sm text-white whitespace-nowrap">{money(item.total ?? item.unit_price, quote.currency)}</p>
+                    <p className="text-sm text-slate-700 whitespace-nowrap tabular-nums">
+                      {money(item.total ?? item.unit_price, quote.currency)}
+                    </p>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-          <div className="border-t border-gray-700/60 px-4 py-3.5 space-y-1.5">
-            {Number(quote.discount_amount) > 0 && (
-              <Row label="Discount" value={`-${money(quote.discount_amount, quote.currency)}`} muted />
             )}
-            {Number(quote.tax_amount) > 0 && (
-              <Row label={`Tax (${quote.tax_rate}%)`} value={money(quote.tax_amount, quote.currency)} muted />
-            )}
-            <div className="flex items-center justify-between pt-1">
-              <p className="text-base font-semibold text-white">Total</p>
-              <p className="text-xl font-bold text-white">{money(quote.total, quote.currency)}</p>
+
+            <div className="mt-6 pt-5 border-t border-slate-200 space-y-1.5">
+              {Number(quote.discount_amount) > 0 && (
+                <div className="flex items-baseline justify-between text-sm text-slate-500">
+                  <p>Discount</p>
+                  <p className="tabular-nums">-{money(quote.discount_amount, quote.currency)}</p>
+                </div>
+              )}
+              {Number(quote.tax_amount) > 0 && (
+                <div className="flex items-baseline justify-between text-sm text-slate-500">
+                  <p>Tax ({quote.tax_rate}%)</p>
+                  <p className="tabular-nums">{money(quote.tax_amount, quote.currency)}</p>
+                </div>
+              )}
+              <div className="flex items-baseline justify-between pt-1">
+                <p className="text-base font-semibold text-slate-900">Total</p>
+                <p className="text-3xl font-bold tracking-tight text-slate-900 tabular-nums">
+                  {money(quote.total, quote.currency)}
+                </p>
+              </div>
             </div>
           </div>
         </div>
 
+        {/* Note from the musician */}
         {quote.notes && (
-          <p className="text-sm text-gray-400 mt-4 whitespace-pre-line px-1">{quote.notes}</p>
+          <div className="mt-6 px-2">
+            <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400 font-semibold mb-2">
+              A note from {business.business_name || "us"}
+            </p>
+            <p className="text-[15px] leading-relaxed text-slate-600 whitespace-pre-line">{quote.notes}</p>
+          </div>
         )}
+      </section>
 
-        <div className="mt-8">
-          {quote.status === "accepted" && (
-            <StatusPanel tone="green" title="Quote accepted">
-              {business.business_name ? `${business.business_name} will` : "We'll"} be in touch to confirm the details. Thank you!
-            </StatusPanel>
-          )}
-          {quote.status === "declined" && (
-            <StatusPanel tone="gray" title="Quote declined">
-              If you changed your mind or want to discuss options, just reply to the email you received.
-            </StatusPanel>
-          )}
-          {quote.status === "expired" && (
-            <StatusPanel tone="amber" title="This quote has expired">
-              Get in touch{business.business_name ? ` with ${business.business_name}` : ""} for an updated quote.
-            </StatusPanel>
-          )}
-          {quote.status === "sent" && (
-            <>
-              {quote.valid_until && (
-                <p className="text-xs text-gray-500 text-center mb-4">Valid until {formatDate(quote.valid_until)}</p>
+      {/* Action area */}
+      <section className="px-6 mt-10 pb-20 max-w-md mx-auto">
+        {quote.status === "accepted" && (
+          <StatusPanel tone="green" title={firstName ? `Wonderful, ${firstName}!` : "Wonderful!"}>
+            Your booking is confirmed{quote.event_date ? ` for ${formatDate(quote.event_date)}` : ""}.
+            {" "}{business.business_name || "We"} will be in touch with the next steps.
+          </StatusPanel>
+        )}
+        {quote.status === "declined" && (
+          <StatusPanel tone="gray" title="Quote declined">
+            No problem at all — if you change your mind or want to talk options,
+            just reply to the email you received.
+          </StatusPanel>
+        )}
+        {quote.status === "expired" && (
+          <StatusPanel tone="amber" title="This quote has expired">
+            Get in touch{business.business_name ? ` with ${business.business_name}` : ""} for an updated quote — the date may still be available.
+          </StatusPanel>
+        )}
+        {quote.status === "sent" && (
+          <>
+            {actionError && <p className="text-sm text-red-500 text-center mb-3">{actionError}</p>}
+            <button
+              onClick={handleAccept}
+              disabled={working}
+              className="w-full bg-slate-900 hover:bg-slate-800 disabled:opacity-60 text-white font-semibold rounded-2xl py-4 text-[15px] tracking-tight transition-colors shadow-sm"
+            >
+              {working ? "One moment…" : "Accept this quote"}
+            </button>
+            {quote.valid_until && (
+              <p className="text-xs text-slate-400 text-center mt-3">
+                This offer is valid until {formatDate(quote.valid_until)}
+              </p>
+            )}
+            <div className="text-center mt-6">
+              {confirmDecline ? (
+                <span className="text-xs text-slate-500">
+                  Are you sure?{" "}
+                  <button onClick={handleDecline} disabled={working} className="text-red-500 font-medium underline underline-offset-2">
+                    Yes, decline
+                  </button>
+                  {"  ·  "}
+                  <button onClick={() => setConfirmDecline(false)} className="text-slate-500 underline underline-offset-2">
+                    Go back
+                  </button>
+                </span>
+              ) : (
+                <button onClick={() => setConfirmDecline(true)} className="text-xs text-slate-400 hover:text-slate-600 underline underline-offset-2 transition-colors">
+                  Decline this quote
+                </button>
               )}
-              {actionError && <p className="text-sm text-red-400 text-center mb-3">{actionError}</p>}
-              <button
-                onClick={handleAccept}
-                disabled={working}
-                className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white font-semibold rounded-xl py-3.5 text-sm transition-colors"
-              >
-                {working ? "One moment…" : "Accept quote"}
-              </button>
-              <button
-                onClick={handleDecline}
-                disabled={working}
-                className="w-full text-gray-500 hover:text-gray-300 text-xs mt-4 transition-colors"
-              >
-                Decline
-              </button>
-            </>
-          )}
-        </div>
-      </div>
+            </div>
+          </>
+        )}
+      </section>
+
+      <footer className="pb-10 text-center">
+        <p className="text-[11px] text-slate-300">
+          {business.business_name || ""}{quote.document_number ? `  ·  ${quote.document_number}` : ""}
+        </p>
+      </footer>
     </Shell>
   );
 }
 
 function Shell({ children }) {
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
-      <div className="max-w-xl mx-auto">{children}</div>
-    </div>
-  );
-}
-
-function Row({ label, value, muted }) {
-  return (
-    <div className="flex items-center justify-between">
-      <p className={`text-sm ${muted ? "text-gray-400" : "text-white"}`}>{label}</p>
-      <p className={`text-sm ${muted ? "text-gray-400" : "text-white"}`}>{value}</p>
+    <div className="min-h-screen bg-[#fafaf7] text-slate-900" style={{ colorScheme: "light" }}>
+      <div className="max-w-2xl mx-auto">{children}</div>
     </div>
   );
 }
 
 function StatusPanel({ tone, title, children }) {
   const tones = {
-    green: "bg-green-950/40 border-green-700/30 text-green-400",
-    gray: "bg-gray-800 border-gray-700 text-gray-400",
-    amber: "bg-amber-950/40 border-amber-700/30 text-amber-400",
+    green: "bg-emerald-50 border-emerald-200 text-emerald-900",
+    gray: "bg-slate-100 border-slate-200 text-slate-700",
+    amber: "bg-amber-50 border-amber-200 text-amber-900",
   };
   return (
-    <div className={`rounded-2xl border px-4 py-5 text-center ${tones[tone]}`}>
-      <p className="text-base font-semibold">{title}</p>
-      <p className="text-sm text-gray-400 mt-1.5">{children}</p>
+    <div className={`rounded-2xl border px-6 py-7 text-center ${tones[tone]}`}>
+      <p className="text-lg font-semibold tracking-tight">{title}</p>
+      <p className="text-sm mt-2 leading-relaxed opacity-80">{children}</p>
     </div>
   );
 }
