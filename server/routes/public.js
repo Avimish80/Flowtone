@@ -53,7 +53,7 @@ async function findProfileBySlug(slug) {
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
     .from('business_profiles')
-    .select('user_id, business_name, logo, logo_url, enquiry_headline, enquiry_intro')
+    .select('user_id, business_name, logo_url, payload, enquiry_headline, enquiry_intro')
     .eq('public_slug', slug)
     .maybeSingle();
   if (error) throw error;
@@ -63,7 +63,8 @@ async function findProfileBySlug(slug) {
 function publicBusiness(profile) {
   return {
     business_name: profile?.business_name || '',
-    logo_url: profile?.logo_url || profile?.logo || '',
+    // The base64 logo lives in the payload jsonb (no dedicated column in prod).
+    logo_url: profile?.logo_url || profile?.payload?.logo || '',
     enquiry_headline: profile?.enquiry_headline || '',
     enquiry_intro: profile?.enquiry_intro || '',
   };
@@ -108,9 +109,11 @@ router.get('/enquiry/:slug', async (req, res) => {
     if (!profile) return res.status(404).json({ error: 'Not found' });
 
     const supabase = getSupabaseAdmin();
+    // Prices deliberately excluded: the landing page is public marketing —
+    // the price is revealed on the client's personal quote page (/q/) only.
     const { data: packages, error } = await supabase
       .from('service_packages')
-      .select('id, name, description, price, currency, photo_url')
+      .select('id, name, description, photo_url')
       .eq('user_id', profile.user_id)
       .eq('active', true)
       .order('sort_order', { ascending: true });
@@ -122,8 +125,6 @@ router.get('/enquiry/:slug', async (req, res) => {
         id: p.id,
         name: p.name || '',
         description: p.description || '',
-        price: p.price,
-        currency: p.currency || 'GBP',
         photo_url: p.photo_url || '',
       })),
     });
@@ -265,16 +266,35 @@ router.get('/quote/:token', async (req, res) => {
     const supabase = getSupabaseAdmin();
     const { data: profile } = await supabase
       .from('business_profiles')
-      .select('business_name, logo, logo_url, enquiry_headline, enquiry_intro')
+      .select('business_name, logo_url, payload, enquiry_headline, enquiry_intro')
       .eq('user_id', lead.user_id)
       .maybeSingle();
 
+    let pkg = null;
+    if (lead.package_id) {
+      const { data: pkgRow } = await supabase
+        .from('service_packages')
+        .select('name, description, photo_url')
+        .eq('id', lead.package_id)
+        .maybeSingle();
+      if (pkgRow) {
+        pkg = {
+          name: pkgRow.name || '',
+          description: pkgRow.description || '',
+          photo_url: pkgRow.photo_url || '',
+        };
+      }
+    }
+
     res.json({
       business: publicBusiness(profile),
+      package: pkg,
       quote: {
         document_number: doc.document_number || '',
         contact_name: lead.contact_name || '',
         event_date: lead.event_date || '',
+        event_type: lead.event_type || '',
+        location: lead.location || '',
         line_items: Array.isArray(doc.line_items)
           ? doc.line_items.map((li) => ({
               description: li.description || '',
