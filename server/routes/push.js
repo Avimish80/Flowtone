@@ -10,6 +10,7 @@ import {
   getDuePushes,
   markPushSent,
 } from '../db.js';
+import { getAuthenticatedUser } from '../lib/auth.js';
 
 const router = Router();
 
@@ -30,13 +31,18 @@ router.get('/vapid-public-key', (_req, res) => {
 
 // ─── POST /api/push/subscribe ────────────────────────────────────────
 // Body: { subscription: { endpoint, keys: { p256dh, auth } }, userAgent?, notificationLevel? }
-router.post('/subscribe', (req, res) => {
+// user_id is NEVER read from the body — a client-supplied id would let anyone
+// bind a subscription to someone else's account and receive their lead
+// notifications. It's derived only from a verified Supabase bearer token.
+router.post('/subscribe', async (req, res) => {
   try {
-    const { subscription, userAgent, notificationLevel, userId } = req.body;
+    const { subscription, userAgent, notificationLevel } = req.body;
 
     if (!subscription?.endpoint || !subscription?.keys?.p256dh || !subscription?.keys?.auth) {
       return res.status(400).json({ error: 'Missing required subscription fields' });
     }
+
+    const user = await getAuthenticatedUser(req).catch(() => null);
 
     upsertSubscription({
       endpoint: subscription.endpoint,
@@ -44,7 +50,7 @@ router.post('/subscribe', (req, res) => {
       auth: subscription.keys.auth,
       user_agent: userAgent ?? null,
       notification_level: notificationLevel ?? 'standard',
-      user_id: typeof userId === 'string' ? userId : null,
+      user_id: user?.id ?? null,
     });
 
     res.status(201).json({ ok: true });

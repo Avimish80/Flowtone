@@ -5,17 +5,22 @@ import { getEffectivePrefs, timingToMinutes } from './notificationPrefs.js';
 import { gigsMissingFee, importedEventsIncomplete, hasFee } from './missingInfo.js';
 import { getSupabaseClient, isPreviewModeEnabled } from './supabaseClient.js';
 
-/** Signed-in user's id, so the server can map push endpoints to users
- *  (needed for server-initiated pushes like "new lead received"). */
-async function getUserId() {
+/** Current session's access token, sent as a Bearer header so the server can
+ *  verify (not just trust) which user a push subscription belongs to —
+ *  needed for server-initiated pushes like "new lead received". */
+async function getAccessToken() {
   if (isPreviewModeEnabled()) return null;
   try {
     const supabase = getSupabaseClient();
-    const { data } = await supabase.auth.getUser();
-    return data?.user?.id ?? null;
+    const { data } = await supabase.auth.getSession();
+    return data?.session?.access_token ?? null;
   } catch {
     return null;
   }
+}
+
+function authHeaders(token) {
+  return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
@@ -98,10 +103,11 @@ export async function registerPush(notificationLevel = 'standard') {
     applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
   });
 
+  const token = await getAccessToken();
   await fetch(`${API_BASE}/api/push/subscribe`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ subscription, userAgent: navigator.userAgent, notificationLevel, userId: await getUserId() }),
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify({ subscription, userAgent: navigator.userAgent, notificationLevel }),
   });
 
   return { success: true };
@@ -124,10 +130,11 @@ export async function reRegisterSubscription(notificationLevel = 'standard') {
   const sub = await getActiveSubscription();
   if (!sub) return;
   try {
+    const token = await getAccessToken();
     await fetch(`${API_BASE}/api/push/subscribe`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ subscription: sub, userAgent: navigator.userAgent, notificationLevel, userId: await getUserId() }),
+      headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+      body: JSON.stringify({ subscription: sub, userAgent: navigator.userAgent, notificationLevel }),
     });
   } catch { /* silent */ }
 }
