@@ -22,7 +22,7 @@ function whatsappUrl(phone) {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
-import { printInvoice, buildMailtoLink, buildInvoiceEmailParts } from "@/lib/invoiceTemplates";
+import { printInvoice, buildMailtoLink, buildInvoiceEmailParts, resolveTemplateId } from "@/lib/invoiceTemplates";
 import { isGmailConnected, getGmailEmail, sendGmailEmail } from "@/lib/gmailClient";
 
 const CURRENCIES = ["GBP", "USD", "EUR", "AUD", "CAD"];
@@ -1033,7 +1033,7 @@ export default function DocumentDetail() {
               <div className="flex-1" />
               <button
                 onClick={() => {
-                  const templateId = appSettings?.invoice_template || 1;
+                  const templateId = resolveTemplateId(appSettings?.invoice_template);
                   printInvoice(docForPrint, bizProfile, appSettings, templateId);
                 }}
                 title="Print / Save as PDF"
@@ -1185,7 +1185,7 @@ export default function DocumentDetail() {
               <button
                 onClick={() => {
                   if (gmailConnected) {
-                    const templateId = appSettings?.invoice_template || 1;
+                    const templateId = resolveTemplateId(appSettings?.invoice_template);
                     // First open print dialog
                     printInvoice(docForPrint, bizProfile, appSettings, templateId);
                     // Then open email client

@@ -13,7 +13,7 @@ export const ENTITY_DEFAULTS = {
     gmail_connected: false,
     invoice_number_next: 1,
     invoice_number_prefix: "INV-",
-    invoice_template: 1,
+    invoice_template: 2,
     notification_level: "standard",
     reminder_channel: "in_app",
     tax_rate: 0,

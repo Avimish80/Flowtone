@@ -426,7 +426,7 @@ export async function generateBusyMusicianData(appClient) {
       default_nav_app: "google_maps",
       default_payment_terms_days: 30,
       default_tax_rate: 0,
-      invoice_template: 1,
+      invoice_template: 2,
       notification_level: "standard",
       tax_rate: 0,
       tax_year_start_month: 4,

@@ -2,11 +2,34 @@
  * invoiceTemplates.js
  * Generates a complete, self-contained HTML invoice for printing / emailing.
  * Call generateInvoiceHTML(doc, profile, settings, templateId) → HTML string.
- * Open in a new window and call window.print() for PDF export.
+ *
+ * Design rules that every template obeys:
+ *  - Five type sizes only (micro / fine / body / lead / hero). Nothing else.
+ *  - Three weights only (400 / 500 / 700).
+ *  - No gradients, no zebra striping, no drop shadows. Hairlines and space.
+ *  - One accent colour, used in at most three places per document.
+ *  - Money is always tabular-figure aligned.
+ *
+ * Every template is customisable — colour, header treatment, body font and
+ * sign-off line. Each keeps its identity in the BODY (how line items are
+ * presented, how the total is set, whether there is a side rail), so changing
+ * a header never collapses two templates into the same document. "Personal"
+ * additionally unlocks the body choices the others keep fixed.
+ *
+ * Customisation is stored per template under AppSettings.invoice_custom as
+ * { "<templateId>": {…} }, so tuning Atelier does not disturb Statement.
  */
 
+// ── Formatting ───────────────────────────────────────────────────────
 function fmt(sym, amount) {
   return `${sym}${(Number(amount) || 0).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+// Quantities are counts, not money — "1" reads correctly, "1.00" reads like a bug.
+function fmtQty(q) {
+  const n = Number(q ?? 1);
+  if (!Number.isFinite(n)) return "1";
+  return Number.isInteger(n) ? String(n) : n.toLocaleString("en-GB", { maximumFractionDigits: 2 });
 }
 
 function fmtDate(str) {
@@ -15,751 +38,821 @@ function fmtDate(str) {
   catch { return str; }
 }
 
-// Modern type + global niceties shared by every template.
-// Inter loads for on-screen/print preview; system stack is the email/offline fallback.
-function headStyles() {
-  return `
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
-  :root { --ink:#0f172a; --muted:#64748b; --faint:#94a3b8; --hair:#e8ecf3; }
-  * { box-sizing:border-box; margin:0; padding:0; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-  body { font-family:'Inter','Helvetica Neue',Arial,sans-serif; color:var(--ink);
-    background:#fff; -webkit-font-smoothing:antialiased; }
-  .num { font-variant-numeric:tabular-nums; }`;
-}
-
-// Big, friendly "Amount Due / Total" closing line + thank-you note.
-function thankYouFooter(accent, profile, text) {
-  const name = profile?.contact_name || profile?.business_name || "";
-  const line = (text && String(text).trim()) || "Thank you for the music.";
-  return `<div style="margin-top:44px;padding-top:22px;border-top:1px solid var(--hair);
-    display:flex;justify-content:space-between;align-items:baseline;gap:16px;flex-wrap:wrap;">
-    <div style="font-size:17px;font-weight:700;color:${accent};letter-spacing:-0.2px;">${esc(line)}</div>
-    <div style="font-size:11px;color:var(--faint);">${name ? "— " + esc(name) : ""}</div>
-  </div>`;
-}
-
-// Escape user-entered text (footer line) so it can't inject markup.
+// Escape every piece of user-entered text before it reaches the document.
 function esc(s) {
   return String(s == null ? "" : s)
     .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
 }
 
-// ── Personal template config: the ONLY things that may vary ──────────
-// Everything else (A4 shape, line-item table, totals, bill-to/from,
-// payment block) is fixed. Both the Finance editor and the AI action
-// run their input through sanitizeCustom() so values stay on the rails.
-export const HEADER_STYLES = ["band", "minimal", "centered"];
-export const FONT_CHOICES = ["sans", "serif"];
-export const ACCENT_PRESETS = ["#4f46e5", "#0f172a", "#0d9488", "#b91c1c", "#c2410c", "#7c3aed", "#be185d"];
+// Preserve author line breaks in free-text blocks (notes, payment instructions).
+function escMultiline(s) {
+  return esc(s).replace(/\r?\n/g, "<br>");
+}
 
-export const DEFAULT_CUSTOM = {
-  accent_color: "#4f46e5",
-  header_style: "band",
-  font: "sans",
-  footer_text: "Thank you for the music.",
-  show_logo: true,
+// Accent tints are rgba over white paper rather than color-mix(), which is
+// unsupported in older print engines and silently renders transparent.
+function tint(hex, alpha) {
+  const h = String(hex || "").replace("#", "");
+  const full = h.length === 3 ? h.split("").map(c => c + c).join("") : h;
+  const n = parseInt(full, 16);
+  if (full.length !== 6 || Number.isNaN(n)) return `rgba(20,23,28,${alpha})`;
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`;
+}
+
+const CURRENCIES = { GBP: "£", USD: "$", EUR: "€", AUD: "A$", CAD: "C$" };
+const symbolFor = (code) => CURRENCIES[code] || (code ? code + " " : "£");
+
+const issueDateOf = (doc) => doc.issue_date || doc.created_at || new Date().toISOString();
+const typeLabelOf = (doc) => (doc.document_type === "invoice" ? "Invoice" : "Estimate");
+
+function totalLabelOf(doc) {
+  if (doc.status === "paid") return "Paid in full";
+  return doc.document_type === "invoice" ? "Amount due" : "Total";
+}
+
+// ── Customisation vocabulary ─────────────────────────────────────────
+export const HEADER_STYLES = ["band", "minimal", "centered"];
+
+export const HEADER_LABELS = {
+  band: "Block",
+  minimal: "Hairline",
+  centered: "Centred",
 };
+
+// System stacks only. An earlier build pulled Inter from Google Fonts inside
+// the print iframe, which snapshots after ~200ms — the webfont regularly lost
+// that race and the document printed in a fallback anyway. Everything below is
+// already resident on the devices Flowtone runs on.
+export const FONT_CHOICES = ["sans", "grotesk", "geometric", "serif", "mono"];
+
+export const FONT_STACKS = {
+  sans: `-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Inter,"Helvetica Neue",Arial,sans-serif`,
+  grotesk: `"Helvetica Neue",Helvetica,"Inter",Arial,"Liberation Sans",sans-serif`,
+  geometric: `"Avenir Next","Avenir",Futura,"Century Gothic","Trebuchet MS",sans-serif`,
+  serif: `"Hoefler Text","Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif`,
+  mono: `ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace`,
+};
+
+export const FONT_LABELS = {
+  sans: "Sans",
+  grotesk: "Grotesk",
+  geometric: "Geometric",
+  serif: "Serif",
+  mono: "Mono",
+};
+
+// Muted, document-grade tones. Saturated colours are what make an invoice look
+// like a template, so they are deliberately not on the menu — the custom picker
+// is still there for anyone who insists.
+export const ACCENT_PRESETS = [
+  "#14171c", // Ink
+  "#1c3a5e", // Oxford
+  "#1e4436", // Forest
+  "#6d2434", // Claret
+  "#8a6a3c", // Bronze
+  "#4a5462", // Slate
+];
+
+export const ACCENT_LABELS = {
+  "#14171c": "Ink",
+  "#1c3a5e": "Oxford",
+  "#1e4436": "Forest",
+  "#6d2434": "Claret",
+  "#8a6a3c": "Bronze",
+  "#4a5462": "Slate",
+};
+
+// Body choices the other templates keep fixed as part of their identity.
+// Personal unlocks them — that is what makes it the personal one now that
+// colour, header, font and sign-off are available everywhere.
+export const ITEMS_STYLES = ["table", "editorial", "slim", "tinted"];
+export const ITEMS_LABELS = {
+  table: "Columns",
+  editorial: "Editorial",
+  slim: "Slim",
+  tinted: "Filled",
+};
+
+export const TOTALS_STYLES = ["stack", "band"];
+export const TOTALS_LABELS = { stack: "Stacked", band: "Full width" };
+
+export const DENSITIES = ["relaxed", "compact"];
+export const DENSITY_LABELS = { relaxed: "Relaxed", compact: "Compact" };
+
+export const DEFAULT_FOOTER_TEXT = "Thank you for the music.";
+
+// Each template's own starting point. These are what gave every template "its
+// own colour"; they are now defaults rather than hardcoded values.
+export const TEMPLATE_DEFAULTS = {
+  1: { accent_color: "#14171c", header_style: "minimal",  font: "sans",      items_style: "table",     totals_style: "stack", density: "relaxed" },
+  2: { accent_color: "#14171c", header_style: "centered", font: "serif",     items_style: "editorial", totals_style: "band",  density: "relaxed" },
+  3: { accent_color: "#1c3a5e", header_style: "band",     font: "sans",      items_style: "tinted",    totals_style: "stack", density: "relaxed" },
+  4: { accent_color: "#1e4436", header_style: "minimal",  font: "sans",      items_style: "slim",      totals_style: "stack", density: "relaxed" },
+  6: { accent_color: "#1c3a5e", header_style: "band",     font: "geometric", items_style: "table",     totals_style: "stack", density: "relaxed" },
+};
+
+// Kept for callers that want a plain default object.
+export const DEFAULT_CUSTOM = { ...TEMPLATE_DEFAULTS[2], footer_text: DEFAULT_FOOTER_TEXT, show_logo: true };
 
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
 
-export function sanitizeCustom(raw) {
+/**
+ * Clamps arbitrary input onto the rails. Both the Settings editor and the AI
+ * action run through here, so neither can invent fields or change the parts of
+ * the document that are not negotiable.
+ */
+export function sanitizeCustom(raw, templateId = 2) {
+  const base = TEMPLATE_DEFAULTS[resolveTemplateId(templateId)] || TEMPLATE_DEFAULTS[2];
   const r = raw && typeof raw === "object" ? raw : {};
-  const accent = typeof r.accent_color === "string" && HEX_RE.test(r.accent_color.trim())
-    ? r.accent_color.trim().toLowerCase() : DEFAULT_CUSTOM.accent_color;
+  const pick = (val, allowed, fallback) => (allowed.includes(val) ? val : fallback);
   return {
-    accent_color: accent,
-    header_style: HEADER_STYLES.includes(r.header_style) ? r.header_style : DEFAULT_CUSTOM.header_style,
-    font: FONT_CHOICES.includes(r.font) ? r.font : DEFAULT_CUSTOM.font,
-    footer_text: typeof r.footer_text === "string" ? r.footer_text.slice(0, 160) : DEFAULT_CUSTOM.footer_text,
+    accent_color: typeof r.accent_color === "string" && HEX_RE.test(r.accent_color.trim())
+      ? r.accent_color.trim().toLowerCase() : base.accent_color,
+    header_style: pick(r.header_style, HEADER_STYLES, base.header_style),
+    font: pick(r.font, FONT_CHOICES, base.font),
+    footer_text: typeof r.footer_text === "string" ? r.footer_text.slice(0, 160) : DEFAULT_FOOTER_TEXT,
     show_logo: r.show_logo === undefined ? true : !!r.show_logo,
+    // Personal-only; harmless on the others, which pass their own values.
+    items_style: pick(r.items_style, ITEMS_STYLES, base.items_style),
+    totals_style: pick(r.totals_style, TOTALS_STYLES, base.totals_style),
+    density: pick(r.density, DENSITIES, base.density),
   };
 }
 
-// Diagonal PAID stamp, only when the doc is settled.
-function paidStamp(doc) {
-  if (doc.status !== "paid") return "";
-  return `<div style="position:absolute;top:48px;right:48px;transform:rotate(-14deg);
-    border:3px solid #16a34a;color:#16a34a;font-weight:900;font-size:22px;letter-spacing:3px;
-    padding:6px 18px;border-radius:10px;opacity:0.85;font-family:'Inter',sans-serif;">PAID</div>`;
+// Older builds stored one flat object, which was the Personal template's look.
+const isLegacyFlat = (store) =>
+  !!store && typeof store === "object" &&
+  (typeof store.accent_color === "string" || typeof store.header_style === "string" || typeof store.footer_text === "string");
+
+/** Reads the saved look for one template, falling back to its defaults. */
+export function getTemplateCustom(settings, templateId) {
+  const id = resolveTemplateId(templateId);
+  const store = settings?.invoice_custom;
+  let raw = null;
+  if (store && typeof store === "object") {
+    raw = isLegacyFlat(store) ? (id === 6 ? store : null) : (store[String(id)] || null);
+  }
+  return sanitizeCustom(raw, id);
 }
 
-function lineItemsTable(items, sym, tableStyle = "classic", accent = "#4f46e5") {
-  const rows = (items || []).map(item => {
-    const total = (item.quantity || 0) * (item.unit_price || 0);
+/**
+ * Returns the whole invoice_custom object with one template's look patched,
+ * ready to write back to AppSettings. Migrates the legacy flat shape into the
+ * Personal slot on first write.
+ */
+export function setTemplateCustom(settings, templateId, patch) {
+  const id = resolveTemplateId(templateId);
+  const store = settings?.invoice_custom;
+  let next = {};
+  if (store && typeof store === "object") {
+    next = isLegacyFlat(store) ? { 6: sanitizeCustom(store, 6) } : { ...store };
+  }
+  next[String(id)] = sanitizeCustom({ ...(next[String(id)] || {}), ...patch }, id);
+  return next;
+}
+
+// ── Shared shell ─────────────────────────────────────────────────────
+function baseCSS(c) {
+  const accent = c.accent_color;
+  const compact = c.density === "compact";
+  return `
+  :root{
+    --fs-micro:9.5px; --fs-fine:11.5px; --fs-body:13px; --fs-lead:16px; --fs-hero:30px;
+    --ink:#14171c; --body:#434a55; --muted:#8b929d; --hair:#e4e7ec; --wash:#f6f7f9;
+    --paid:#2f6b4f;
+    --accent:${accent};
+    --accent-06:${tint(accent, 0.06)};
+    --accent-14:${tint(accent, 0.14)};
+    --font-body:${FONT_STACKS[c.font] || FONT_STACKS.sans};
+    --row:${compact ? "7px" : "11px"};
+    --gap:${compact ? "18px" : "26px"};
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  html,body{background:#fff;color:var(--body);font-family:var(--font-body);
+    font-size:var(--fs-body);line-height:1.55;-webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale}
+  .sheet{max-width:820px;margin:0 auto;padding:40px 44px 52px;position:relative}
+  .num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
+  .lbl{font-size:var(--fs-micro);text-transform:uppercase;letter-spacing:.16em;
+    font-weight:600;color:var(--muted);display:block}
+  .fine{font-size:var(--fs-fine);color:var(--muted);line-height:1.7}
+  .lead{font-size:var(--fs-lead);color:var(--ink);font-weight:500;letter-spacing:-.01em}
+  .hero{font-size:var(--fs-hero);color:var(--ink);font-weight:700;letter-spacing:-.022em;line-height:1.1}
+  .rule{border:0;border-top:1px solid var(--hair)}
+  .rule-ink{border:0;border-top:1px solid var(--ink)}
+  .keep{page-break-inside:avoid;break-inside:avoid}
+  a{color:inherit;text-decoration:none}
+
+  /* Line items — one table, four presentations. */
+  table.items{width:100%;border-collapse:collapse}
+  table.items th{font-size:var(--fs-micro);text-transform:uppercase;letter-spacing:.16em;
+    font-weight:600;color:var(--muted);text-align:left;padding:0 0 9px}
+  table.items td{font-size:var(--fs-body);color:var(--body);padding:var(--row) 0;
+    border-top:1px solid var(--hair);vertical-align:top}
+  table.items th.r,table.items td.r{text-align:right}
+  table.items td.desc{color:var(--ink)}
+  table.items .sub{display:block;font-size:var(--fs-fine);color:var(--muted);margin-top:2px}
+
+  @page{size:A4;margin:12mm}
+  @media print{
+    .sheet{padding:0;max-width:none}
+    table.items{page-break-inside:auto}
+    thead{display:table-header-group}
+    tr{page-break-inside:avoid;break-inside:avoid}
+  }`;
+}
+
+function page({ title, custom, css = "", body }) {
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${esc(title)}</title>
+<style>${baseCSS(custom)}${css}</style>
+</head><body>${body}</body></html>`;
+}
+
+// ── Shared blocks ────────────────────────────────────────────────────
+
+// Quiet settled marker. An earlier build used a rotated stamp with a 3px
+// border, which was the most template-looking element in the document.
+function paidMark(doc) {
+  if (doc.status !== "paid") return "";
+  const when = doc.paid_date ? " · " + fmtDate(doc.paid_date) : "";
+  return `<div style="display:inline-block;border:1px solid var(--paid);color:var(--paid);
+    font-size:var(--fs-micro);text-transform:uppercase;letter-spacing:.16em;font-weight:600;
+    padding:5px 10px;">Paid${esc(when)}</div>`;
+}
+
+function fromLines(profile) {
+  const bits = [];
+  if (profile?.address_line_1) bits.push(esc(profile.address_line_1));
+  if (profile?.address_line_2) bits.push(esc(profile.address_line_2));
+  const cityLine = [profile?.city, profile?.postcode].filter(Boolean).join(" ");
+  if (cityLine) bits.push(esc(cityLine));
+  if (profile?.email) bits.push(esc(profile.email));
+  if (profile?.phone) bits.push(esc(profile.phone));
+  return bits.join("<br>");
+}
+
+function logoTag(logo, maxH = 44, invert = false) {
+  if (!logo) return "";
+  return `<img src="${esc(logo)}" alt="" style="max-height:${maxH}px;max-width:170px;
+    object-fit:contain;display:block;${invert ? "filter:brightness(0) invert(1);" : ""}">`;
+}
+
+/**
+ * The three header treatments, shared by every template.
+ *
+ * Templates keep their identity in the body — line-item presentation, totals
+ * treatment, whether there is a side rail — so a header can be swapped without
+ * two templates becoming the same document.
+ *
+ * "band" is a full-bleed block and carries its own padding, so callers place it
+ * ABOVE .sheet. "centered" and "minimal" sit inside .sheet and take their
+ * horizontal padding from it — giving them their own as well double-pads them
+ * and leaves rules visibly inset from the content column.
+ *
+ * @param {object} o.grand  Atelier's roomier setting: more space, tracked wordmark
+ */
+function renderHeader({ style, doc, profile, custom, grand = false }) {
+  const label = typeLabelOf(doc);
+  const number = esc(doc.document_number || "");
+  const showLogo = custom.show_logo && !!profile?.logo;
+  const name = esc(profile?.business_name || "");
+
+  if (style === "band") {
+    return `
+    <div class="keep" style="background:var(--accent);color:#fff;padding:${grand ? "34px 44px" : "30px 32px"};
+      display:flex;justify-content:space-between;align-items:flex-start;gap:24px;">
+      <div>
+        ${showLogo ? logoTag(profile.logo, 38, true) : ""}
+        <div style="font-size:var(--fs-lead);font-weight:700;letter-spacing:-.01em;
+          margin-top:${showLogo ? "11px" : "0"};">${name}</div>
+        <div style="font-size:var(--fs-fine);color:rgba(255,255,255,.72);line-height:1.7;margin-top:5px;">${fromLines(profile)}</div>
+      </div>
+      <div style="text-align:right;">
+        <span class="lbl" style="color:rgba(255,255,255,.72);margin-bottom:4px;">${label}</span>
+        <div class="num" style="font-size:var(--fs-lead);font-weight:700;">${number}</div>
+      </div>
+    </div>`;
+  }
+
+  if (style === "centered") {
+    return `
+    <header class="keep" style="text-align:center;">
+      ${showLogo ? `<div style="display:flex;justify-content:center;margin-bottom:${grand ? "16px" : "14px"};">${logoTag(profile.logo, 46)}</div>` : ""}
+      <div style="font-size:var(--fs-lead);color:var(--ink);letter-spacing:${grand ? ".28em" : ".22em"};
+        text-transform:uppercase;font-weight:${grand ? "400" : "600"};">${name}</div>
+      <div style="width:44px;height:2px;background:var(--accent);margin:${grand ? "16px" : "14px"} auto 0;"></div>
+      <div class="fine" style="margin-top:${grand ? "14px" : "12px"};">${fromLines(profile)}</div>
+      <div style="margin-top:${grand ? "34px" : "18px"};display:flex;justify-content:${grand ? "space-between" : "center"};
+        align-items:flex-end;gap:20px;text-align:left;">
+        ${grand ? `<div>
+            <span class="lbl" style="margin-bottom:6px;">${label}</span>
+            <div class="hero num">${number}</div>
+          </div>
+          ${paidMark(doc)}`
+        : `<span class="lbl" style="color:var(--accent);">${label} · ${number}</span>`}
+      </div>
+      ${grand ? `<hr class="rule-ink" style="margin-top:14px;">` : ""}
+    </header>`;
+  }
+
+  // minimal — name left, number right, one accent hairline
+  return `
+  <div>
+    <div class="keep" style="display:flex;justify-content:space-between;align-items:flex-start;gap:32px;">
+      <div>
+        ${showLogo ? logoTag(profile.logo, 40) : ""}
+        <div style="font-size:var(--fs-lead);color:var(--ink);font-weight:700;
+          margin-top:${showLogo ? "12px" : "0"};">${name}</div>
+        <div class="fine" style="margin-top:4px;">${fromLines(profile)}</div>
+        ${profile?.tax_id ? `<div class="fine">Tax ID ${esc(profile.tax_id)}</div>` : ""}
+      </div>
+      <div style="text-align:right;">
+        <span class="lbl" style="color:var(--accent);margin-bottom:4px;">${label}</span>
+        <div class="lead num" style="font-weight:700;">${number}</div>
+        ${doc.status === "paid" ? `<div style="margin-top:10px;">${paidMark(doc)}</div>` : ""}
+      </div>
+    </div>
+    <div style="margin-top:18px;height:2px;background:var(--accent);"></div>
+  </div>`;
+}
+
+/**
+ * @param {string} variant  "table" (4 cols) | "editorial" (2 cols, qty inline)
+ *                          | "tinted" (4 cols, accent header) | "slim" (3 cols)
+ */
+function itemsTable(items, sym, variant = "table") {
+  const list = items || [];
+
+  if (variant === "editorial") {
+    const rows = list.map(item => {
+      const qty = Number(item.quantity ?? 1);
+      const unit = Number(item.unit_price) || 0;
+      // A quantity of one adds nothing — high-end documents omit it.
+      const sub = qty === 1 ? "" : `<span class="sub num">${fmtQty(qty)} × ${fmt(sym, unit)}</span>`;
+      return `<tr>
+        <td class="desc">${esc(item.description || "")}${sub}</td>
+        <td class="r num">${fmt(sym, qty * unit)}</td>
+      </tr>`;
+    }).join("");
+    return `<style>
+        table.items td{padding:calc(var(--row) * 1.3) 0}
+        table.items td.desc{font-size:var(--fs-lead);line-height:1.35}
+        table.items td.r{font-size:var(--fs-body)}
+      </style>
+      <table class="items" style="margin-top:6px">
+      <thead><tr><th>Description</th><th class="r">Amount</th></tr></thead>
+      <tbody>${rows}</tbody></table>`;
+  }
+
+  if (variant === "slim") {
+    const rows = list.map(item => {
+      const qty = Number(item.quantity ?? 1);
+      const unit = Number(item.unit_price) || 0;
+      return `<tr>
+        <td class="desc">${esc(item.description || "")}</td>
+        <td class="r num">${fmtQty(qty)}</td>
+        <td class="r num">${fmt(sym, qty * unit)}</td>
+      </tr>`;
+    }).join("");
+    return `<table class="items" style="margin-top:6px">
+      <thead><tr><th>Description</th><th class="r" style="width:52px">Qty</th>
+        <th class="r" style="width:110px">Amount</th></tr></thead>
+      <tbody>${rows}</tbody></table>`;
+  }
+
+  const rows = list.map(item => {
+    const qty = Number(item.quantity ?? 1);
+    const unit = Number(item.unit_price) || 0;
     return `<tr>
-      <td>${item.description || ""}</td>
-      <td class="num">${item.quantity ?? 1}</td>
-      <td class="num">${fmt(sym, item.unit_price)}</td>
-      <td class="num">${fmt(sym, total)}</td>
+      <td class="desc">${esc(item.description || "")}</td>
+      <td class="r num">${fmtQty(qty)}</td>
+      <td class="r num">${fmt(sym, unit)}</td>
+      <td class="r num">${fmt(sym, qty * unit)}</td>
     </tr>`;
   }).join("");
 
-  const baseStyles = `
-    width:100%; border-collapse:collapse; font-size:13px; margin-top:16px;
-  `;
+  const tinted = variant === "tinted"
+    ? `<style>
+        table.items thead th{background:var(--accent-06);color:var(--accent);
+          padding:9px 12px;border-bottom:1px solid var(--accent-14)}
+        table.items td{padding:var(--row) 12px}
+        table.items tbody tr:first-child td{border-top:0}
+      </style>` : "";
 
-  const styles = {
-    classic: `
-      <style>
-        .items-table th { background:#f1f5f9; color:#475569; text-transform:uppercase;
-          letter-spacing:0.05em; font-size:11px; padding:8px 12px; text-align:left; }
-        .items-table th.num, .items-table td.num { text-align:right; }
-        .items-table td { padding:10px 12px; border-bottom:1px solid #e2e8f0; color:#334155; }
-        .items-table tr:last-child td { border-bottom:none; }
-      </style>`,
-    modern: `
-      <style>
-        .items-table th { background:#4f46e5; color:#fff; font-size:11px;
-          text-transform:uppercase; letter-spacing:0.05em; padding:10px 14px; text-align:left; border:none; }
-        .items-table th.num, .items-table td.num { text-align:right; }
-        .items-table td { padding:10px 14px; border-bottom:1px solid #e0e7ff; color:#1e293b; }
-        .items-table tbody tr:nth-child(even) td { background:#f5f3ff; }
-        .items-table tr:last-child td { border-bottom:none; }
-      </style>`,
-    bold: `
-      <style>
-        .items-table th { background:#0f172a; color:#e2e8f0; font-size:11px;
-          text-transform:uppercase; letter-spacing:0.06em; padding:10px 14px; text-align:left; }
-        .items-table th.num, .items-table td.num { text-align:right; }
-        .items-table td { padding:10px 14px; border-bottom:1px solid #f1f5f9; color:#1e293b; }
-        .items-table tbody tr:hover td { background:#f8fafc; }
-        .items-table tr:last-child td { border-bottom:none; }
-      </style>`,
-    minimal: `
-      <style>
-        .items-table th { font-size:11px; text-transform:uppercase; letter-spacing:0.07em;
-          padding:6px 0; text-align:left; color:#94a3b8; border-bottom:2px solid #0f172a; }
-        .items-table th.num, .items-table td.num { text-align:right; }
-        .items-table td { padding:9px 0; border-bottom:1px solid #e2e8f0; color:#334155; font-size:13px; }
-        .items-table tr:last-child td { border-bottom:none; }
-      </style>`,
-    studio: `
-      <style>
-        .items-table th { background:linear-gradient(135deg,#312e81,#4f46e5); color:#fff;
-          font-size:11px; text-transform:uppercase; letter-spacing:0.05em;
-          padding:10px 14px; text-align:left; }
-        .items-table th.num, .items-table td.num { text-align:right; }
-        .items-table td { padding:10px 14px; border-bottom:1px solid #ede9fe; color:#1e293b; }
-        .items-table tbody tr:nth-child(even) td { background:#faf5ff; }
-        .items-table tr:last-child td { border-bottom:none; }
-      </style>`,
-  };
-
-  styles.personal = `
-    <style>
-      .items-table th { background:color-mix(in srgb, ${accent} 10%, white); color:${accent};
-        font-size:11px; text-transform:uppercase; letter-spacing:.05em; padding:10px 14px; text-align:left; }
-      .items-table th.num, .items-table td.num { text-align:right; }
-      .items-table td { padding:11px 14px; border-bottom:1px solid #eef2f7; color:#1e293b; }
-      .items-table tr:last-child td { border-bottom:none; }
-    </style>`;
-
-  return `${styles[tableStyle] || styles.classic}
-  <table class="items-table" style="${baseStyles}">
-    <thead>
-      <tr>
-        <th>Description</th>
-        <th class="num">Qty</th>
-        <th class="num">Unit Price</th>
-        <th class="num">Total</th>
-      </tr>
-    </thead>
-    <tbody>${rows}</tbody>
-  </table>`;
+  return `${tinted}<table class="items" style="margin-top:6px">
+    <thead><tr><th>Description</th><th class="r" style="width:52px">Qty</th>
+      <th class="r" style="width:104px">Unit</th><th class="r" style="width:116px">Amount</th></tr></thead>
+    <tbody>${rows}</tbody></table>`;
 }
 
-function totalsBlock(doc, sym, accent = "#4f46e5") {
-  const isInvoice = doc.document_type === "invoice";
-  const isPaid = doc.status === "paid";
-  const minorRow = (label, val, extra = "") =>
-    `<div style="display:flex;justify-content:space-between;gap:32px;font-size:13px;color:var(--muted);padding:3px 0;${extra}">
+// Minor rows (subtotal / discount / tax) — identical everywhere.
+function minorRows(doc, sym) {
+  const row = (label, val) =>
+    `<div style="display:flex;justify-content:space-between;gap:28px;font-size:var(--fs-fine);
+      color:var(--muted);padding:4px 0;">
       <span>${label}</span><span class="num">${val}</span></div>`;
+  const out = [row("Subtotal", fmt(sym, doc.subtotal))];
+  if (doc.discount_amount > 0) out.push(row("Discount", "−" + fmt(sym, doc.discount_amount)));
+  if (doc.tax_amount > 0) out.push(row(`Tax ${doc.tax_rate || 0}%`, fmt(sym, doc.tax_amount)));
+  return out.join("");
+}
 
-  const minor = [minorRow("Subtotal", fmt(sym, doc.subtotal))];
-  if (doc.discount_amount > 0) minor.push(minorRow("Discount", "−" + fmt(sym, doc.discount_amount)));
-  if (doc.tax_amount > 0) minor.push(minorRow(`Tax (${doc.tax_rate || 0}%)`, fmt(sym, doc.tax_amount)));
+/**
+ * @param {string} variant  "stack" — right-aligned column, rule above the figure
+ *                          "band"  — full-width band with rules top and bottom
+ */
+function totalsBlock(doc, sym, variant = "stack") {
+  const isPaid = doc.status === "paid";
+  const heroColour = isPaid ? "var(--paid)" : "var(--accent)";
+  const amount = fmt(sym, doc.total ?? doc.subtotal);
 
-  const totalLabel = isPaid ? "Amount Paid" : isInvoice ? "Amount Due" : "Total";
-  const heroColor = isPaid ? "#16a34a" : accent;
-  const heroBg = isPaid ? "rgba(22,163,74,0.08)" : `color-mix(in srgb, ${accent} 7%, white)`;
-  const heroBorder = isPaid ? "rgba(22,163,74,0.25)" : `color-mix(in srgb, ${accent} 22%, white)`;
+  if (variant === "band") {
+    return `<div class="keep" style="margin-top:var(--gap);">
+      <div style="display:flex;justify-content:flex-end;">
+        <div style="min-width:260px;">${minorRows(doc, sym)}</div>
+      </div>
+      <div style="margin-top:14px;border-top:1px solid var(--ink);border-bottom:1px solid var(--ink);
+        padding:16px 0;display:flex;justify-content:space-between;align-items:baseline;gap:24px;">
+        <span class="lbl" style="color:var(--ink);">${totalLabelOf(doc)}</span>
+        <span class="hero num" style="color:${heroColour};">${amount}</span>
+      </div>
+    </div>`;
+  }
 
-  return `
-  <div style="margin-left:auto;margin-top:16px;min-width:280px;max-width:320px;">
-    ${minor.join("")}
-    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:24px;
-      margin-top:12px;padding:14px 18px;border-radius:14px;
-      background:${heroBg};border:1px solid ${heroBorder};">
-      <span style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:${heroColor};">${totalLabel}</span>
-      <span class="num" style="font-size:26px;font-weight:800;letter-spacing:-0.5px;color:${heroColor};">${fmt(sym, doc.total || doc.subtotal)}</span>
+  return `<div class="keep" style="margin-top:22px;margin-left:auto;min-width:270px;max-width:330px;">
+    ${minorRows(doc, sym)}
+    <div style="margin-top:10px;padding-top:13px;border-top:2px solid var(--accent);
+      display:flex;justify-content:space-between;align-items:baseline;gap:20px;">
+      <span class="lbl" style="color:var(--ink);">${totalLabelOf(doc)}</span>
+      <span class="hero num" style="color:${heroColour};">${amount}</span>
     </div>
-    ${isPaid && doc.paid_date ? `<div style="text-align:right;font-size:11px;color:#16a34a;margin-top:6px;">Settled on ${fmtDate(doc.paid_date)}</div>` : ""}
   </div>`;
 }
 
-function paymentBlock(profile) {
+function paymentLines(profile) {
   const lines = [];
-  if (profile?.bank_name) lines.push(`Bank: ${profile.bank_name}`);
-  if (profile?.bank_account_name) lines.push(`Account name: ${profile.bank_account_name}`);
-  if (profile?.bank_sort_code) lines.push(`Sort code: ${profile.bank_sort_code}`);
-  if (profile?.bank_account_number) lines.push(`Account: ${profile.bank_account_number}`);
-  if (profile?.bank_iban) lines.push(`IBAN: ${profile.bank_iban}`);
-  if (profile?.payment_instructions) lines.push(profile.payment_instructions);
-  if (!lines.length) return "";
-  return `<div style="margin-top:24px;padding:16px 18px;background:#f8fafc;border-radius:12px;font-size:12px;color:#475569;line-height:1.7;border:1px solid #eef2f7;">
-    <strong style="color:#1e293b;font-size:10px;text-transform:uppercase;letter-spacing:.08em;">Payment Details</strong><br>
-    ${lines.join("<br>")}
+  if (profile?.bank_name) lines.push(["Bank", profile.bank_name]);
+  if (profile?.bank_account_name) lines.push(["Account name", profile.bank_account_name]);
+  if (profile?.bank_sort_code) lines.push(["Sort code", profile.bank_sort_code]);
+  if (profile?.bank_account_number) lines.push(["Account number", profile.bank_account_number]);
+  if (profile?.bank_iban) lines.push(["IBAN", profile.bank_iban]);
+  return lines;
+}
+
+/**
+ * @param {string} variant  "columns" — label/value grid on bare paper
+ *                          "panel"   — same grid inside a wash panel
+ *                          "stacked" — single narrow column (sidebar)
+ */
+function paymentBlock(profile, variant = "columns") {
+  const lines = paymentLines(profile);
+  const note = profile?.payment_instructions;
+  if (!lines.length && !note) return "";
+
+  if (variant === "stacked") {
+    const rows = lines.map(([k, v]) =>
+      `<div style="margin-top:7px;"><span class="lbl">${esc(k)}</span>
+        <span class="num" style="font-size:var(--fs-fine);color:var(--ink);">${esc(v)}</span></div>`).join("");
+    return `<div style="margin-top:var(--gap);"><span class="lbl">Payment</span>${rows}
+      ${note ? `<p class="fine" style="margin-top:9px;">${escMultiline(note)}</p>` : ""}</div>`;
+  }
+
+  const grid = lines.map(([k, v]) =>
+    `<div><span class="lbl">${esc(k)}</span>
+      <span class="num" style="font-size:var(--fs-fine);color:var(--ink);">${esc(v)}</span></div>`).join("");
+
+  const inner = `
+    <span class="lbl" style="margin-bottom:11px;">Payment details</span>
+    ${lines.length ? `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:11px 26px;">${grid}</div>` : ""}
+    ${note ? `<p class="fine" style="margin-top:${lines.length ? "12px" : "0"};">${escMultiline(note)}</p>` : ""}`;
+
+  if (variant === "panel") {
+    return `<div class="keep" style="margin-top:calc(var(--gap) + 4px);background:var(--wash);padding:18px 20px;">${inner}</div>`;
+  }
+  return `<div class="keep" style="margin-top:calc(var(--gap) + 4px);padding-top:18px;border-top:1px solid var(--hair);">${inner}</div>`;
+}
+
+function notesBlock(doc) {
+  if (!doc.notes) return "";
+  return `<div class="keep" style="margin-top:22px;">
+    <span class="lbl" style="margin-bottom:6px;">Notes</span>
+    <p class="fine" style="color:var(--body);max-width:62ch;">${escMultiline(doc.notes)}</p>
   </div>`;
 }
 
-function logoTag(logo, maxH = 56) {
-  if (!logo) return "";
-  return `<img src="${logo}" alt="logo" style="max-height:${maxH}px;max-width:180px;object-fit:contain;display:block;">`;
+function signOff(profile, text, { centred = false } = {}) {
+  const line = (text && String(text).trim()) || DEFAULT_FOOTER_TEXT;
+  const name = profile?.contact_name || profile?.business_name || "";
+  return `<div style="margin-top:36px;padding-top:16px;border-top:1px solid var(--hair);${centred ? "text-align:center;" : ""}">
+    <div style="font-size:var(--fs-fine);color:var(--ink);">${esc(line)}</div>
+    ${name ? `<div class="fine" style="margin-top:3px;">${esc(name)}</div>` : ""}
+  </div>`;
 }
 
-const CURRENCIES = { GBP:"£", USD:"$", EUR:"€", AUD:"A$", CAD:"C$" };
-
-// ──────────────────────────────────────────────────────────────────────
-//  TEMPLATE 1 — CLASSIC
-// ──────────────────────────────────────────────────────────────────────
-function templateClassic(doc, profile, settings) {
-  const sym = CURRENCIES[doc.currency] || doc.currency + " ";
+// Bill-to / dates row.
+function partiesRow(doc, { showFrom = null } = {}) {
   const isInvoice = doc.document_type === "invoice";
-  const typeLabel = isInvoice ? "INVOICE" : "ESTIMATE";
+  const cell = (label, value, sub = "") =>
+    `<div><span class="lbl" style="margin-bottom:5px;">${label}</span>
+      <div class="lead">${value}</div>
+      ${sub ? `<div class="fine">${sub}</div>` : ""}</div>`;
 
-  return `<!DOCTYPE html><html><head><meta charset="utf-8">
-<title>${typeLabel} ${doc.document_number || ""}</title>
-<style>
-  ${headStyles()}
-  body { padding:48px; max-width:800px; margin:0 auto; position:relative; }
-  @media print { body { padding:24px; } }
-  .header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:40px; }
-  .from { font-size:12px; color:#64748b; line-height:1.6; }
-  .from strong { display:block; font-size:16px; color:#0f172a; margin-bottom:4px; }
-  .meta-right { text-align:right; }
-  .doc-type { font-size:30px; font-weight:900; letter-spacing:-1px; color:#4f46e5; }
-  .doc-number { font-size:13px; color:#64748b; margin-top:4px; }
-  .meta-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:12px; font-size:12px; }
-  .meta-grid span { color:#64748b; } .meta-grid strong { color:#1e293b; }
-  .divider { border:none; border-top:1px solid #e2e8f0; margin:24px 0; }
-  .bill-to label { font-size:10px; text-transform:uppercase; letter-spacing:.06em; color:#94a3b8; }
-  .bill-to strong { display:block; font-size:14px; color:#0f172a; margin-top:4px; }
-  .bill-to p { font-size:12px; color:#64748b; margin-top:2px; }
-  .footer { margin-top:40px; display:flex; justify-content:flex-end; }
-  .notes { margin-top:24px; font-size:12px; color:#64748b; line-height:1.6; }
-  .notes strong { color:#1e293b; }
-</style></head><body>
+  const dateCell = (label, value) =>
+    `<div><span class="lbl" style="margin-bottom:5px;">${label}</span>
+      <div style="font-size:var(--fs-body);color:var(--ink);">${value}</div></div>`;
 
-${paidStamp(doc)}
-<div class="header">
-  <div>
-    ${logoTag(profile?.logo)}
-    <div class="from" style="margin-top:${profile?.logo ? "12px" : "0"}">
-      <strong>${profile?.business_name || ""}</strong>
-      ${profile?.address_line_1 ? profile.address_line_1 + "<br>" : ""}
-      ${profile?.city ? profile.city + (profile?.postcode ? ", " + profile.postcode : "") + "<br>" : ""}
-      ${profile?.email ? profile.email + "<br>" : ""}
-      ${profile?.tax_id ? "Tax ID: " + profile.tax_id : ""}
-    </div>
-  </div>
-  <div class="meta-right">
-    <div class="doc-type">${typeLabel}</div>
-    <div class="doc-number">${doc.document_number || ""}</div>
-    <div class="meta-grid">
-      <span>${isInvoice ? "Issue Date" : "Date"}:</span>
-      <strong>${fmtDate(doc.issue_date || doc.created_at || new Date().toISOString())}</strong>
-      ${isInvoice && doc.due_date ? `<span>Due Date:</span><strong>${fmtDate(doc.due_date)}</strong>` : ""}
-      ${!isInvoice && doc.valid_until ? `<span>Valid Until:</span><strong>${fmtDate(doc.valid_until)}</strong>` : ""}
-    </div>
-  </div>
-</div>
+  // Names need room to sit on one line; dates never do. Sizing them the same
+  // is what makes "Chiltern House Events" break across two lines beside a
+  // half-empty date column.
+  const parties = [cell("Billed to", esc(doc.client_name || doc.title || ""), esc(doc.client_email || ""))];
+  if (showFrom) parties.push(cell("From", esc(showFrom.name), esc(showFrom.email || "")));
 
-<hr class="divider">
+  const dates = [dateCell(isInvoice ? "Issued" : "Date", fmtDate(issueDateOf(doc)))];
+  if (isInvoice && doc.due_date) dates.push(dateCell("Due", fmtDate(doc.due_date)));
+  if (!isInvoice && doc.valid_until) dates.push(dateCell("Valid until", fmtDate(doc.valid_until)));
 
-<div class="bill-to">
-  <label>Bill To</label>
-  <strong>${doc.client_name || doc.title || ""}</strong>
-  ${doc.client_email ? `<p>${doc.client_email}</p>` : ""}
-</div>
+  const wrap = (c, basis, min) => `<div style="flex:1 1 ${basis};min-width:${min};">${c}</div>`;
 
-${lineItemsTable(doc.line_items, sym, "classic")}
-
-<div class="footer">${totalsBlock(doc, sym, "#4f46e5")}</div>
-
-${paymentBlock(profile)}
-
-${doc.notes ? `<div class="notes"><strong>Notes</strong><br>${doc.notes}</div>` : ""}
-
-${thankYouFooter("#4f46e5", profile)}
-
-</body></html>`;
+  // Bases are sized so the widest case — billed-to + from + issued + due —
+  // still fits one line inside the 732px content column.
+  return `<div class="keep" style="display:flex;gap:28px;flex-wrap:wrap;align-items:flex-start;
+    padding:22px 0;border-top:1px solid var(--hair);border-bottom:1px solid var(--hair);">
+    ${parties.map(c => wrap(c, "200px", "172px")).join("")}
+    ${dates.map(c => wrap(c, "106px", "100px")).join("")}
+  </div>`;
 }
 
 // ──────────────────────────────────────────────────────────────────────
-//  TEMPLATE 2 — MODERN (indigo accent bar)
+//  TEMPLATE 1 — SIMPLE
+//  Plain columns, bare paper, no fills. The unfussy invoice, done properly.
 // ──────────────────────────────────────────────────────────────────────
-function templateModern(doc, profile, settings) {
-  const sym = CURRENCIES[doc.currency] || doc.currency + " ";
-  const isInvoice = doc.document_type === "invoice";
-  const typeLabel = isInvoice ? "Invoice" : "Estimate";
+function templateSimple(doc, profile, c) {
+  const sym = symbolFor(doc.currency);
+  const banded = c.header_style === "band";
 
-  return `<!DOCTYPE html><html><head><meta charset="utf-8">
-<title>${typeLabel} ${doc.document_number || ""}</title>
-<style>
-  ${headStyles()}
-  body { max-width:800px; margin:0 auto; }
-  @media print { body { margin:0; } }
-  .accent-bar { height:10px; background:linear-gradient(90deg,#4f46e5,#818cf8,#c084fc); }
-  .main { padding:44px 48px; position:relative; }
-  @media print { .main { padding:24px; } }
-  .header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:36px; }
-  .from { font-size:12px; color:#64748b; line-height:1.7; }
-  .biz-name { font-size:19px; font-weight:800; color:#0f172a; margin-bottom:6px; letter-spacing:-0.3px; }
-  .right-block { text-align:right; }
-  .doc-badge { display:inline-block; background:linear-gradient(135deg,#4f46e5,#7c3aed); color:#fff; font-size:12px; font-weight:700;
-    text-transform:uppercase; letter-spacing:.1em; padding:6px 16px; border-radius:20px; }
-  .doc-number { color:#64748b; font-size:13px; margin-top:8px; }
-  .meta { font-size:12px; color:#64748b; margin-top:8px; line-height:1.8; }
-  .meta strong { color:#1e293b; }
-  .section-label { font-size:10px; text-transform:uppercase; letter-spacing:.07em;
-    color:#818cf8; font-weight:600; margin-bottom:4px; }
-  .bill-section { background:#f5f3ff; border-radius:10px; padding:16px 20px; margin:20px 0; }
-  .bill-name { font-size:15px; font-weight:600; color:#1e293b; }
-  .bill-detail { font-size:12px; color:#64748b; margin-top:3px; }
-  .footer-row { display:flex; justify-content:flex-end; margin-top:8px; }
-  .notes { margin-top:24px; padding:14px 16px; background:#f8fafc; border-radius:8px;
-    font-size:12px; color:#64748b; line-height:1.6; border-left:3px solid #818cf8; }
-  .notes strong { color:#1e293b; }
-</style></head><body>
-
-<div class="accent-bar"></div>
-<div class="main">
-  ${paidStamp(doc)}
-  <div class="header">
-    <div>
-      ${logoTag(profile?.logo, 52)}
-      <div class="biz-name" style="margin-top:${profile?.logo ? "12px" : "0"}">${profile?.business_name || ""}</div>
-      <div class="from">
-        ${profile?.address_line_1 ? profile.address_line_1 + "<br>" : ""}
-        ${profile?.city ? profile.city + (profile?.postcode ? " " + profile.postcode : "") + "<br>" : ""}
-        ${profile?.email || ""}
-      </div>
-    </div>
-    <div class="right-block">
-      <div class="doc-badge">${typeLabel}</div>
-      <div class="doc-number">${doc.document_number || ""}</div>
-      <div class="meta">
-        <strong>Date:</strong> ${fmtDate(doc.created_at || new Date().toISOString())}<br>
-        ${isInvoice && doc.due_date ? `<strong>Due:</strong> ${fmtDate(doc.due_date)}<br>` : ""}
-        ${!isInvoice && doc.valid_until ? `<strong>Valid Until:</strong> ${fmtDate(doc.valid_until)}<br>` : ""}
-        ${doc.currency ? `<strong>Currency:</strong> ${doc.currency}` : ""}
-      </div>
-    </div>
-  </div>
-
-  <div class="bill-section">
-    <div class="section-label">Billed To</div>
-    <div class="bill-name">${doc.client_name || doc.title || ""}</div>
-    ${doc.client_email ? `<div class="bill-detail">${doc.client_email}</div>` : ""}
-  </div>
-
-  ${lineItemsTable(doc.line_items, sym, "modern")}
-
-  <div class="footer-row">${totalsBlock(doc, sym, "#4f46e5")}</div>
-
-  ${paymentBlock(profile)}
-
-  ${doc.notes ? `<div class="notes"><strong>Notes</strong><br>${doc.notes}</div>` : ""}
-
-  ${thankYouFooter("#4f46e5", profile)}
-</div>
-</body></html>`;
+  return page({
+    title: `${typeLabelOf(doc)} ${doc.document_number || ""}`,
+    custom: c,
+    body: `${banded ? renderHeader({ style: "band", doc, profile, custom: c }) : ""}
+<div class="sheet"${banded ? ' style="padding-top:28px;"' : ""}>
+  ${banded ? "" : renderHeader({ style: c.header_style, doc, profile, custom: c })}
+  <div style="margin-top:var(--gap);">${partiesRow(doc)}</div>
+  <div style="margin-top:var(--gap);">${itemsTable(doc.line_items, sym, c.items_style)}</div>
+  ${totalsBlock(doc, sym, c.totals_style)}
+  ${paymentBlock(profile, "columns")}
+  ${notesBlock(doc)}
+  ${signOff(profile, c.footer_text, { centred: c.header_style === "centered" })}
+</div>`,
+  });
 }
 
 // ──────────────────────────────────────────────────────────────────────
-//  TEMPLATE 3 — BOLD (dark header)
+//  TEMPLATE 2 — ATELIER
+//  The high-end one. Wide margins, editorial line items, the amount set in
+//  a full-width band. Accent appears exactly twice.
 // ──────────────────────────────────────────────────────────────────────
-function templateBold(doc, profile, settings) {
-  const sym = CURRENCIES[doc.currency] || doc.currency + " ";
+function templateAtelier(doc, profile, c) {
+  const sym = symbolFor(doc.currency);
   const isInvoice = doc.document_type === "invoice";
-  const typeLabel = isInvoice ? "INVOICE" : "ESTIMATE";
+  const centred = c.header_style === "centered";
+  const banded = c.header_style === "band";
 
-  return `<!DOCTYPE html><html><head><meta charset="utf-8">
-<title>${typeLabel} ${doc.document_number || ""}</title>
-<style>
-  ${headStyles()}
-  body { max-width:800px; margin:0 auto; position:relative; }
-  @media print { body { margin:0; } }
-  .header { background:linear-gradient(120deg,#0f172a 0%,#1e1b4b 60%,#312e81 100%); padding:40px 48px; display:flex; justify-content:space-between; align-items:center; }
-  @media print { .header { padding:24px; } }
-  .biz { color:#fff; }
-  .biz-name { font-size:21px; font-weight:800; margin-bottom:4px; letter-spacing:-0.3px; }
-  .biz-detail { font-size:11px; color:#94a3b8; line-height:1.7; }
-  .doc-meta { text-align:right; }
-  .doc-type { font-size:34px; font-weight:900; letter-spacing:-1.5px; color:#fff; }
-  .doc-number { font-size:13px; color:#94a3b8; margin-top:4px; }
-  .doc-dates { font-size:11px; color:#94a3b8; margin-top:8px; line-height:1.8; }
-  .doc-dates strong { color:#e2e8f0; }
-  .body { padding:40px 48px; }
-  @media print { .body { padding:24px; } }
-  .bill-row { display:flex; gap:40px; margin-bottom:32px; }
-  .bill-box { flex:1; }
-  .bill-label { font-size:10px; text-transform:uppercase; letter-spacing:.07em; color:#94a3b8; margin-bottom:4px; }
-  .bill-name { font-size:15px; font-weight:600; color:#0f172a; }
-  .bill-email { font-size:12px; color:#64748b; }
-  .footer-row { display:flex; justify-content:flex-end; margin-top:8px; }
-  .notes { margin-top:24px; padding:14px 16px; border-left:4px solid #0f172a;
-    font-size:12px; color:#64748b; line-height:1.6; background:#f8fafc; }
-  .notes strong { color:#0f172a; }
-</style></head><body>
+  const meta = (k, v) => v
+    ? `<div style="margin-left:38px;"><span class="lbl" style="margin-bottom:4px;">${k}</span>
+        <div style="font-size:var(--fs-body);color:var(--ink);">${v}</div></div>`
+    : "";
 
-${paidStamp(doc)}
-<div class="header">
-  <div class="biz">
-    ${profile?.logo ? `<img src="${profile.logo}" alt="logo" style="max-height:48px;max-width:160px;object-fit:contain;filter:brightness(0)invert(1);display:block;margin-bottom:10px;">` : ""}
-    <div class="biz-name">${profile?.business_name || ""}</div>
-    <div class="biz-detail">
-      ${profile?.address_line_1 ? profile.address_line_1 + "<br>" : ""}
-      ${profile?.city ? profile.city + (profile?.postcode ? " " + profile.postcode : "") + "<br>" : ""}
-      ${profile?.email ? profile.email + "<br>" : ""}
-      ${profile?.tax_id ? "Tax ID: " + profile.tax_id : ""}
-    </div>
-  </div>
-  <div class="doc-meta">
-    <div class="doc-type">${typeLabel}</div>
-    <div class="doc-number">${doc.document_number || ""}</div>
-    <div class="doc-dates">
-      <strong>Date:</strong> ${fmtDate(doc.created_at || new Date().toISOString())}<br>
-      ${isInvoice && doc.due_date ? `<strong>Due:</strong> ${fmtDate(doc.due_date)}` : ""}
-      ${!isInvoice && doc.valid_until ? `<strong>Valid Until:</strong> ${fmtDate(doc.valid_until)}` : ""}
-    </div>
-  </div>
-</div>
+  return page({
+    title: `${typeLabelOf(doc)} ${doc.document_number || ""}`,
+    custom: c,
+    css: `
+      .sheet{padding:${banded ? "36px 66px 56px" : "64px 66px 56px"};max-width:800px}
+      @media print{.sheet{padding:0}}
+    `,
+    body: `${banded ? renderHeader({ style: "band", doc, profile, custom: c, grand: true }) : ""}
+<div class="sheet">
+  ${banded ? "" : renderHeader({ style: c.header_style, doc, profile, custom: c, grand: centred })}
 
-<div class="body">
-  <div class="bill-row">
-    <div class="bill-box">
-      <div class="bill-label">Billed To</div>
-      <div class="bill-name">${doc.client_name || doc.title || ""}</div>
-      ${doc.client_email ? `<div class="bill-email">${doc.client_email}</div>` : ""}
+  <div class="keep" style="display:flex;justify-content:space-between;align-items:flex-start;
+    gap:24px;flex-wrap:wrap;padding:24px 0 30px;">
+    <div style="min-width:200px;">
+      <span class="lbl" style="margin-bottom:6px;">${isInvoice ? "Billed to" : "Prepared for"}</span>
+      <div class="lead" style="font-weight:400;">${esc(doc.client_name || doc.title || "")}</div>
+      ${doc.client_email ? `<div class="fine">${esc(doc.client_email)}</div>` : ""}
     </div>
-    <div class="bill-box">
-      <div class="bill-label">From</div>
-      <div class="bill-name">${profile?.contact_name || profile?.business_name || ""}</div>
-      ${profile?.email ? `<div class="bill-email">${profile.email}</div>` : ""}
+    <div style="display:flex;">
+      ${meta(isInvoice ? "Issued" : "Date", fmtDate(issueDateOf(doc)))}
+      ${isInvoice && doc.due_date ? meta("Due", fmtDate(doc.due_date)) : ""}
+      ${!isInvoice && doc.valid_until ? meta("Valid until", fmtDate(doc.valid_until)) : ""}
     </div>
   </div>
 
-  ${lineItemsTable(doc.line_items, sym, "bold")}
-
-  <div class="footer-row">${totalsBlock(doc, sym, "#4f46e5")}</div>
-
-  ${paymentBlock(profile)}
-
-  ${doc.notes ? `<div class="notes"><strong>Notes</strong><br>${doc.notes}</div>` : ""}
-
-  ${thankYouFooter("#4f46e5", profile)}
-</div>
-</body></html>`;
+  ${itemsTable(doc.line_items, sym, c.items_style)}
+  ${totalsBlock(doc, sym, c.totals_style)}
+  ${paymentBlock(profile, "columns")}
+  ${notesBlock(doc)}
+  ${signOff(profile, c.footer_text, { centred: true })}
+</div>`,
+  });
 }
 
 // ──────────────────────────────────────────────────────────────────────
-//  TEMPLATE 4 — MINIMAL
+//  TEMPLATE 3 — STATEMENT
+//  Filled line-item header and a wash payment panel, then air. Confident
+//  without the gradient-and-badge routine.
 // ──────────────────────────────────────────────────────────────────────
-function templateMinimal(doc, profile, settings) {
-  const sym = CURRENCIES[doc.currency] || doc.currency + " ";
-  const isInvoice = doc.document_type === "invoice";
-  const typeLabel = isInvoice ? "Invoice" : "Estimate";
+function templateStatement(doc, profile, c) {
+  const sym = symbolFor(doc.currency);
+  const banded = c.header_style === "band";
 
-  return `<!DOCTYPE html><html><head><meta charset="utf-8">
-<title>${typeLabel} ${doc.document_number || ""}</title>
-<style>
-  ${headStyles()}
-  body { font-family:Georgia,'Times New Roman',serif; color:#1e293b;
-    padding:56px 64px; max-width:800px; margin:0 auto; position:relative; }
-  @media print { body { padding:32px; } }
-  .header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:48px; }
-  .biz-name { font-size:24px; font-weight:700; letter-spacing:-0.5px; color:#0f172a; margin-bottom:6px; }
-  .biz-detail { font-size:12px; color:#64748b; line-height:1.8; font-family:'Helvetica Neue',sans-serif; }
-  .doc-right { text-align:right; font-family:'Helvetica Neue',sans-serif; }
-  .doc-type { font-size:13px; text-transform:uppercase; letter-spacing:.12em; color:#94a3b8; margin-bottom:4px; }
-  .doc-number { font-size:24px; font-weight:300; color:#0f172a; }
-  .meta { font-size:12px; color:#64748b; margin-top:8px; line-height:1.8; }
-  .meta strong { color:#0f172a; }
-  .rule { border:none; border-top:1px solid #1e293b; margin:32px 0; }
-  .rule-light { border:none; border-top:1px solid #e2e8f0; margin:24px 0; }
-  .bill-label { font-size:10px; text-transform:uppercase; letter-spacing:.1em;
-    color:#94a3b8; margin-bottom:6px; font-family:'Helvetica Neue',sans-serif; }
-  .bill-name { font-size:15px; color:#0f172a; }
-  .bill-email { font-size:12px; color:#64748b; font-family:'Helvetica Neue',sans-serif; }
-  .totals { margin-top:32px; }
-  .notes { margin-top:32px; font-size:12px; color:#64748b; font-family:'Helvetica Neue',sans-serif; line-height:1.7; }
-  .notes strong { color:#0f172a; }
-</style></head><body>
+  return page({
+    title: `${typeLabelOf(doc)} ${doc.document_number || ""}`,
+    custom: c,
+    body: `${banded ? renderHeader({ style: "band", doc, profile, custom: c }) : ""}
+<div class="sheet"${banded ? ' style="padding-top:28px;"' : ""}>
+  ${banded ? "" : renderHeader({ style: c.header_style, doc, profile, custom: c })}
 
-${paidStamp(doc)}
-<div class="header">
-  <div>
-    ${logoTag(profile?.logo, 48)}
-    <div class="biz-name" style="margin-top:${profile?.logo ? "14px" : "0"}">${profile?.business_name || ""}</div>
-    <div class="biz-detail">
-      ${profile?.address_line_1 ? profile.address_line_1 + "<br>" : ""}
-      ${profile?.city ? profile.city + (profile?.postcode ? ", " + profile.postcode : "") + "<br>" : ""}
-      ${profile?.email || ""}
-    </div>
-  </div>
-  <div class="doc-right">
-    <div class="doc-type">${typeLabel}</div>
-    <div class="doc-number">${doc.document_number || ""}</div>
-    <div class="meta">
-      <strong>Date</strong><br>${fmtDate(doc.created_at || new Date().toISOString())}<br>
-      ${isInvoice && doc.due_date ? `<strong>Due</strong><br>${fmtDate(doc.due_date)}` : ""}
-    </div>
-  </div>
-</div>
+  <div style="margin-top:var(--gap);">${partiesRow(doc, {
+    showFrom: profile?.contact_name ? { name: profile.contact_name, email: profile?.email } : null,
+  })}</div>
 
-<hr class="rule">
+  ${doc.status === "paid" && c.header_style !== "minimal" ? `<div style="margin-top:20px;">${paidMark(doc)}</div>` : ""}
 
-<div class="bill-label">Billed To</div>
-<div class="bill-name">${doc.client_name || doc.title || ""}</div>
-${doc.client_email ? `<div class="bill-email">${doc.client_email}</div>` : ""}
-
-${lineItemsTable(doc.line_items, sym, "minimal")}
-
-<div class="totals" style="display:flex;justify-content:flex-end;">${totalsBlock(doc, sym, "#0f172a")}</div>
-
-<hr class="rule-light">
-
-${paymentBlock(profile)}
-
-${doc.notes ? `<div class="notes"><strong>Notes</strong><br>${doc.notes}</div>` : ""}
-
-${thankYouFooter("#0f172a", profile)}
-
-</body></html>`;
+  <div style="margin-top:var(--gap);">${itemsTable(doc.line_items, sym, c.items_style)}</div>
+  ${totalsBlock(doc, sym, c.totals_style)}
+  ${paymentBlock(profile, "panel")}
+  ${notesBlock(doc)}
+  ${signOff(profile, c.footer_text, { centred: c.header_style === "centered" })}
+</div>`,
+  });
 }
 
 // ──────────────────────────────────────────────────────────────────────
-//  TEMPLATE 5 — STUDIO (music-themed, purple gradient)
+//  TEMPLATE 4 — COLUMN
+//  Everything contextual lives in a left rail; the right column is only the
+//  work and the money.
+//
+//  Note: the rail background covers its own flex cell, so on an invoice that
+//  runs past one page the tint stops at the page break. Line-item counts that
+//  long are rare here and the break still reads cleanly.
 // ──────────────────────────────────────────────────────────────────────
-function templateStudio(doc, profile, settings) {
-  const sym = CURRENCIES[doc.currency] || doc.currency + " ";
+function templateColumn(doc, profile, c) {
+  const sym = symbolFor(doc.currency);
   const isInvoice = doc.document_type === "invoice";
-  const typeLabel = isInvoice ? "Invoice" : "Estimate";
+  const label = typeLabelOf(doc);
 
-  return `<!DOCTYPE html><html><head><meta charset="utf-8">
-<title>${typeLabel} ${doc.document_number || ""}</title>
-<style>
-  ${headStyles()}
-  body { max-width:800px; margin:0 auto; position:relative; }
-  @media print { body { margin:0; } }
-  .header {
-    background:linear-gradient(135deg,#1e1b4b 0%,#4c1d95 55%,#7c3aed 100%);
-    padding:44px 48px; position:relative; overflow:hidden;
-  }
-  @media print { .header { padding:24px; } }
-  .header::before {
-    content:"𝅘𝅥𝅮";
-    position:absolute; right:40px; top:50%; transform:translateY(-50%);
-    font-size:120px; opacity:0.06; color:#fff; line-height:1;
-  }
-  .header-inner { display:flex; justify-content:space-between; align-items:flex-start; position:relative; }
-  .biz-name { font-size:20px; font-weight:700; color:#fff; margin-bottom:4px; }
-  .biz-detail { font-size:11px; color:#c4b5fd; line-height:1.7; }
-  .doc-right { text-align:right; }
-  .doc-type { font-size:11px; text-transform:uppercase; letter-spacing:.1em; color:#c4b5fd; }
-  .doc-number { font-size:26px; font-weight:800; color:#fff; margin-top:2px; }
-  .doc-dates { font-size:11px; color:#c4b5fd; margin-top:6px; line-height:1.8; }
-  .doc-dates strong { color:#e9d5ff; }
-  .body { padding:40px 48px; }
-  @media print { .body { padding:24px; } }
-  .bill-bar { display:flex; gap:48px; background:#faf5ff; border-radius:12px;
-    padding:18px 24px; margin-bottom:28px; border-left:4px solid #7c3aed; }
-  .bill-label { font-size:10px; text-transform:uppercase; letter-spacing:.08em;
-    color:#7c3aed; margin-bottom:4px; }
-  .bill-name { font-size:14px; font-weight:600; color:#1e293b; }
-  .bill-detail { font-size:12px; color:#64748b; }
-  .footer-row { display:flex; justify-content:flex-end; }
-  .notes { margin-top:24px; padding:14px 18px; background:#faf5ff; border-radius:10px;
-    font-size:12px; color:#64748b; line-height:1.6; }
-  .notes strong { color:#1e293b; }
-</style></head><body>
+  const railItem = (k, v, sub = "") => v
+    ? `<div style="margin-top:22px;"><span class="lbl" style="margin-bottom:5px;">${k}</span>
+        <div style="font-size:var(--fs-body);color:var(--ink);line-height:1.5;">${v}</div>
+        ${sub ? `<div class="fine">${sub}</div>` : ""}</div>`
+    : "";
 
-${paidStamp(doc)}
-<div class="header">
-  <div class="header-inner">
-    <div>
-      ${profile?.logo ? `<img src="${profile.logo}" alt="logo" style="max-height:48px;max-width:160px;object-fit:contain;filter:brightness(0)invert(1);display:block;margin-bottom:10px;">` : ""}
-      <div class="biz-name">${profile?.business_name || ""}</div>
-      <div class="biz-detail">
-        ${profile?.address_line_1 ? profile.address_line_1 + "<br>" : ""}
-        ${profile?.city ? profile.city + (profile?.postcode ? " " + profile.postcode : "") + "<br>" : ""}
-        ${profile?.email || ""}
-      </div>
-    </div>
-    <div class="doc-right">
-      <div class="doc-type">${typeLabel}</div>
-      <div class="doc-number">${doc.document_number || ""}</div>
-      <div class="doc-dates">
-        <strong>Date:</strong> ${fmtDate(doc.created_at || new Date().toISOString())}<br>
-        ${isInvoice && doc.due_date ? `<strong>Due:</strong> ${fmtDate(doc.due_date)}` : ""}
-        ${!isInvoice && doc.valid_until ? `<strong>Valid:</strong> ${fmtDate(doc.valid_until)}` : ""}
-      </div>
-    </div>
-  </div>
-</div>
-
-<div class="body">
-  <div class="bill-bar">
-    <div>
-      <div class="bill-label">Billed To</div>
-      <div class="bill-name">${doc.client_name || doc.title || ""}</div>
-      ${doc.client_email ? `<div class="bill-detail">${doc.client_email}</div>` : ""}
-    </div>
-    ${profile?.business_name ? `<div>
-      <div class="bill-label">From</div>
-      <div class="bill-name">${profile?.contact_name || profile?.business_name || ""}</div>
-      ${profile?.email ? `<div class="bill-detail">${profile.email}</div>` : ""}
-    </div>` : ""}
-  </div>
-
-  ${lineItemsTable(doc.line_items, sym, "studio")}
-
-  <div class="footer-row" style="margin-top:16px;">${totalsBlock(doc, sym, "#7c3aed")}</div>
-
-  ${paymentBlock(profile)}
-
-  ${doc.notes ? `<div class="notes"><strong>Notes</strong><br>${doc.notes}</div>` : ""}
-
-  ${thankYouFooter("#7c3aed", profile)}
-</div>
-</body></html>`;
-}
-
-// ──────────────────────────────────────────────────────────────────────
-//  TEMPLATE 6 — PERSONAL (user/AI-customisable within fixed rails)
-// ──────────────────────────────────────────────────────────────────────
-function templatePersonal(doc, profile, settings) {
-  const sym = CURRENCIES[doc.currency] || doc.currency + " ";
-  const c = sanitizeCustom(settings?.invoice_custom);
-  const isInvoice = doc.document_type === "invoice";
-  const typeLabel = isInvoice ? "Invoice" : "Estimate";
-  const accent = c.accent_color;
-  const headFont = c.font === "serif" ? "Georgia,'Times New Roman',serif" : "'Inter','Helvetica Neue',Arial,sans-serif";
-  const showLogo = c.show_logo && !!profile?.logo;
-
-  const fromLines = `
-    ${profile?.address_line_1 ? profile.address_line_1 + "<br>" : ""}
-    ${profile?.city ? profile.city + (profile?.postcode ? " " + profile.postcode : "") + "<br>" : ""}
-    ${profile?.email || ""}`;
-
-  // Header — three presets, identity only (dates live in the bill row)
-  let header;
+  // The rail already carries the identity, so the header treatments apply to
+  // the main column only.
+  let head;
   if (c.header_style === "band") {
-    header = `
-    <div style="background:linear-gradient(120deg, ${accent}, color-mix(in srgb, ${accent} 55%, #000));
-      padding:40px 48px;display:flex;justify-content:space-between;align-items:center;gap:24px;">
-      <div style="color:#fff;">
-        ${showLogo ? `<img src="${profile.logo}" alt="logo" style="max-height:46px;max-width:160px;object-fit:contain;filter:brightness(0) invert(1);display:block;margin-bottom:10px;">` : ""}
-        <div style="font-family:${headFont};font-size:21px;font-weight:800;letter-spacing:-0.3px;">${profile?.business_name || ""}</div>
-        <div style="font-size:11px;color:rgba(255,255,255,0.82);line-height:1.7;margin-top:4px;">${fromLines}</div>
-      </div>
-      <div style="text-align:right;color:#fff;">
-        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.12em;opacity:0.85;">${typeLabel}</div>
-        <div style="font-size:26px;font-weight:800;letter-spacing:-0.5px;">${doc.document_number || ""}</div>
-      </div>
+    head = `<div class="keep" style="background:var(--accent);color:#fff;padding:20px 22px;
+      display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin-bottom:24px;">
+      <span class="lbl" style="color:rgba(255,255,255,.72);">${label}</span>
+      <div class="num" style="font-size:var(--fs-lead);font-weight:700;">${esc(doc.document_number || "")}</div>
     </div>`;
   } else if (c.header_style === "centered") {
-    header = `
-    <div style="padding:48px 48px 0;text-align:center;">
-      ${showLogo ? `<img src="${profile.logo}" alt="logo" style="max-height:50px;max-width:200px;object-fit:contain;margin:0 auto 12px;display:block;">` : ""}
-      <div style="font-family:${headFont};font-size:24px;font-weight:800;letter-spacing:-0.4px;color:#0f172a;">${profile?.business_name || ""}</div>
-      <div style="font-size:12px;text-transform:uppercase;letter-spacing:.14em;color:${accent};font-weight:600;margin-top:6px;">${typeLabel} · ${doc.document_number || ""}</div>
-      <div style="font-size:11px;color:#64748b;line-height:1.7;margin-top:8px;">${fromLines}</div>
-      <div style="height:3px;width:64px;margin:22px auto 0;background:${accent};border-radius:2px;"></div>
+    head = `<div class="keep" style="text-align:center;padding-bottom:16px;border-bottom:1px solid var(--hair);">
+      <span class="lbl" style="margin-bottom:6px;">${label}</span>
+      <div class="hero num" style="color:var(--accent);">${esc(doc.document_number || "")}</div>
+      <div style="width:44px;height:2px;background:var(--accent);margin:14px auto 0;"></div>
+      ${doc.status === "paid" ? `<div style="margin-top:14px;">${paidMark(doc)}</div>` : ""}
     </div>`;
-  } else { // minimal
-    header = `
-    <div style="padding:48px 48px 0;display:flex;justify-content:space-between;align-items:flex-start;gap:24px;">
+  } else {
+    head = `<div class="keep" style="display:flex;justify-content:space-between;align-items:flex-end;gap:20px;
+      padding-bottom:16px;border-bottom:1px solid var(--hair);">
       <div>
-        ${showLogo ? `<img src="${profile.logo}" alt="logo" style="max-height:46px;max-width:170px;object-fit:contain;display:block;margin-bottom:10px;">` : ""}
-        <div style="font-family:${headFont};font-size:22px;font-weight:800;letter-spacing:-0.4px;color:#0f172a;">${profile?.business_name || ""}</div>
-        <div style="font-size:11px;color:#64748b;line-height:1.7;margin-top:4px;">${fromLines}</div>
+        <span class="lbl" style="margin-bottom:5px;">${label}</span>
+        <div class="hero num" style="color:var(--accent);">${esc(doc.document_number || "")}</div>
       </div>
-      <div style="text-align:right;">
-        <div style="font-size:12px;text-transform:uppercase;letter-spacing:.12em;color:${accent};font-weight:600;">${typeLabel}</div>
-        <div style="font-size:20px;font-weight:700;color:#0f172a;margin-top:2px;">${doc.document_number || ""}</div>
-      </div>
-    </div>
-    <div style="margin:22px 48px 0;height:3px;background:${accent};border-radius:2px;"></div>`;
+      ${paidMark(doc)}
+    </div>`;
   }
 
-  const lbl = `font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:#94a3b8;`;
-  const billRow = `
-    <div style="display:flex;justify-content:space-between;gap:32px;margin-bottom:28px;flex-wrap:wrap;">
-      <div>
-        <div style="${lbl}">Billed To</div>
-        <div style="font-size:15px;font-weight:600;color:#0f172a;margin-top:4px;">${doc.client_name || doc.title || ""}</div>
-        ${doc.client_email ? `<div style="font-size:12px;color:#64748b;margin-top:2px;">${doc.client_email}</div>` : ""}
-      </div>
-      <div style="text-align:right;">
-        <div style="${lbl}">${isInvoice ? "Invoice Date" : "Date"}</div>
-        <div style="font-size:13px;color:#0f172a;margin-top:4px;">${fmtDate(doc.created_at || new Date().toISOString())}</div>
-        ${isInvoice && doc.due_date ? `<div style="${lbl}margin-top:8px;">Due</div><div style="font-size:13px;color:#0f172a;margin-top:4px;">${fmtDate(doc.due_date)}</div>` : ""}
-        ${!isInvoice && doc.valid_until ? `<div style="${lbl}margin-top:8px;">Valid Until</div><div style="font-size:13px;color:#0f172a;margin-top:4px;">${fmtDate(doc.valid_until)}</div>` : ""}
-      </div>
-    </div>`;
+  return page({
+    title: `${label} ${doc.document_number || ""}`,
+    custom: c,
+    css: `
+      .sheet{padding:0;max-width:860px}
+      /* min-height makes the rail run the full sheet on a one-page invoice
+         instead of stopping wherever its own content happens to end. */
+      .row{display:flex;align-items:stretch;min-height:1120px}
+      .rail{flex:0 0 228px;background:var(--wash);border-left:3px solid var(--accent);
+        padding:38px 24px 40px}
+      .main{flex:1;padding:38px 34px 44px;min-width:0}
+      @media print{
+        .sheet{padding:0}
+        .row{min-height:256mm}
+        .rail{flex-basis:200px;padding:0 20px 24px 20px}
+        .main{padding:0 0 0 30px}
+      }
+    `,
+    body: `<div class="sheet"><div class="row">
+  <aside class="rail">
+    ${c.show_logo ? logoTag(profile?.logo, 40) : ""}
+    <div class="lead" style="font-weight:700;margin-top:${c.show_logo && profile?.logo ? "12px" : "0"};">${esc(profile?.business_name || "")}</div>
+    <div class="fine" style="margin-top:5px;">${fromLines(profile)}</div>
+    ${profile?.tax_id ? `<div class="fine">Tax ID ${esc(profile.tax_id)}</div>` : ""}
 
-  return `<!DOCTYPE html><html><head><meta charset="utf-8">
-<title>${typeLabel} ${doc.document_number || ""}</title>
-<style>
-  ${headStyles()}
-  body { max-width:800px; margin:0 auto; position:relative; }
-  @media print { body { margin:0; } }
-  .content { padding:36px 48px 44px; }
-  @media print { .content { padding:28px 24px; } [style*="120deg"], .band { padding:24px !important; } }
-  .notes { margin-top:24px; padding:14px 18px; background:#f8fafc; border-radius:12px;
-    font-size:12px; color:#64748b; line-height:1.6; border-left:3px solid ${accent}; }
-  .notes strong { color:#1e293b; }
-</style></head><body>
+    ${railItem(isInvoice ? "Billed to" : "Prepared for", esc(doc.client_name || doc.title || ""), esc(doc.client_email || ""))}
+    ${railItem(isInvoice ? "Issued" : "Date", fmtDate(issueDateOf(doc)))}
+    ${isInvoice && doc.due_date ? railItem("Due", fmtDate(doc.due_date)) : ""}
+    ${!isInvoice && doc.valid_until ? railItem("Valid until", fmtDate(doc.valid_until)) : ""}
+    ${paymentBlock(profile, "stacked")}
+  </aside>
 
-${paidStamp(doc)}
-${header}
-<div class="content">
-  ${billRow}
-  ${lineItemsTable(doc.line_items, sym, "personal", accent)}
-  <div style="display:flex;justify-content:flex-end;">${totalsBlock(doc, sym, accent)}</div>
-  ${paymentBlock(profile)}
-  ${doc.notes ? `<div class="notes"><strong>Notes</strong><br>${doc.notes}</div>` : ""}
-  ${thankYouFooter(accent, profile, c.footer_text)}
-</div>
-</body></html>`;
+  <section class="main">
+    ${head}
+    <div style="margin-top:24px;">${itemsTable(doc.line_items, sym, c.items_style)}</div>
+    ${totalsBlock(doc, sym, c.totals_style)}
+    ${notesBlock(doc)}
+    ${signOff(profile, c.footer_text, { centred: c.header_style === "centered" })}
+  </section>
+</div></div>`,
+  });
+}
+
+// ──────────────────────────────────────────────────────────────────────
+//  TEMPLATE 6 — PERSONAL
+//  Same shared controls as the others, plus the body choices they keep fixed:
+//  line-item presentation, totals treatment, spacing and logo.
+// ──────────────────────────────────────────────────────────────────────
+function templatePersonal(doc, profile, c) {
+  const sym = symbolFor(doc.currency);
+  const banded = c.header_style === "band";
+
+  return page({
+    title: `${typeLabelOf(doc)} ${doc.document_number || ""}`,
+    custom: c,
+    body: `${banded ? renderHeader({ style: "band", doc, profile, custom: c }) : ""}
+<div class="sheet"${banded ? ' style="padding-top:28px;"' : ""}>
+  ${banded ? "" : renderHeader({ style: c.header_style, doc, profile, custom: c })}
+  <div style="margin-top:var(--gap);">${partiesRow(doc)}</div>
+  ${doc.status === "paid" && c.header_style !== "minimal" ? `<div style="margin-top:20px;">${paidMark(doc)}</div>` : ""}
+  <div style="margin-top:var(--gap);">${itemsTable(doc.line_items, sym, c.items_style)}</div>
+  ${totalsBlock(doc, sym, c.totals_style)}
+  ${paymentBlock(profile, "columns")}
+  ${notesBlock(doc)}
+  ${signOff(profile, c.footer_text, { centred: c.header_style === "centered" })}
+</div>`,
+  });
 }
 
 // ──────────────────────────────────────────────────────────────────────
 //  PUBLIC API
 // ──────────────────────────────────────────────────────────────────────
 export const TEMPLATE_DEFS = [
-  { id: 1, name: "Classic",  desc: "Clean and professional, with a gradient title" },
-  { id: 2, name: "Modern",   desc: "Vivid accent bar — fresh and contemporary" },
-  { id: 3, name: "Bold",     desc: "Deep gradient header — strong and striking" },
-  { id: 4, name: "Minimal",  desc: "Ultra-clean serif — quiet and refined" },
-  { id: 5, name: "Studio",   desc: "Purple gradient with a music motif — made for musicians" },
-  { id: 6, name: "Personal", desc: "Your own — set colour, header, font and footer (or ask the AI)" },
+  { id: 2, name: "Atelier",   desc: "Wide margins, editorial line items, one figure that matters." },
+  { id: 1, name: "Simple",    desc: "Plain columns on bare paper. Nothing to distract from the numbers." },
+  { id: 3, name: "Statement", desc: "Filled item header and a payment panel. Confident, not loud." },
+  { id: 4, name: "Column",    desc: "Details in a side rail, the work and the total on their own." },
+  { id: 6, name: "Personal",  desc: "Everything above, plus line items, totals and spacing." },
 ];
 
+/** New accounts start on Atelier — it is the one that shows the app off. */
+export const DEFAULT_TEMPLATE_ID = 2;
+
+// Retired ids and what they now resolve to. 5 was Studio (purple gradient +
+// music-note watermark); its closest successor is Atelier.
+const LEGACY_TEMPLATE_IDS = { 5: 2 };
+
 /**
- * @param {object} doc       – Document entity from localStorageEngine
- * @param {object} profile   – BusinessProfile entity
- * @param {object} settings  – AppSettings entity
- * @param {number} templateId – 1-5
+ * Maps a stored invoice_template value onto an id that still exists.
+ * Anything reading settings.invoice_template should go through this so the
+ * label shown in Settings and the document actually printed cannot diverge.
+ */
+export function resolveTemplateId(id) {
+  const n = Number(id);
+  if (TEMPLATE_DEFS.some(t => t.id === n)) return n;
+  return LEGACY_TEMPLATE_IDS[n] || DEFAULT_TEMPLATE_ID;
+}
+
+/**
+ * @param {object} doc        – Document entity
+ * @param {object} profile    – BusinessProfile entity
+ * @param {object} settings   – AppSettings entity
+ * @param {number} templateId – see TEMPLATE_DEFS
  * @returns {string} complete HTML
  */
-export function generateInvoiceHTML(doc, profile, settings, templateId = 1) {
-  const fns = { 1: templateClassic, 2: templateModern, 3: templateBold, 4: templateMinimal, 5: templateStudio, 6: templatePersonal };
-  const fn = fns[templateId] || templateClassic;
-  return fn(doc, profile, settings);
+export function generateInvoiceHTML(doc, profile, settings, templateId = DEFAULT_TEMPLATE_ID) {
+  const id = resolveTemplateId(templateId);
+  const custom = getTemplateCustom(settings, id);
+  const fns = {
+    1: templateSimple,
+    2: templateAtelier,
+    3: templateStatement,
+    4: templateColumn,
+    6: templatePersonal,
+  };
+  return fns[id](doc || {}, profile || {}, custom);
 }
 
 /**
@@ -771,7 +864,7 @@ export function generateInvoiceHTML(doc, profile, settings, templateId = 1) {
  * sheet appears on top, and dismissing it returns the user exactly where they
  * were.
  */
-export function printInvoice(doc, profile, settings, templateId = 1) {
+export function printInvoice(doc, profile, settings, templateId = DEFAULT_TEMPLATE_ID) {
   const html = generateInvoiceHTML(doc, profile, settings, templateId);
 
   const existing = document.getElementById("flowtone-print-frame");
@@ -785,11 +878,12 @@ export function printInvoice(doc, profile, settings, templateId = 1) {
   iframe.onload = () => {
     const win = iframe.contentWindow;
     if (!win) return;
-    // Small delay lets fonts settle before the print snapshot
+    // Small delay lets layout settle before the print snapshot. Type is a
+    // system stack, so there is no webfont to wait on.
     setTimeout(() => {
       win.onafterprint = () => setTimeout(() => iframe.remove(), 500);
       try { win.focus(); win.print(); } catch { /* ignore */ }
-    }, 300);
+    }, 200);
     // Safety net: never let the hidden frame linger if afterprint never fires
     setTimeout(() => {
       if (document.getElementById("flowtone-print-frame")) iframe.remove();
@@ -805,9 +899,9 @@ export function printInvoice(doc, profile, settings, templateId = 1) {
  * shared by the mailto link and the native Web Share sheet so both read the same.
  */
 export function buildInvoiceEmailParts(doc, profile, settings, recipientEmail) {
-  const sym = CURRENCIES[doc.currency] || doc.currency + " ";
+  const sym = symbolFor(doc.currency);
   const isInvoice = doc.document_type === "invoice";
-  const typeLabel = isInvoice ? "Invoice" : "Estimate";
+  const typeLabel = typeLabelOf(doc);
   const to = recipientEmail || doc.client_email || "";
   const subject = `${typeLabel} ${doc.document_number || ""} – ${doc.title || profile?.business_name || ""}`;
   const total = fmt(sym, doc.total || doc.subtotal);
