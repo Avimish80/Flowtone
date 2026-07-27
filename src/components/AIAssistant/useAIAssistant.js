@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { askAI } from "@/api/aiClient";
 import { appClient } from "@/api/appClient";
-import { sanitizeCustom } from "@/lib/invoiceTemplates";
+import { setTemplateCustom, resolveTemplateId, TEMPLATE_DEFS } from "@/lib/invoiceTemplates";
 import { getAssistantProfile } from "@/lib/assistantProfile";
 import { searchPlaces, getUserRegion } from "@/lib/geocode";
 import { notify } from "@/lib/appBadge";
@@ -416,18 +416,30 @@ async function executeAction(action) {
     }
 
     case "UPDATE_INVOICE_STYLE": {
-      // Restyle the Personal invoice template within fixed rails.
-      // sanitizeCustom() whitelists fields + clamps values, so the AI can
-      // only change accent/header/font/footer/logo — never the layout.
+      // Restyle whichever template the musician is actually using, within fixed
+      // rails. setTemplateCustom() runs the patch through sanitizeCustom(), so
+      // the AI can only change colour/header/font/footer/logo (plus the body
+      // choices on Personal) — never the document's structure.
+      //
+      // This used to force invoice_template: 6, which made asking for a colour
+      // silently switch templates. Every template is styleable now, so it
+      // applies in place and only switches if the AI names one explicitly.
       const all = await appClient.entities.AppSettings.list().catch(() => []);
       const current = all[0];
-      const merged = sanitizeCustom({ ...(current?.invoice_custom || {}), ...data });
+      const requested = Number(data?.template_id);
+      const targetId = resolveTemplateId(
+        TEMPLATE_DEFS.some(t => t.id === requested) ? requested : current?.invoice_template
+      );
+      const { template_id, ...styleFields } = data || {};
+      const merged = setTemplateCustom(current, targetId, styleFields);
+      const patch = { invoice_custom: merged, invoice_template: targetId };
       if (current?.id) {
-        await appClient.entities.AppSettings.update(current.id, { invoice_custom: merged, invoice_template: 6 });
+        await appClient.entities.AppSettings.update(current.id, patch);
       } else {
-        await appClient.entities.AppSettings.create({ invoice_custom: merged, invoice_template: 6 });
+        await appClient.entities.AppSettings.create(patch);
       }
-      return { success: true, type, label: "Updated your invoice style" };
+      const name = TEMPLATE_DEFS.find(t => t.id === targetId)?.name || "invoice";
+      return { success: true, type, label: `Restyled your ${name} invoice` };
     }
 
     case "NAVIGATE": {

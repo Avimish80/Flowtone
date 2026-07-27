@@ -237,15 +237,21 @@ RECORD_PAYMENT — log a payment against an invoice (updates paid amount, auto-m
   }
 }
 
-UPDATE_INVOICE_STYLE — restyle the musician's "Personal" invoice/estimate template. Use ONLY when they ask to change how their invoices LOOK (colour, header style, font, footer wording, logo). You can ONLY set these whitelisted fields — never invent others, and never change the document layout, sizing, line items, or totals. Include only the fields the user wants to change; omit the rest. Selecting this automatically switches them to the Personal template.
+UPDATE_INVOICE_STYLE — restyle the musician's invoice/estimate template. Use ONLY when they ask to change how their invoices LOOK (colour, header style, font, footer wording, logo). You can ONLY set these whitelisted fields — never invent others, and never change the document layout, sizing, line items, or totals. Include only the fields the user wants to change; omit the rest.
+
+By default this restyles the template they are ALREADY using and does not switch templates. Only set template_id when they explicitly ask for a different one. The templates are: 2 Atelier (wide margins, editorial line items — the high-end one, and the default), 1 Simple (plain columns on bare paper), 3 Statement (filled item header + payment panel), 4 Column (details in a side rail), 6 Personal (same controls plus items_style / totals_style / density).
 {
   "type": "UPDATE_INVOICE_STYLE",
   "data": {
+    "template_id": "2|1|3|4|6 (optional — ONLY when they ask to switch template. Omit to restyle the one they are on)",
     "accent_color": "hex (optional). This is a business document, so prefer deep, muted tones over bright ones — the house set is Ink #14171c, Oxford #1c3a5e, Forest #1e4436, Claret #6d2434, Bronze #8a6a3c, Slate #4a5462. Map a requested colour to the nearest of those (green -> #1e4436, blue/navy -> #1c3a5e, red -> #6d2434, gold/tan -> #8a6a3c, grey -> #4a5462, black -> #14171c). Only pick a hex outside that set if the user names a specific shade or gives an exact hex, and even then darken it to document weight rather than using a vivid tone.",
     "header_style": "band|minimal|centered (optional — 'band' = solid colour block header, 'minimal' = name + thin accent line, 'centered' = centred logo/name)",
-    "font": "sans|serif (optional)",
+    "font": "sans|grotesk|geometric|serif|mono (optional — 'sans' = system sans, 'grotesk' = Helvetica, 'geometric' = Avenir, 'serif' = Hoefler, 'mono' = monospaced. Map requests sensibly: modern/clean -> sans, corporate/neutral -> grotesk, elegant/premium -> geometric, classic/traditional/editorial -> serif, technical/typewriter -> mono)",
     "footer_text": "string (optional — the thank-you line at the bottom, e.g. 'Thank you for the music. — Avi'. Keep it short)",
-    "show_logo": "boolean (optional — whether to show their logo)"
+    "show_logo": "boolean (optional — whether to show their logo)",
+    "items_style": "table|editorial|slim|tinted (optional — PERSONAL TEMPLATE ONLY, ignored on the others)",
+    "totals_style": "stack|band (optional — PERSONAL TEMPLATE ONLY)",
+    "density": "relaxed|compact (optional — PERSONAL TEMPLATE ONLY)"
   }
 }
 

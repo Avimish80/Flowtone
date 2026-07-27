@@ -10,7 +10,13 @@ import { useTheme, ACCENT_THEMES } from "@/lib/ThemeContext";
 import { formatDistanceToNow } from "date-fns";
 import { getAssistantProfile, DEFAULT_ASSISTANT_NAME, DEFAULT_LANGUAGE } from "@/lib/assistantProfile";
 import { LANGUAGE_OPTIONS } from "@/components/onboarding/onboardingScript";
-import { TEMPLATE_DEFS, generateInvoiceHTML, resolveTemplateId, sanitizeCustom, DEFAULT_CUSTOM, ACCENT_PRESETS, ACCENT_LABELS, HEADER_STYLES, FONT_CHOICES } from "@/lib/invoiceTemplates";
+import {
+  TEMPLATE_DEFS, DEFAULT_TEMPLATE_ID, generateInvoiceHTML, resolveTemplateId,
+  getTemplateCustom, setTemplateCustom, DEFAULT_FOOTER_TEXT,
+  ACCENT_PRESETS, ACCENT_LABELS, HEADER_STYLES, HEADER_LABELS,
+  FONT_CHOICES, FONT_LABELS, FONT_STACKS,
+  ITEMS_STYLES, ITEMS_LABELS, TOTALS_STYLES, TOTALS_LABELS, DENSITIES, DENSITY_LABELS,
+} from "@/lib/invoiceTemplates";
 import TemplateThumb from "@/components/invoice/TemplateThumb";
 import { registerPush, unregisterPush, isPushActive, schedulePushNotifications, sendTestPush } from "@/lib/pushManager";
 import { DEFAULT_PREFS } from "@/lib/notificationPrefs";
@@ -84,7 +90,7 @@ export default function AppSettings() {
       appClient.entities.BusinessProfile.list(),
     ]).then(([settingsData, profileData]) => {
       const s = settingsData[0] || {
-        invoice_template: 1,
+        invoice_template: DEFAULT_TEMPLATE_ID,
         default_currency: "GBP",
         default_nav_app: "google_maps",
         gmail_connected: false,
@@ -602,95 +608,115 @@ export default function AppSettings() {
 
               <div className="border-t border-gray-700 pt-4">
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Invoice Template</p>
-                <div className="flex gap-2.5">
-                  {TEMPLATE_DEFS.map(t => {
-                    const isActive = resolveTemplateId(settings.invoice_template) === t.id;
-                    const thumbAccent = t.id === 6
-                      ? sanitizeCustom(settings.invoice_custom).accent_color
-                      : { 1: "#14171c", 2: "#14171c", 3: "#1c3a5e", 4: "#1e4436" }[t.id];
-                    return (
-                      <button
-                        key={t.id}
-                        onClick={() => onChange("invoice_template", t.id)}
-                        className={`rounded-[3px] transition-all ${isActive ? "ring-2 ring-indigo-500 ring-offset-2 ring-offset-gray-800" : "opacity-55 hover:opacity-100"}`}
-                        aria-label={t.name}
-                        aria-pressed={isActive}
-                      >
-                        <TemplateThumb id={t.id} accent={thumbAccent} />
-                      </button>
-                    );
-                  })}
-                </div>
                 {(() => {
                   const activeId = resolveTemplateId(settings.invoice_template);
                   const active = TEMPLATE_DEFS.find(t => t.id === activeId) || TEMPLATE_DEFS[0];
-                  return (
-                    <div className="flex items-center justify-between gap-3 mt-3">
-                      <div className="min-w-0">
-                        <p className="text-sm text-white">{active.name}</p>
-                        <p className="text-xs text-gray-500 leading-snug">{active.desc}</p>
+                  // Every template is customisable, and each remembers its own look —
+                  // tuning Atelier must not disturb Statement.
+                  const custom = getTemplateCustom(settings, activeId);
+                  const setCustom = (patch) => onChange("invoice_custom", setTemplateCustom(settings, activeId, patch));
+                  const segBtn = (on) => `min-w-0 text-[11px] py-1.5 px-1 rounded-md transition-colors truncate ${on ? "bg-indigo-600 text-white" : "bg-gray-900 text-gray-400 hover:text-gray-200"}`;
+                  // cols wraps a set onto a grid — five font names do not fit one
+                  // row at 360px and get truncated to "Geom…". Class strings are
+                  // literal because Tailwind cannot see interpolated names.
+                  const GRID_COLS = { 2: "grid grid-cols-2", 3: "grid grid-cols-3", 4: "grid grid-cols-4" };
+                  const seg = (label, values, labels, key, { cols, styleFor } = {}) => (
+                    <div>
+                      <label className={labelCls}>{label}</label>
+                      <div className={`gap-1.5 bg-gray-900 p-1 rounded-lg ${cols ? GRID_COLS[cols] : "flex"}`}>
+                        {values.map(v => (
+                          <button key={v} onClick={() => setCustom({ [key]: v })}
+                            className={`${segBtn(custom[key] === v)} ${cols ? "" : "flex-1"}`}
+                            style={styleFor ? styleFor(v) : undefined}>
+                            {labels[v]}
+                          </button>
+                        ))}
                       </div>
-                      <button onClick={() => openTemplatePreview(active.id)} className="text-gray-500 hover:text-gray-300 text-xs flex-shrink-0 transition-colors">
-                        Preview
-                      </button>
                     </div>
                   );
-                })()}
-
-                {resolveTemplateId(settings.invoice_template) === 6 && (() => {
-                  const custom = sanitizeCustom(settings.invoice_custom);
-                  const setCustom = (patch) => onChange("invoice_custom", { ...custom, ...patch });
-                  const HEADER_LABELS = { band: "Colour block", minimal: "Hairline", centered: "Centred" };
-                  const FONT_LABELS = { sans: "Sans", serif: "Serif" };
-                  const segBtn = (active) => `flex-1 text-xs py-1.5 rounded-md transition-colors ${active ? "bg-indigo-600 text-white" : "bg-gray-900 text-gray-400 hover:text-gray-200"}`;
                   return (
-                    <div className="mt-4 pt-4 border-t border-gray-700/60 space-y-4">
-                      <p className="text-[11px] text-gray-500 leading-snug">
-                        Make it yours — or just ask the assistant: <span className="text-gray-400">"make my invoice header teal and centred."</span>
-                      </p>
-                      <div>
-                        <label className={labelCls}>
-                          Accent colour
-                          <span className="text-gray-600 normal-case tracking-normal"> · {ACCENT_LABELS[custom.accent_color] || "Custom"}</span>
-                        </label>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          {ACCENT_PRESETS.map(hex => (
-                            <button key={hex} onClick={() => setCustom({ accent_color: hex })}
-                              aria-label={ACCENT_LABELS[hex] || hex} title={ACCENT_LABELS[hex] || hex}
-                              className={`w-7 h-7 rounded-full transition-transform ${custom.accent_color === hex ? "ring-2 ring-offset-2 ring-offset-gray-800 ring-white scale-110" : "hover:scale-105"}`}
-                              style={{ backgroundColor: hex }} />
-                          ))}
-                          <label className="w-7 h-7 rounded-full border border-gray-600 grid place-items-center cursor-pointer relative overflow-hidden" title="Custom colour">
-                            <input type="color" value={custom.accent_color} onChange={e => setCustom({ accent_color: e.target.value })} className="absolute inset-0 opacity-0 cursor-pointer" />
-                            <span className="text-[10px] text-gray-400">+</span>
-                          </label>
+                    <>
+                      <div className="flex gap-2.5">
+                        {TEMPLATE_DEFS.map(t => (
+                          <button
+                            key={t.id}
+                            onClick={() => onChange("invoice_template", t.id)}
+                            className={`rounded-[3px] transition-all ${activeId === t.id ? "ring-2 ring-indigo-500 ring-offset-2 ring-offset-gray-800" : "opacity-55 hover:opacity-100"}`}
+                            aria-label={t.name}
+                            aria-pressed={activeId === t.id}
+                          >
+                            <TemplateThumb id={t.id} accent={getTemplateCustom(settings, t.id).accent_color} />
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="flex items-center justify-between gap-3 mt-3">
+                        <div className="min-w-0">
+                          <p className="text-sm text-white">{active.name}</p>
+                          <p className="text-xs text-gray-500 leading-snug">{active.desc}</p>
                         </div>
-                      </div>
-                      <div>
-                        <label className={labelCls}>Header style</label>
-                        <div className="flex gap-1.5 bg-gray-900 p-1 rounded-lg">
-                          {HEADER_STYLES.map(h => <button key={h} onClick={() => setCustom({ header_style: h })} className={segBtn(custom.header_style === h)}>{HEADER_LABELS[h]}</button>)}
-                        </div>
-                      </div>
-                      <div>
-                        <label className={labelCls}>Body font</label>
-                        <div className="flex gap-1.5 bg-gray-900 p-1 rounded-lg">
-                          {FONT_CHOICES.map(f => <button key={f} onClick={() => setCustom({ font: f })} className={segBtn(custom.font === f)}>{FONT_LABELS[f]}</button>)}
-                        </div>
-                      </div>
-                      <div>
-                        <label className={labelCls}>Footer line</label>
-                        <input className={inputCls} maxLength={160} placeholder={DEFAULT_CUSTOM.footer_text} value={custom.footer_text} onChange={e => setCustom({ footer_text: e.target.value })} />
-                      </div>
-                      <label className="flex items-center justify-between cursor-pointer">
-                        <span className="text-sm text-white">Show logo</span>
-                        <button onClick={() => setCustom({ show_logo: !custom.show_logo })}
-                          className={`w-11 h-6 rounded-full transition-colors relative ${custom.show_logo ? "bg-indigo-600" : "bg-gray-600"}`}
-                          aria-pressed={custom.show_logo}>
-                          <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-all ${custom.show_logo ? "left-[22px]" : "left-0.5"}`} />
+                        <button onClick={() => openTemplatePreview(active.id)} className="text-gray-500 hover:text-gray-300 text-xs flex-shrink-0 transition-colors">
+                          Preview
                         </button>
-                      </label>
-                    </div>
+                      </div>
+
+                      <div className="mt-4 pt-4 border-t border-gray-700/60 space-y-4">
+                        <p className="text-[11px] text-gray-500 leading-snug">
+                          Styling applies to {active.name} only — or just ask the assistant:{" "}
+                          <span className="text-gray-400">"make my invoice claret and centred."</span>
+                        </p>
+
+                        <div>
+                          <label className={labelCls}>
+                            Colour
+                            <span className="text-gray-600 normal-case tracking-normal"> · {ACCENT_LABELS[custom.accent_color] || "Custom"}</span>
+                          </label>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {ACCENT_PRESETS.map(hex => (
+                              <button key={hex} onClick={() => setCustom({ accent_color: hex })}
+                                aria-label={ACCENT_LABELS[hex] || hex} title={ACCENT_LABELS[hex] || hex}
+                                className={`w-7 h-7 rounded-full transition-transform ${custom.accent_color === hex ? "ring-2 ring-offset-2 ring-offset-gray-800 ring-white scale-110" : "hover:scale-105"}`}
+                                style={{ backgroundColor: hex }} />
+                            ))}
+                            <label className="w-7 h-7 rounded-full border border-gray-600 grid place-items-center cursor-pointer relative overflow-hidden" title="Custom colour">
+                              <input type="color" value={custom.accent_color} onChange={e => setCustom({ accent_color: e.target.value })} className="absolute inset-0 opacity-0 cursor-pointer" />
+                              <span className="text-[10px] text-gray-400">+</span>
+                            </label>
+                          </div>
+                        </div>
+
+                        {seg("Header", HEADER_STYLES, HEADER_LABELS, "header_style")}
+
+                        {/* Each button previews the face it selects. */}
+                        {seg("Body font", FONT_CHOICES, FONT_LABELS, "font",
+                          { cols: 3, styleFor: (v) => ({ fontFamily: FONT_STACKS[v] }) })}
+
+                        <div>
+                          <label className={labelCls}>Footer line</label>
+                          <input className={inputCls} maxLength={160} placeholder={DEFAULT_FOOTER_TEXT}
+                            value={custom.footer_text} onChange={e => setCustom({ footer_text: e.target.value })} />
+                        </div>
+
+                        {/* Personal unlocks the body choices the others keep fixed. */}
+                        {activeId === 6 && (
+                          <div className="space-y-4 pt-4 border-t border-gray-700/60">
+                            <p className="text-[11px] text-gray-500">Personal also lets you change the body.</p>
+                            {seg("Line items", ITEMS_STYLES, ITEMS_LABELS, "items_style")}
+                            {seg("Total", TOTALS_STYLES, TOTALS_LABELS, "totals_style")}
+                            {seg("Spacing", DENSITIES, DENSITY_LABELS, "density")}
+                          </div>
+                        )}
+
+                        <label className="flex items-center justify-between cursor-pointer">
+                          <span className="text-sm text-white">Show logo</span>
+                          <button onClick={() => setCustom({ show_logo: !custom.show_logo })}
+                            className={`w-11 h-6 rounded-full transition-colors relative flex-shrink-0 ${custom.show_logo ? "bg-indigo-600" : "bg-gray-600"}`}
+                            aria-pressed={custom.show_logo}>
+                            <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-all ${custom.show_logo ? "left-[22px]" : "left-0.5"}`} />
+                          </button>
+                        </label>
+                      </div>
+                    </>
                   );
                 })()}
               </div>

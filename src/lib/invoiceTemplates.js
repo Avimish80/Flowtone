@@ -9,7 +9,15 @@
  *  - No gradients, no zebra striping, no drop shadows. Hairlines and space.
  *  - One accent colour, used in at most three places per document.
  *  - Money is always tabular-figure aligned.
- * The templates differ by structure, not by palette.
+ *
+ * Every template is customisable — colour, header treatment, body font and
+ * sign-off line. Each keeps its identity in the BODY (how line items are
+ * presented, how the total is set, whether there is a side rail), so changing
+ * a header never collapses two templates into the same document. "Personal"
+ * additionally unlocks the body choices the others keep fixed.
+ *
+ * Customisation is stored per template under AppSettings.invoice_custom as
+ * { "<templateId>": {…} }, so tuning Atelier does not disturb Statement.
  */
 
 // ── Formatting ───────────────────────────────────────────────────────
@@ -63,16 +71,40 @@ function totalLabelOf(doc) {
   return doc.document_type === "invoice" ? "Amount due" : "Total";
 }
 
-// ── Personal template config: the ONLY things that may vary ──────────
-// Everything else (sheet shape, line-item table, totals, bill-to/from,
-// payment block) is fixed. Both the Finance editor and the AI action
-// run their input through sanitizeCustom() so values stay on the rails.
+// ── Customisation vocabulary ─────────────────────────────────────────
 export const HEADER_STYLES = ["band", "minimal", "centered"];
-export const FONT_CHOICES = ["sans", "serif"];
 
-// Muted, document-grade tones. Saturated colours are what make an invoice
-// look like a template, so they are deliberately not on the menu — the
-// custom picker is still there for anyone who insists.
+export const HEADER_LABELS = {
+  band: "Block",
+  minimal: "Hairline",
+  centered: "Centred",
+};
+
+// System stacks only. An earlier build pulled Inter from Google Fonts inside
+// the print iframe, which snapshots after ~200ms — the webfont regularly lost
+// that race and the document printed in a fallback anyway. Everything below is
+// already resident on the devices Flowtone runs on.
+export const FONT_CHOICES = ["sans", "grotesk", "geometric", "serif", "mono"];
+
+export const FONT_STACKS = {
+  sans: `-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Inter,"Helvetica Neue",Arial,sans-serif`,
+  grotesk: `"Helvetica Neue",Helvetica,"Inter",Arial,"Liberation Sans",sans-serif`,
+  geometric: `"Avenir Next","Avenir",Futura,"Century Gothic","Trebuchet MS",sans-serif`,
+  serif: `"Hoefler Text","Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif`,
+  mono: `ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace`,
+};
+
+export const FONT_LABELS = {
+  sans: "Sans",
+  grotesk: "Grotesk",
+  geometric: "Geometric",
+  serif: "Serif",
+  mono: "Mono",
+};
+
+// Muted, document-grade tones. Saturated colours are what make an invoice look
+// like a template, so they are deliberately not on the menu — the custom picker
+// is still there for anyone who insists.
 export const ACCENT_PRESETS = [
   "#14171c", // Ink
   "#1c3a5e", // Oxford
@@ -91,38 +123,99 @@ export const ACCENT_LABELS = {
   "#4a5462": "Slate",
 };
 
-export const DEFAULT_CUSTOM = {
-  accent_color: "#1c3a5e",
-  header_style: "band",
-  font: "sans",
-  footer_text: "Thank you for the music.",
-  show_logo: true,
+// Body choices the other templates keep fixed as part of their identity.
+// Personal unlocks them — that is what makes it the personal one now that
+// colour, header, font and sign-off are available everywhere.
+export const ITEMS_STYLES = ["table", "editorial", "slim", "tinted"];
+export const ITEMS_LABELS = {
+  table: "Columns",
+  editorial: "Editorial",
+  slim: "Slim",
+  tinted: "Filled",
 };
+
+export const TOTALS_STYLES = ["stack", "band"];
+export const TOTALS_LABELS = { stack: "Stacked", band: "Full width" };
+
+export const DENSITIES = ["relaxed", "compact"];
+export const DENSITY_LABELS = { relaxed: "Relaxed", compact: "Compact" };
+
+export const DEFAULT_FOOTER_TEXT = "Thank you for the music.";
+
+// Each template's own starting point. These are what gave every template "its
+// own colour"; they are now defaults rather than hardcoded values.
+export const TEMPLATE_DEFAULTS = {
+  1: { accent_color: "#14171c", header_style: "minimal",  font: "sans",      items_style: "table",     totals_style: "stack", density: "relaxed" },
+  2: { accent_color: "#14171c", header_style: "centered", font: "serif",     items_style: "editorial", totals_style: "band",  density: "relaxed" },
+  3: { accent_color: "#1c3a5e", header_style: "band",     font: "sans",      items_style: "tinted",    totals_style: "stack", density: "relaxed" },
+  4: { accent_color: "#1e4436", header_style: "minimal",  font: "sans",      items_style: "slim",      totals_style: "stack", density: "relaxed" },
+  6: { accent_color: "#1c3a5e", header_style: "band",     font: "geometric", items_style: "table",     totals_style: "stack", density: "relaxed" },
+};
+
+// Kept for callers that want a plain default object.
+export const DEFAULT_CUSTOM = { ...TEMPLATE_DEFAULTS[2], footer_text: DEFAULT_FOOTER_TEXT, show_logo: true };
 
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
 
-export function sanitizeCustom(raw) {
+/**
+ * Clamps arbitrary input onto the rails. Both the Settings editor and the AI
+ * action run through here, so neither can invent fields or change the parts of
+ * the document that are not negotiable.
+ */
+export function sanitizeCustom(raw, templateId = 2) {
+  const base = TEMPLATE_DEFAULTS[resolveTemplateId(templateId)] || TEMPLATE_DEFAULTS[2];
   const r = raw && typeof raw === "object" ? raw : {};
-  const accent = typeof r.accent_color === "string" && HEX_RE.test(r.accent_color.trim())
-    ? r.accent_color.trim().toLowerCase() : DEFAULT_CUSTOM.accent_color;
+  const pick = (val, allowed, fallback) => (allowed.includes(val) ? val : fallback);
   return {
-    accent_color: accent,
-    header_style: HEADER_STYLES.includes(r.header_style) ? r.header_style : DEFAULT_CUSTOM.header_style,
-    font: FONT_CHOICES.includes(r.font) ? r.font : DEFAULT_CUSTOM.font,
-    footer_text: typeof r.footer_text === "string" ? r.footer_text.slice(0, 160) : DEFAULT_CUSTOM.footer_text,
+    accent_color: typeof r.accent_color === "string" && HEX_RE.test(r.accent_color.trim())
+      ? r.accent_color.trim().toLowerCase() : base.accent_color,
+    header_style: pick(r.header_style, HEADER_STYLES, base.header_style),
+    font: pick(r.font, FONT_CHOICES, base.font),
+    footer_text: typeof r.footer_text === "string" ? r.footer_text.slice(0, 160) : DEFAULT_FOOTER_TEXT,
     show_logo: r.show_logo === undefined ? true : !!r.show_logo,
+    // Personal-only; harmless on the others, which pass their own values.
+    items_style: pick(r.items_style, ITEMS_STYLES, base.items_style),
+    totals_style: pick(r.totals_style, TOTALS_STYLES, base.totals_style),
+    density: pick(r.density, DENSITIES, base.density),
   };
 }
 
-// ── Shared shell ─────────────────────────────────────────────────────
-// System stacks only. The old build pulled Inter from Google Fonts inside
-// the print iframe, which snapshots after 300ms — the webfont regularly
-// lost that race and the document printed in a fallback anyway. SF Pro and
-// Hoefler Text are already on every device Flowtone runs on.
-const SANS = `-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Inter,"Helvetica Neue",Arial,sans-serif`;
-const SERIF = `"Hoefler Text","Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif`;
+// Older builds stored one flat object, which was the Personal template's look.
+const isLegacyFlat = (store) =>
+  !!store && typeof store === "object" &&
+  (typeof store.accent_color === "string" || typeof store.header_style === "string" || typeof store.footer_text === "string");
 
-function baseCSS(accent) {
+/** Reads the saved look for one template, falling back to its defaults. */
+export function getTemplateCustom(settings, templateId) {
+  const id = resolveTemplateId(templateId);
+  const store = settings?.invoice_custom;
+  let raw = null;
+  if (store && typeof store === "object") {
+    raw = isLegacyFlat(store) ? (id === 6 ? store : null) : (store[String(id)] || null);
+  }
+  return sanitizeCustom(raw, id);
+}
+
+/**
+ * Returns the whole invoice_custom object with one template's look patched,
+ * ready to write back to AppSettings. Migrates the legacy flat shape into the
+ * Personal slot on first write.
+ */
+export function setTemplateCustom(settings, templateId, patch) {
+  const id = resolveTemplateId(templateId);
+  const store = settings?.invoice_custom;
+  let next = {};
+  if (store && typeof store === "object") {
+    next = isLegacyFlat(store) ? { 6: sanitizeCustom(store, 6) } : { ...store };
+  }
+  next[String(id)] = sanitizeCustom({ ...(next[String(id)] || {}), ...patch }, id);
+  return next;
+}
+
+// ── Shared shell ─────────────────────────────────────────────────────
+function baseCSS(c) {
+  const accent = c.accent_color;
+  const compact = c.density === "compact";
   return `
   :root{
     --fs-micro:9.5px; --fs-fine:11.5px; --fs-body:13px; --fs-lead:16px; --fs-hero:30px;
@@ -131,10 +224,12 @@ function baseCSS(accent) {
     --accent:${accent};
     --accent-06:${tint(accent, 0.06)};
     --accent-14:${tint(accent, 0.14)};
-    --sans:${SANS}; --serif:${SERIF};
+    --font-body:${FONT_STACKS[c.font] || FONT_STACKS.sans};
+    --row:${compact ? "7px" : "11px"};
+    --gap:${compact ? "18px" : "26px"};
   }
   *{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  html,body{background:#fff;color:var(--body);font-family:var(--sans);
+  html,body{background:#fff;color:var(--body);font-family:var(--font-body);
     font-size:var(--fs-body);line-height:1.55;-webkit-font-smoothing:antialiased;
     -moz-osx-font-smoothing:grayscale}
   .sheet{max-width:820px;margin:0 auto;padding:40px 44px 52px;position:relative}
@@ -144,7 +239,6 @@ function baseCSS(accent) {
   .fine{font-size:var(--fs-fine);color:var(--muted);line-height:1.7}
   .lead{font-size:var(--fs-lead);color:var(--ink);font-weight:500;letter-spacing:-.01em}
   .hero{font-size:var(--fs-hero);color:var(--ink);font-weight:700;letter-spacing:-.022em;line-height:1.1}
-  .ink{color:var(--ink)}
   .rule{border:0;border-top:1px solid var(--hair)}
   .rule-ink{border:0;border-top:1px solid var(--ink)}
   .keep{page-break-inside:avoid;break-inside:avoid}
@@ -154,7 +248,7 @@ function baseCSS(accent) {
   table.items{width:100%;border-collapse:collapse}
   table.items th{font-size:var(--fs-micro);text-transform:uppercase;letter-spacing:.16em;
     font-weight:600;color:var(--muted);text-align:left;padding:0 0 9px}
-  table.items td{font-size:var(--fs-body);color:var(--body);padding:11px 0;
+  table.items td{font-size:var(--fs-body);color:var(--body);padding:var(--row) 0;
     border-top:1px solid var(--hair);vertical-align:top}
   table.items th.r,table.items td.r{text-align:right}
   table.items td.desc{color:var(--ink)}
@@ -169,18 +263,18 @@ function baseCSS(accent) {
   }`;
 }
 
-function page({ title, accent, css = "", body }) {
+function page({ title, custom, css = "", body }) {
   return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(title)}</title>
-<style>${baseCSS(accent)}${css}</style>
+<style>${baseCSS(custom)}${css}</style>
 </head><body>${body}</body></html>`;
 }
 
 // ── Shared blocks ────────────────────────────────────────────────────
 
-// Quiet settled marker. The old rotated stamp with a 3px border was the
-// single most template-looking element in the document.
+// Quiet settled marker. An earlier build used a rotated stamp with a 3px
+// border, which was the most template-looking element in the document.
 function paidMark(doc) {
   if (doc.status !== "paid") return "";
   const when = doc.paid_date ? " · " + fmtDate(doc.paid_date) : "";
@@ -207,6 +301,85 @@ function logoTag(logo, maxH = 44, invert = false) {
 }
 
 /**
+ * The three header treatments, shared by every template.
+ *
+ * Templates keep their identity in the body — line-item presentation, totals
+ * treatment, whether there is a side rail — so a header can be swapped without
+ * two templates becoming the same document.
+ *
+ * "band" is a full-bleed block and carries its own padding, so callers place it
+ * ABOVE .sheet. "centered" and "minimal" sit inside .sheet and take their
+ * horizontal padding from it — giving them their own as well double-pads them
+ * and leaves rules visibly inset from the content column.
+ *
+ * @param {object} o.grand  Atelier's roomier setting: more space, tracked wordmark
+ */
+function renderHeader({ style, doc, profile, custom, grand = false }) {
+  const label = typeLabelOf(doc);
+  const number = esc(doc.document_number || "");
+  const showLogo = custom.show_logo && !!profile?.logo;
+  const name = esc(profile?.business_name || "");
+
+  if (style === "band") {
+    return `
+    <div class="keep" style="background:var(--accent);color:#fff;padding:${grand ? "34px 44px" : "30px 32px"};
+      display:flex;justify-content:space-between;align-items:flex-start;gap:24px;">
+      <div>
+        ${showLogo ? logoTag(profile.logo, 38, true) : ""}
+        <div style="font-size:var(--fs-lead);font-weight:700;letter-spacing:-.01em;
+          margin-top:${showLogo ? "11px" : "0"};">${name}</div>
+        <div style="font-size:var(--fs-fine);color:rgba(255,255,255,.72);line-height:1.7;margin-top:5px;">${fromLines(profile)}</div>
+      </div>
+      <div style="text-align:right;">
+        <span class="lbl" style="color:rgba(255,255,255,.72);margin-bottom:4px;">${label}</span>
+        <div class="num" style="font-size:var(--fs-lead);font-weight:700;">${number}</div>
+      </div>
+    </div>`;
+  }
+
+  if (style === "centered") {
+    return `
+    <header class="keep" style="text-align:center;">
+      ${showLogo ? `<div style="display:flex;justify-content:center;margin-bottom:${grand ? "16px" : "14px"};">${logoTag(profile.logo, 46)}</div>` : ""}
+      <div style="font-size:var(--fs-lead);color:var(--ink);letter-spacing:${grand ? ".28em" : ".22em"};
+        text-transform:uppercase;font-weight:${grand ? "400" : "600"};">${name}</div>
+      <div style="width:44px;height:2px;background:var(--accent);margin:${grand ? "16px" : "14px"} auto 0;"></div>
+      <div class="fine" style="margin-top:${grand ? "14px" : "12px"};">${fromLines(profile)}</div>
+      <div style="margin-top:${grand ? "34px" : "18px"};display:flex;justify-content:${grand ? "space-between" : "center"};
+        align-items:flex-end;gap:20px;text-align:left;">
+        ${grand ? `<div>
+            <span class="lbl" style="margin-bottom:6px;">${label}</span>
+            <div class="hero num">${number}</div>
+          </div>
+          ${paidMark(doc)}`
+        : `<span class="lbl" style="color:var(--accent);">${label} · ${number}</span>`}
+      </div>
+      ${grand ? `<hr class="rule-ink" style="margin-top:14px;">` : ""}
+    </header>`;
+  }
+
+  // minimal — name left, number right, one accent hairline
+  return `
+  <div>
+    <div class="keep" style="display:flex;justify-content:space-between;align-items:flex-start;gap:32px;">
+      <div>
+        ${showLogo ? logoTag(profile.logo, 40) : ""}
+        <div style="font-size:var(--fs-lead);color:var(--ink);font-weight:700;
+          margin-top:${showLogo ? "12px" : "0"};">${name}</div>
+        <div class="fine" style="margin-top:4px;">${fromLines(profile)}</div>
+        ${profile?.tax_id ? `<div class="fine">Tax ID ${esc(profile.tax_id)}</div>` : ""}
+      </div>
+      <div style="text-align:right;">
+        <span class="lbl" style="color:var(--accent);margin-bottom:4px;">${label}</span>
+        <div class="lead num" style="font-weight:700;">${number}</div>
+        ${doc.status === "paid" ? `<div style="margin-top:10px;">${paidMark(doc)}</div>` : ""}
+      </div>
+    </div>
+    <div style="margin-top:18px;height:2px;background:var(--accent);"></div>
+  </div>`;
+}
+
+/**
  * @param {string} variant  "table" (4 cols) | "editorial" (2 cols, qty inline)
  *                          | "tinted" (4 cols, accent header) | "slim" (3 cols)
  */
@@ -224,7 +397,12 @@ function itemsTable(items, sym, variant = "table") {
         <td class="r num">${fmt(sym, qty * unit)}</td>
       </tr>`;
     }).join("");
-    return `<table class="items" style="margin-top:6px">
+    return `<style>
+        table.items td{padding:calc(var(--row) * 1.3) 0}
+        table.items td.desc{font-size:var(--fs-lead);line-height:1.35}
+        table.items td.r{font-size:var(--fs-body)}
+      </style>
+      <table class="items" style="margin-top:6px">
       <thead><tr><th>Description</th><th class="r">Amount</th></tr></thead>
       <tbody>${rows}</tbody></table>`;
   }
@@ -260,7 +438,7 @@ function itemsTable(items, sym, variant = "table") {
     ? `<style>
         table.items thead th{background:var(--accent-06);color:var(--accent);
           padding:9px 12px;border-bottom:1px solid var(--accent-14)}
-        table.items td{padding:11px 12px}
+        table.items td{padding:var(--row) 12px}
         table.items tbody tr:first-child td{border-top:0}
       </style>` : "";
 
@@ -286,21 +464,20 @@ function minorRows(doc, sym) {
  * @param {string} variant  "stack" — right-aligned column, rule above the figure
  *                          "band"  — full-width band with rules top and bottom
  */
-function totalsBlock(doc, sym, variant = "stack", serifHero = false) {
+function totalsBlock(doc, sym, variant = "stack") {
   const isPaid = doc.status === "paid";
   const heroColour = isPaid ? "var(--paid)" : "var(--accent)";
-  const heroFont = serifHero ? "font-family:var(--serif);font-weight:700;" : "";
   const amount = fmt(sym, doc.total ?? doc.subtotal);
 
   if (variant === "band") {
-    return `<div class="keep" style="margin-top:26px;">
+    return `<div class="keep" style="margin-top:var(--gap);">
       <div style="display:flex;justify-content:flex-end;">
         <div style="min-width:260px;">${minorRows(doc, sym)}</div>
       </div>
       <div style="margin-top:14px;border-top:1px solid var(--ink);border-bottom:1px solid var(--ink);
         padding:16px 0;display:flex;justify-content:space-between;align-items:baseline;gap:24px;">
         <span class="lbl" style="color:var(--ink);">${totalLabelOf(doc)}</span>
-        <span class="hero num" style="${heroFont}color:${heroColour};">${amount}</span>
+        <span class="hero num" style="color:${heroColour};">${amount}</span>
       </div>
     </div>`;
   }
@@ -310,7 +487,7 @@ function totalsBlock(doc, sym, variant = "stack", serifHero = false) {
     <div style="margin-top:10px;padding-top:13px;border-top:2px solid var(--accent);
       display:flex;justify-content:space-between;align-items:baseline;gap:20px;">
       <span class="lbl" style="color:var(--ink);">${totalLabelOf(doc)}</span>
-      <span class="hero num" style="${heroFont}color:${heroColour};">${amount}</span>
+      <span class="hero num" style="color:${heroColour};">${amount}</span>
     </div>
   </div>`;
 }
@@ -339,7 +516,7 @@ function paymentBlock(profile, variant = "columns") {
     const rows = lines.map(([k, v]) =>
       `<div style="margin-top:7px;"><span class="lbl">${esc(k)}</span>
         <span class="num" style="font-size:var(--fs-fine);color:var(--ink);">${esc(v)}</span></div>`).join("");
-    return `<div style="margin-top:26px;"><span class="lbl">Payment</span>${rows}
+    return `<div style="margin-top:var(--gap);"><span class="lbl">Payment</span>${rows}
       ${note ? `<p class="fine" style="margin-top:9px;">${escMultiline(note)}</p>` : ""}</div>`;
   }
 
@@ -353,9 +530,9 @@ function paymentBlock(profile, variant = "columns") {
     ${note ? `<p class="fine" style="margin-top:${lines.length ? "12px" : "0"};">${escMultiline(note)}</p>` : ""}`;
 
   if (variant === "panel") {
-    return `<div class="keep" style="margin-top:30px;background:var(--wash);padding:18px 20px;">${inner}</div>`;
+    return `<div class="keep" style="margin-top:calc(var(--gap) + 4px);background:var(--wash);padding:18px 20px;">${inner}</div>`;
   }
-  return `<div class="keep" style="margin-top:30px;padding-top:18px;border-top:1px solid var(--hair);">${inner}</div>`;
+  return `<div class="keep" style="margin-top:calc(var(--gap) + 4px);padding-top:18px;border-top:1px solid var(--hair);">${inner}</div>`;
 }
 
 function notesBlock(doc) {
@@ -366,17 +543,16 @@ function notesBlock(doc) {
   </div>`;
 }
 
-function signOff(profile, text, { serif = false, centred = false } = {}) {
-  const line = (text && String(text).trim()) || "Thank you for the music.";
+function signOff(profile, text, { centred = false } = {}) {
+  const line = (text && String(text).trim()) || DEFAULT_FOOTER_TEXT;
   const name = profile?.contact_name || profile?.business_name || "";
-  const align = centred ? "text-align:center;" : "";
-  return `<div style="margin-top:36px;padding-top:16px;border-top:1px solid var(--hair);${align}">
-    <div style="font-size:var(--fs-fine);color:var(--ink);${serif ? "font-family:var(--serif);font-style:italic;" : ""}">${esc(line)}</div>
+  return `<div style="margin-top:36px;padding-top:16px;border-top:1px solid var(--hair);${centred ? "text-align:center;" : ""}">
+    <div style="font-size:var(--fs-fine);color:var(--ink);">${esc(line)}</div>
     ${name ? `<div class="fine" style="margin-top:3px;">${esc(name)}</div>` : ""}
   </div>`;
 }
 
-// Bill-to / dates row, shared by Simple and Statement.
+// Bill-to / dates row.
 function partiesRow(doc, { showFrom = null } = {}) {
   const isInvoice = doc.document_type === "invoice";
   const cell = (label, value, sub = "") =>
@@ -411,48 +587,38 @@ function partiesRow(doc, { showFrom = null } = {}) {
 
 // ──────────────────────────────────────────────────────────────────────
 //  TEMPLATE 1 — SIMPLE
-//  No accent, no fills, no decoration. The plain invoice, done properly.
+//  Plain columns, bare paper, no fills. The unfussy invoice, done properly.
 // ──────────────────────────────────────────────────────────────────────
-function templateSimple(doc, profile) {
+function templateSimple(doc, profile, c) {
   const sym = symbolFor(doc.currency);
-  const label = typeLabelOf(doc);
+  const banded = c.header_style === "band";
 
   return page({
-    title: `${label} ${doc.document_number || ""}`,
-    accent: "#14171c",
-    body: `<div class="sheet">
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:32px;margin-bottom:26px;">
-    <div>
-      ${logoTag(profile?.logo, 40)}
-      <div class="lead" style="font-weight:700;margin-top:${profile?.logo ? "12px" : "0"};">${esc(profile?.business_name || "")}</div>
-      <div class="fine" style="margin-top:4px;">${fromLines(profile)}</div>
-      ${profile?.tax_id ? `<div class="fine">Tax ID ${esc(profile.tax_id)}</div>` : ""}
-    </div>
-    <div style="text-align:right;">
-      <span class="lbl" style="margin-bottom:4px;">${label}</span>
-      <div class="lead num" style="font-weight:700;">${esc(doc.document_number || "")}</div>
-      <div style="margin-top:10px;">${paidMark(doc)}</div>
-    </div>
-  </div>
-
-  ${partiesRow(doc)}
-  <div style="margin-top:26px;">${itemsTable(doc.line_items, sym, "table")}</div>
-  ${totalsBlock(doc, sym, "stack")}
+    title: `${typeLabelOf(doc)} ${doc.document_number || ""}`,
+    custom: c,
+    body: `${banded ? renderHeader({ style: "band", doc, profile, custom: c }) : ""}
+<div class="sheet"${banded ? ' style="padding-top:28px;"' : ""}>
+  ${banded ? "" : renderHeader({ style: c.header_style, doc, profile, custom: c })}
+  <div style="margin-top:var(--gap);">${partiesRow(doc)}</div>
+  <div style="margin-top:var(--gap);">${itemsTable(doc.line_items, sym, c.items_style)}</div>
+  ${totalsBlock(doc, sym, c.totals_style)}
   ${paymentBlock(profile, "columns")}
   ${notesBlock(doc)}
+  ${signOff(profile, c.footer_text, { centred: c.header_style === "centered" })}
 </div>`,
   });
 }
 
 // ──────────────────────────────────────────────────────────────────────
 //  TEMPLATE 2 — ATELIER
-//  The high-end one. Serif, wide margins, editorial line items, the
-//  amount set in a full-width band. Accent appears exactly twice.
+//  The high-end one. Wide margins, editorial line items, the amount set in
+//  a full-width band. Accent appears exactly twice.
 // ──────────────────────────────────────────────────────────────────────
-function templateAtelier(doc, profile, settings, accent = "#14171c", footerText) {
+function templateAtelier(doc, profile, c) {
   const sym = symbolFor(doc.currency);
   const isInvoice = doc.document_type === "invoice";
-  const label = typeLabelOf(doc);
+  const centred = c.header_style === "centered";
+  const banded = c.header_style === "band";
 
   const meta = (k, v) => v
     ? `<div style="margin-left:38px;"><span class="lbl" style="margin-bottom:4px;">${k}</span>
@@ -460,40 +626,21 @@ function templateAtelier(doc, profile, settings, accent = "#14171c", footerText)
     : "";
 
   return page({
-    title: `${label} ${doc.document_number || ""}`,
-    accent,
+    title: `${typeLabelOf(doc)} ${doc.document_number || ""}`,
+    custom: c,
     css: `
-      .sheet{padding:64px 66px 56px;max-width:800px}
+      .sheet{padding:${banded ? "36px 66px 56px" : "64px 66px 56px"};max-width:800px}
       @media print{.sheet{padding:0}}
-      .wordmark{font-family:var(--serif);font-size:var(--fs-lead);color:var(--ink);
-        letter-spacing:.28em;text-transform:uppercase;font-weight:400}
-      table.items th{padding-bottom:11px}
-      table.items td{padding:14px 0}
-      table.items td.desc{font-family:var(--serif);font-size:var(--fs-lead);line-height:1.35}
-      table.items td.r{font-size:var(--fs-body)}
     `,
-    body: `<div class="sheet">
-  <header style="text-align:center;">
-    ${profile?.logo ? `<div style="display:flex;justify-content:center;margin-bottom:16px;">${logoTag(profile.logo, 46)}</div>` : ""}
-    <div class="wordmark">${esc(profile?.business_name || "")}</div>
-    <div style="width:44px;height:2px;background:var(--accent);margin:16px auto 0;"></div>
-    <div class="fine" style="margin-top:14px;">${fromLines(profile)}</div>
-  </header>
-
-  <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:24px;margin-top:52px;">
-    <div>
-      <span class="lbl" style="margin-bottom:6px;">${label}</span>
-      <div class="hero num" style="font-family:var(--serif);">${esc(doc.document_number || "")}</div>
-    </div>
-    ${paidMark(doc)}
-  </div>
-  <hr class="rule-ink" style="margin-top:14px;">
+    body: `${banded ? renderHeader({ style: "band", doc, profile, custom: c, grand: true }) : ""}
+<div class="sheet">
+  ${banded ? "" : renderHeader({ style: c.header_style, doc, profile, custom: c, grand: centred })}
 
   <div class="keep" style="display:flex;justify-content:space-between;align-items:flex-start;
     gap:24px;flex-wrap:wrap;padding:24px 0 30px;">
     <div style="min-width:200px;">
       <span class="lbl" style="margin-bottom:6px;">${isInvoice ? "Billed to" : "Prepared for"}</span>
-      <div class="lead" style="font-family:var(--serif);font-weight:400;">${esc(doc.client_name || doc.title || "")}</div>
+      <div class="lead" style="font-weight:400;">${esc(doc.client_name || doc.title || "")}</div>
       ${doc.client_email ? `<div class="fine">${esc(doc.client_email)}</div>` : ""}
     </div>
     <div style="display:flex;">
@@ -503,73 +650,56 @@ function templateAtelier(doc, profile, settings, accent = "#14171c", footerText)
     </div>
   </div>
 
-  ${itemsTable(doc.line_items, sym, "editorial")}
-  ${totalsBlock(doc, sym, "band", true)}
+  ${itemsTable(doc.line_items, sym, c.items_style)}
+  ${totalsBlock(doc, sym, c.totals_style)}
   ${paymentBlock(profile, "columns")}
   ${notesBlock(doc)}
-  ${signOff(profile, footerText, { serif: true, centred: true })}
+  ${signOff(profile, c.footer_text, { centred: true })}
 </div>`,
   });
 }
 
 // ──────────────────────────────────────────────────────────────────────
 //  TEMPLATE 3 — STATEMENT
-//  One solid accent block, then air. The confident option, without the
-//  gradient-and-badge routine.
+//  Filled line-item header and a wash payment panel, then air. Confident
+//  without the gradient-and-badge routine.
 // ──────────────────────────────────────────────────────────────────────
-function templateStatement(doc, profile, settings, accent = "#1c3a5e", footerText) {
+function templateStatement(doc, profile, c) {
   const sym = symbolFor(doc.currency);
-  const label = typeLabelOf(doc);
+  const banded = c.header_style === "band";
 
   return page({
-    title: `${label} ${doc.document_number || ""}`,
-    accent,
-    css: `
-      .block{background:var(--accent);color:#fff;padding:30px 32px;
-        display:flex;justify-content:space-between;align-items:flex-start;gap:24px}
-      .block .lbl{color:rgba(255,255,255,.72)}
-      .block .name{font-size:var(--fs-lead);font-weight:700;letter-spacing:-.01em}
-      .block .no{font-size:var(--fs-lead);font-weight:700}
-      .block .addr{font-size:var(--fs-fine);color:rgba(255,255,255,.72);line-height:1.7;margin-top:5px}
-    `,
-    body: `<div class="sheet">
-  <div class="block keep">
-    <div>
-      ${logoTag(profile?.logo, 38, true)}
-      <div class="name" style="margin-top:${profile?.logo ? "11px" : "0"};">${esc(profile?.business_name || "")}</div>
-      <div class="addr">${fromLines(profile)}</div>
-    </div>
-    <div style="text-align:right;">
-      <span class="lbl" style="margin-bottom:4px;">${label}</span>
-      <div class="no num">${esc(doc.document_number || "")}</div>
-    </div>
-  </div>
+    title: `${typeLabelOf(doc)} ${doc.document_number || ""}`,
+    custom: c,
+    body: `${banded ? renderHeader({ style: "band", doc, profile, custom: c }) : ""}
+<div class="sheet"${banded ? ' style="padding-top:28px;"' : ""}>
+  ${banded ? "" : renderHeader({ style: c.header_style, doc, profile, custom: c })}
 
-  <div style="margin-top:28px;">${partiesRow(doc, {
+  <div style="margin-top:var(--gap);">${partiesRow(doc, {
     showFrom: profile?.contact_name ? { name: profile.contact_name, email: profile?.email } : null,
   })}</div>
 
-  ${doc.status === "paid" ? `<div style="margin-top:20px;">${paidMark(doc)}</div>` : ""}
+  ${doc.status === "paid" && c.header_style !== "minimal" ? `<div style="margin-top:20px;">${paidMark(doc)}</div>` : ""}
 
-  <div style="margin-top:26px;">${itemsTable(doc.line_items, sym, "tinted")}</div>
-  ${totalsBlock(doc, sym, "stack")}
+  <div style="margin-top:var(--gap);">${itemsTable(doc.line_items, sym, c.items_style)}</div>
+  ${totalsBlock(doc, sym, c.totals_style)}
   ${paymentBlock(profile, "panel")}
   ${notesBlock(doc)}
-  ${signOff(profile, footerText)}
+  ${signOff(profile, c.footer_text, { centred: c.header_style === "centered" })}
 </div>`,
   });
 }
 
 // ──────────────────────────────────────────────────────────────────────
 //  TEMPLATE 4 — COLUMN
-//  Everything contextual lives in a left rail; the right column is only
-//  the work and the money. Structurally unlike the other three.
+//  Everything contextual lives in a left rail; the right column is only the
+//  work and the money.
 //
-//  Note: the rail background covers its own flex cell, so on an invoice
-//  that runs past one page the tint stops at the page break. Line-item
-//  counts that long are rare here and the break still reads cleanly.
+//  Note: the rail background covers its own flex cell, so on an invoice that
+//  runs past one page the tint stops at the page break. Line-item counts that
+//  long are rare here and the break still reads cleanly.
 // ──────────────────────────────────────────────────────────────────────
-function templateColumn(doc, profile, settings, accent = "#1e4436", footerText) {
+function templateColumn(doc, profile, c) {
   const sym = symbolFor(doc.currency);
   const isInvoice = doc.document_type === "invoice";
   const label = typeLabelOf(doc);
@@ -580,9 +710,36 @@ function templateColumn(doc, profile, settings, accent = "#1e4436", footerText) 
         ${sub ? `<div class="fine">${sub}</div>` : ""}</div>`
     : "";
 
+  // The rail already carries the identity, so the header treatments apply to
+  // the main column only.
+  let head;
+  if (c.header_style === "band") {
+    head = `<div class="keep" style="background:var(--accent);color:#fff;padding:20px 22px;
+      display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin-bottom:24px;">
+      <span class="lbl" style="color:rgba(255,255,255,.72);">${label}</span>
+      <div class="num" style="font-size:var(--fs-lead);font-weight:700;">${esc(doc.document_number || "")}</div>
+    </div>`;
+  } else if (c.header_style === "centered") {
+    head = `<div class="keep" style="text-align:center;padding-bottom:16px;border-bottom:1px solid var(--hair);">
+      <span class="lbl" style="margin-bottom:6px;">${label}</span>
+      <div class="hero num" style="color:var(--accent);">${esc(doc.document_number || "")}</div>
+      <div style="width:44px;height:2px;background:var(--accent);margin:14px auto 0;"></div>
+      ${doc.status === "paid" ? `<div style="margin-top:14px;">${paidMark(doc)}</div>` : ""}
+    </div>`;
+  } else {
+    head = `<div class="keep" style="display:flex;justify-content:space-between;align-items:flex-end;gap:20px;
+      padding-bottom:16px;border-bottom:1px solid var(--hair);">
+      <div>
+        <span class="lbl" style="margin-bottom:5px;">${label}</span>
+        <div class="hero num" style="color:var(--accent);">${esc(doc.document_number || "")}</div>
+      </div>
+      ${paidMark(doc)}
+    </div>`;
+  }
+
   return page({
     title: `${label} ${doc.document_number || ""}`,
-    accent,
+    custom: c,
     css: `
       .sheet{padding:0;max-width:860px}
       /* min-height makes the rail run the full sheet on a one-page invoice
@@ -600,8 +757,8 @@ function templateColumn(doc, profile, settings, accent = "#1e4436", footerText) 
     `,
     body: `<div class="sheet"><div class="row">
   <aside class="rail">
-    ${logoTag(profile?.logo, 40)}
-    <div class="lead" style="font-weight:700;margin-top:${profile?.logo ? "12px" : "0"};">${esc(profile?.business_name || "")}</div>
+    ${c.show_logo ? logoTag(profile?.logo, 40) : ""}
+    <div class="lead" style="font-weight:700;margin-top:${c.show_logo && profile?.logo ? "12px" : "0"};">${esc(profile?.business_name || "")}</div>
     <div class="fine" style="margin-top:5px;">${fromLines(profile)}</div>
     ${profile?.tax_id ? `<div class="fine">Tax ID ${esc(profile.tax_id)}</div>` : ""}
 
@@ -613,96 +770,38 @@ function templateColumn(doc, profile, settings, accent = "#1e4436", footerText) 
   </aside>
 
   <section class="main">
-    <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:20px;
-      padding-bottom:16px;border-bottom:1px solid var(--hair);">
-      <div>
-        <span class="lbl" style="margin-bottom:5px;">${label}</span>
-        <div class="hero num" style="color:var(--accent);">${esc(doc.document_number || "")}</div>
-      </div>
-      ${paidMark(doc)}
-    </div>
-
-    <div style="margin-top:24px;">${itemsTable(doc.line_items, sym, "slim")}</div>
-    ${totalsBlock(doc, sym, "stack")}
+    ${head}
+    <div style="margin-top:24px;">${itemsTable(doc.line_items, sym, c.items_style)}</div>
+    ${totalsBlock(doc, sym, c.totals_style)}
     ${notesBlock(doc)}
-    ${signOff(profile, footerText)}
+    ${signOff(profile, c.footer_text, { centred: c.header_style === "centered" })}
   </section>
 </div></div>`,
   });
 }
 
 // ──────────────────────────────────────────────────────────────────────
-//  TEMPLATE 6 — PERSONAL (user/AI-customisable within fixed rails)
-//  Header treatment, accent, body font and sign-off are yours. The sheet
-//  shape, line-item table, totals and payment block are not.
+//  TEMPLATE 6 — PERSONAL
+//  Same shared controls as the others, plus the body choices they keep fixed:
+//  line-item presentation, totals treatment, spacing and logo.
 // ──────────────────────────────────────────────────────────────────────
-function templatePersonal(doc, profile, settings) {
+function templatePersonal(doc, profile, c) {
   const sym = symbolFor(doc.currency);
-  const c = sanitizeCustom(settings?.invoice_custom);
-  const label = typeLabelOf(doc);
-  const accent = c.accent_color;
-  const serif = c.font === "serif";
-  const nameFont = serif ? "font-family:var(--serif);" : "";
-  const showLogo = c.show_logo && !!profile?.logo;
-
-  let header;
-  if (c.header_style === "band") {
-    header = `
-    <div class="keep" style="background:${accent};color:#fff;padding:30px 32px;
-      display:flex;justify-content:space-between;align-items:flex-end;gap:24px;">
-      <div>
-        ${showLogo ? logoTag(profile.logo, 38, true) : ""}
-        <div style="${nameFont}font-size:var(--fs-lead);font-weight:700;letter-spacing:-.01em;
-          margin-top:${showLogo ? "11px" : "0"};">${esc(profile?.business_name || "")}</div>
-        <div style="font-size:var(--fs-fine);color:rgba(255,255,255,.72);line-height:1.7;margin-top:5px;">${fromLines(profile)}</div>
-      </div>
-      <div style="text-align:right;">
-        <span class="lbl" style="color:rgba(255,255,255,.72);margin-bottom:4px;">${label}</span>
-        <div class="num" style="font-size:var(--fs-lead);font-weight:700;">${esc(doc.document_number || "")}</div>
-      </div>
-    </div>`;
-  } else if (c.header_style === "centered") {
-    header = `
-    <header class="keep" style="text-align:center;padding-bottom:8px;">
-      ${showLogo ? `<div style="display:flex;justify-content:center;margin-bottom:14px;">${logoTag(profile.logo, 46)}</div>` : ""}
-      <div style="${nameFont}font-size:var(--fs-lead);color:var(--ink);letter-spacing:.24em;
-        text-transform:uppercase;font-weight:${serif ? "400" : "600"};">${esc(profile?.business_name || "")}</div>
-      <div style="width:44px;height:2px;background:${accent};margin:14px auto 0;"></div>
-      <div class="fine" style="margin-top:12px;">${fromLines(profile)}</div>
-      <div style="margin-top:18px;">
-        <span class="lbl" style="color:${accent};">${label} · ${esc(doc.document_number || "")}</span>
-      </div>
-    </header>`;
-  } else { // minimal — name left, number right, one accent hairline
-    header = `
-    <div class="keep" style="display:flex;justify-content:space-between;align-items:flex-start;gap:32px;">
-      <div>
-        ${showLogo ? logoTag(profile.logo, 40) : ""}
-        <div style="${nameFont}font-size:var(--fs-lead);color:var(--ink);font-weight:700;
-          margin-top:${showLogo ? "12px" : "0"};">${esc(profile?.business_name || "")}</div>
-        <div class="fine" style="margin-top:4px;">${fromLines(profile)}</div>
-      </div>
-      <div style="text-align:right;">
-        <span class="lbl" style="color:${accent};margin-bottom:4px;">${label}</span>
-        <div class="lead num" style="${nameFont}font-weight:700;">${esc(doc.document_number || "")}</div>
-      </div>
-    </div>
-    <div style="margin-top:18px;height:2px;background:${accent};"></div>`;
-  }
+  const banded = c.header_style === "band";
 
   return page({
-    title: `${label} ${doc.document_number || ""}`,
-    accent,
-    css: serif ? `table.items td.desc{font-family:var(--serif);font-size:var(--fs-lead);line-height:1.4}` : "",
-    body: `<div class="sheet">
-  ${header}
-  <div style="margin-top:26px;">${partiesRow(doc)}</div>
-  ${doc.status === "paid" ? `<div style="margin-top:20px;">${paidMark(doc)}</div>` : ""}
-  <div style="margin-top:26px;">${itemsTable(doc.line_items, sym, serif ? "editorial" : "table")}</div>
-  ${totalsBlock(doc, sym, "stack", serif)}
+    title: `${typeLabelOf(doc)} ${doc.document_number || ""}`,
+    custom: c,
+    body: `${banded ? renderHeader({ style: "band", doc, profile, custom: c }) : ""}
+<div class="sheet"${banded ? ' style="padding-top:28px;"' : ""}>
+  ${banded ? "" : renderHeader({ style: c.header_style, doc, profile, custom: c })}
+  <div style="margin-top:var(--gap);">${partiesRow(doc)}</div>
+  ${doc.status === "paid" && c.header_style !== "minimal" ? `<div style="margin-top:20px;">${paidMark(doc)}</div>` : ""}
+  <div style="margin-top:var(--gap);">${itemsTable(doc.line_items, sym, c.items_style)}</div>
+  ${totalsBlock(doc, sym, c.totals_style)}
   ${paymentBlock(profile, "columns")}
   ${notesBlock(doc)}
-  ${signOff(profile, c.footer_text, { serif, centred: c.header_style === "centered" })}
+  ${signOff(profile, c.footer_text, { centred: c.header_style === "centered" })}
 </div>`,
   });
 }
@@ -711,12 +810,15 @@ function templatePersonal(doc, profile, settings) {
 //  PUBLIC API
 // ──────────────────────────────────────────────────────────────────────
 export const TEMPLATE_DEFS = [
-  { id: 1, name: "Simple",    desc: "Plain black on white. Nothing to distract from the numbers." },
-  { id: 2, name: "Atelier",   desc: "Serif, wide margins, one figure that matters. The high-end one." },
-  { id: 3, name: "Statement", desc: "A single solid colour block, then air. Confident, not loud." },
+  { id: 2, name: "Atelier",   desc: "Wide margins, editorial line items, one figure that matters." },
+  { id: 1, name: "Simple",    desc: "Plain columns on bare paper. Nothing to distract from the numbers." },
+  { id: 3, name: "Statement", desc: "Filled item header and a payment panel. Confident, not loud." },
   { id: 4, name: "Column",    desc: "Details in a side rail, the work and the total on their own." },
-  { id: 6, name: "Personal",  desc: "Your own — colour, header, font and sign-off (or ask the assistant)." },
+  { id: 6, name: "Personal",  desc: "Everything above, plus line items, totals and spacing." },
 ];
+
+/** New accounts start on Atelier — it is the one that shows the app off. */
+export const DEFAULT_TEMPLATE_ID = 2;
 
 // Retired ids and what they now resolve to. 5 was Studio (purple gradient +
 // music-note watermark); its closest successor is Atelier.
@@ -730,7 +832,7 @@ const LEGACY_TEMPLATE_IDS = { 5: 2 };
 export function resolveTemplateId(id) {
   const n = Number(id);
   if (TEMPLATE_DEFS.some(t => t.id === n)) return n;
-  return LEGACY_TEMPLATE_IDS[n] || 1;
+  return LEGACY_TEMPLATE_IDS[n] || DEFAULT_TEMPLATE_ID;
 }
 
 /**
@@ -740,18 +842,17 @@ export function resolveTemplateId(id) {
  * @param {number} templateId – see TEMPLATE_DEFS
  * @returns {string} complete HTML
  */
-export function generateInvoiceHTML(doc, profile, settings, templateId = 1) {
-  const d = doc || {};
-  const p = profile || {};
-  const s = settings || {};
+export function generateInvoiceHTML(doc, profile, settings, templateId = DEFAULT_TEMPLATE_ID) {
+  const id = resolveTemplateId(templateId);
+  const custom = getTemplateCustom(settings, id);
   const fns = {
-    1: (a, b, c) => templateSimple(a, b, c),
-    2: (a, b, c) => templateAtelier(a, b, c, "#14171c"),
-    3: (a, b, c) => templateStatement(a, b, c, "#1c3a5e"),
-    4: (a, b, c) => templateColumn(a, b, c, "#1e4436"),
-    6: (a, b, c) => templatePersonal(a, b, c),
+    1: templateSimple,
+    2: templateAtelier,
+    3: templateStatement,
+    4: templateColumn,
+    6: templatePersonal,
   };
-  return fns[resolveTemplateId(templateId)](d, p, s);
+  return fns[id](doc || {}, profile || {}, custom);
 }
 
 /**
@@ -763,7 +864,7 @@ export function generateInvoiceHTML(doc, profile, settings, templateId = 1) {
  * sheet appears on top, and dismissing it returns the user exactly where they
  * were.
  */
-export function printInvoice(doc, profile, settings, templateId = 1) {
+export function printInvoice(doc, profile, settings, templateId = DEFAULT_TEMPLATE_ID) {
   const html = generateInvoiceHTML(doc, profile, settings, templateId);
 
   const existing = document.getElementById("flowtone-print-frame");
@@ -778,7 +879,7 @@ export function printInvoice(doc, profile, settings, templateId = 1) {
     const win = iframe.contentWindow;
     if (!win) return;
     // Small delay lets layout settle before the print snapshot. Type is a
-    // system stack now, so there is no webfont to wait on.
+    // system stack, so there is no webfont to wait on.
     setTimeout(() => {
       win.onafterprint = () => setTimeout(() => iframe.remove(), 500);
       try { win.focus(); win.print(); } catch { /* ignore */ }
