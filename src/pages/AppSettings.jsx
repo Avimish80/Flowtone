@@ -10,7 +10,8 @@ import { useTheme, ACCENT_THEMES } from "@/lib/ThemeContext";
 import { formatDistanceToNow } from "date-fns";
 import { getAssistantProfile, DEFAULT_ASSISTANT_NAME, DEFAULT_LANGUAGE } from "@/lib/assistantProfile";
 import { LANGUAGE_OPTIONS } from "@/components/onboarding/onboardingScript";
-import { TEMPLATE_DEFS, generateInvoiceHTML, sanitizeCustom, DEFAULT_CUSTOM, ACCENT_PRESETS, HEADER_STYLES, FONT_CHOICES } from "@/lib/invoiceTemplates";
+import { TEMPLATE_DEFS, generateInvoiceHTML, resolveTemplateId, sanitizeCustom, DEFAULT_CUSTOM, ACCENT_PRESETS, ACCENT_LABELS, HEADER_STYLES, FONT_CHOICES } from "@/lib/invoiceTemplates";
+import TemplateThumb from "@/components/invoice/TemplateThumb";
 import { registerPush, unregisterPush, isPushActive, schedulePushNotifications, sendTestPush } from "@/lib/pushManager";
 import { DEFAULT_PREFS } from "@/lib/notificationPrefs";
 import { isGmailConnected, getGmailEmail, connectGmail, disconnectGmail } from "@/lib/gmailClient";
@@ -18,6 +19,10 @@ import { connectCalendar, getCalendarStatus, syncNow as calendarSyncNow, setSync
 import SmartCSVImport from "@/components/SmartCSVImport";
 import { exportFullApp, downloadCSV } from "@/lib/csvExport";
 import NotificationPrefsEditor, { Toggle } from "@/components/NotificationPrefsEditor";
+
+// A4 at the width the templates lay out to (820 × 210:297).
+const PREVIEW_W = 820;
+const PREVIEW_H = 1160;
 
 export default function AppSettings() {
   const { logout, user, isPreviewMode } = useAuth();
@@ -53,6 +58,25 @@ export default function AppSettings() {
 
   // ── CSV Import state ──────────────────────────────────────────────
   const [showCSVImport, setShowCSVImport] = useState(false);
+
+  // ── Invoice template preview overlay ──────────────────────────────
+  // The sheet is rendered at full A4 width and scaled to fit, so the preview
+  // shows real page proportions. Letting a phone-width iframe reflow the
+  // document instead just shows a layout the printed invoice never has.
+  const [previewHtml, setPreviewHtml] = useState("");
+  const [previewScale, setPreviewScale] = useState(1);
+  const previewFitRef = useRef(null);
+
+  useEffect(() => {
+    if (!previewHtml) return;
+    const el = previewFitRef.current;
+    if (!el) return;
+    const fit = () => setPreviewScale(Math.min(1, el.clientWidth / PREVIEW_W));
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [previewHtml]);
 
   useEffect(() => {
     Promise.all([
@@ -241,29 +265,46 @@ export default function AppSettings() {
     });
   };
 
+  // Preview renders into an in-app overlay rather than window.open: in the iOS
+  // standalone PWA a new window replaces the whole app and strands the user on
+  // the document with no way back. Same trap printInvoice() avoids.
   const openTemplatePreview = (templateId) => {
     const sampleDoc = {
-      document_type: "invoice", document_number: "INV-0001", title: "Sample Invoice",
-      status: "sent", currency: "GBP",
-      line_items: [
-        { description: "Performance — Evening Event", quantity: 1, unit_price: 800, total: 800 },
-        { description: "Travel expenses", quantity: 1, unit_price: 50, total: 50 },
-      ],
-      subtotal: 850, total: 850, discount_amount: 0, tax_amount: 0, tax_rate: 0,
+      document_type: "invoice", document_number: "INV-0042", title: "Sample Invoice",
+      status: "sent", currency: settings?.default_currency || "GBP",
+      created_at: new Date().toISOString().slice(0, 10),
       due_date: new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10),
+      client_name: "Chiltern House Events",
+      client_email: "bookings@chilternhouse.co.uk",
+      line_items: [
+        { description: "Solo performance — drinks reception & dinner (3 hrs)", quantity: 1, unit_price: 850 },
+        { description: "Additional set — after-dinner (45 min)", quantity: 1, unit_price: 200 },
+        { description: "Travel", quantity: 2, unit_price: 45 },
+      ],
+      subtotal: 1140, discount_amount: 0, tax_rate: 0, tax_amount: 0, total: 1140,
       notes: "Thank you for booking. Please transfer within 14 days.",
     };
+    // Fall back to plausible sample values so the preview shows a full document
+    // rather than a half-empty one when the profile has not been filled in yet.
     const sampleProfile = {
       business_name: profile?.business_name || "Your Name",
-      address: profile?.address || "London, UK",
+      contact_name: profile?.contact_name || profile?.business_name || "Your Name",
+      logo: profile?.logo || "",
+      address_line_1: profile?.address_line_1 || "48 Example Street",
+      address_line_2: profile?.address_line_2 || "",
+      city: profile?.city || "London",
+      postcode: profile?.postcode || "NW6 3SJ",
       email: profile?.email || "you@example.com",
       phone: profile?.phone || "",
-      website: profile?.website || "",
-      payment_instructions: profile?.payment_instructions || "Bank transfer preferred.",
+      tax_id: profile?.tax_id || "",
+      bank_name: profile?.bank_name || "Your Bank",
+      bank_account_name: profile?.bank_account_name || "Your Name",
+      bank_sort_code: profile?.bank_sort_code || "00-00-00",
+      bank_account_number: profile?.bank_account_number || "12345678",
+      bank_iban: profile?.bank_iban || "",
+      payment_instructions: profile?.payment_instructions || "Bank transfer preferred. Please use the invoice number as the reference.",
     };
-    const html = generateInvoiceHTML(sampleDoc, sampleProfile, settings, templateId);
-    const blob = new Blob([html], { type: "text/html" });
-    window.open(URL.createObjectURL(blob), "_blank");
+    setPreviewHtml(generateInvoiceHTML(sampleDoc, sampleProfile, settings, templateId));
   };
 
   const handleTestPush = async () => {
@@ -563,42 +604,26 @@ export default function AppSettings() {
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Invoice Template</p>
                 <div className="flex gap-2.5">
                   {TEMPLATE_DEFS.map(t => {
-                    const isActive = (settings.invoice_template || 1) === t.id;
-                    const thumb = {
-                      1: { hdr: "#e2e8f0", hdrText: "#475569", accent: "#475569", line: "#cbd5e1" },
-                      2: { hdr: "#4f46e5", hdrText: "#fff",    accent: "#4f46e5", line: "#e0e7ff" },
-                      3: { hdr: "#0f172a", hdrText: "#e2e8f0", accent: "#0f172a", line: "#f1f5f9" },
-                      4: { hdr: "#fff",    hdrText: "#111827", accent: "#374151", line: "#e5e7eb" },
-                      5: { hdr: "#4c1d95", hdrText: "#ede9fe", accent: "#7c3aed", line: "#ddd6fe" },
-                      6: (() => { const a = sanitizeCustom(settings.invoice_custom).accent_color; return { hdr: a, hdrText: "#fff", accent: a, line: "#e5e7eb" }; })(),
-                    }[t.id];
+                    const isActive = resolveTemplateId(settings.invoice_template) === t.id;
+                    const thumbAccent = t.id === 6
+                      ? sanitizeCustom(settings.invoice_custom).accent_color
+                      : { 1: "#14171c", 2: "#14171c", 3: "#1c3a5e", 4: "#1e4436" }[t.id];
                     return (
                       <button
                         key={t.id}
                         onClick={() => onChange("invoice_template", t.id)}
-                        className={`rounded-md transition-all ${isActive ? "ring-2 ring-indigo-500 ring-offset-2 ring-offset-gray-800" : "opacity-60 hover:opacity-100"}`}
+                        className={`rounded-[3px] transition-all ${isActive ? "ring-2 ring-indigo-500 ring-offset-2 ring-offset-gray-800" : "opacity-55 hover:opacity-100"}`}
                         aria-label={t.name}
+                        aria-pressed={isActive}
                       >
-                        <svg width="44" height="57" viewBox="0 0 40 52" fill="none" className="rounded-md">
-                          <rect width="40" height="52" fill="white" rx="2"/>
-                          <rect width="40" height="13" fill={thumb.hdr} rx="2"/>
-                          <rect x="0" y="11" width="40" height="2" fill={thumb.hdr}/>
-                          <rect x="3" y="3" width="18" height="3" fill={thumb.hdrText} opacity="0.9" rx="1"/>
-                          <rect x="3" y="7" width="10" height="1.5" fill={thumb.hdrText} opacity="0.5" rx="1"/>
-                          <rect x="3" y="16" width="16" height="2" fill={thumb.accent} opacity="0.5" rx="1"/>
-                          <rect x="3" y="20" width="11" height="1.5" fill={thumb.accent} opacity="0.3" rx="1"/>
-                          <rect x="3" y="27" width="34" height="1.2" fill={thumb.line} rx="1"/>
-                          <rect x="3" y="30.5" width="34" height="1.2" fill={thumb.line} rx="1"/>
-                          <rect x="3" y="34" width="34" height="1.2" fill={thumb.line} rx="1"/>
-                          <rect x="3" y="37.5" width="34" height="1.2" fill={thumb.line} rx="1"/>
-                          <rect x="22" y="44" width="15" height="2" fill={thumb.accent} opacity="0.6" rx="1"/>
-                        </svg>
+                        <TemplateThumb id={t.id} accent={thumbAccent} />
                       </button>
                     );
                   })}
                 </div>
                 {(() => {
-                  const active = TEMPLATE_DEFS.find(t => t.id === (settings.invoice_template || 1)) || TEMPLATE_DEFS[0];
+                  const activeId = resolveTemplateId(settings.invoice_template);
+                  const active = TEMPLATE_DEFS.find(t => t.id === activeId) || TEMPLATE_DEFS[0];
                   return (
                     <div className="flex items-center justify-between gap-3 mt-3">
                       <div className="min-w-0">
@@ -612,10 +637,10 @@ export default function AppSettings() {
                   );
                 })()}
 
-                {(settings.invoice_template || 1) === 6 && (() => {
+                {resolveTemplateId(settings.invoice_template) === 6 && (() => {
                   const custom = sanitizeCustom(settings.invoice_custom);
                   const setCustom = (patch) => onChange("invoice_custom", { ...custom, ...patch });
-                  const HEADER_LABELS = { band: "Colour band", minimal: "Minimal line", centered: "Centred" };
+                  const HEADER_LABELS = { band: "Colour block", minimal: "Hairline", centered: "Centred" };
                   const FONT_LABELS = { sans: "Sans", serif: "Serif" };
                   const segBtn = (active) => `flex-1 text-xs py-1.5 rounded-md transition-colors ${active ? "bg-indigo-600 text-white" : "bg-gray-900 text-gray-400 hover:text-gray-200"}`;
                   return (
@@ -624,10 +649,14 @@ export default function AppSettings() {
                         Make it yours — or just ask the assistant: <span className="text-gray-400">"make my invoice header teal and centred."</span>
                       </p>
                       <div>
-                        <label className={labelCls}>Accent colour</label>
+                        <label className={labelCls}>
+                          Accent colour
+                          <span className="text-gray-600 normal-case tracking-normal"> · {ACCENT_LABELS[custom.accent_color] || "Custom"}</span>
+                        </label>
                         <div className="flex items-center gap-2 flex-wrap">
                           {ACCENT_PRESETS.map(hex => (
-                            <button key={hex} onClick={() => setCustom({ accent_color: hex })} aria-label={hex}
+                            <button key={hex} onClick={() => setCustom({ accent_color: hex })}
+                              aria-label={ACCENT_LABELS[hex] || hex} title={ACCENT_LABELS[hex] || hex}
                               className={`w-7 h-7 rounded-full transition-transform ${custom.accent_color === hex ? "ring-2 ring-offset-2 ring-offset-gray-800 ring-white scale-110" : "hover:scale-105"}`}
                               style={{ backgroundColor: hex }} />
                           ))}
@@ -885,6 +914,50 @@ export default function AppSettings() {
       </div>
 
       {showCSVImport && <SmartCSVImport onClose={() => setShowCSVImport(false)} onImported={() => setShowCSVImport(false)} />}
+
+      {previewHtml && (
+        <div className="fixed inset-0 z-50 bg-gray-950 flex flex-col">
+          <div
+            className="flex items-center justify-between px-4 py-3 flex-shrink-0"
+            style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top))" }}
+          >
+            <p className="text-sm text-gray-300">Sample invoice</p>
+            <button
+              onClick={() => setPreviewHtml("")}
+              className="text-gray-400 hover:text-white p-1.5 -mr-1.5 transition-colors"
+              aria-label="Close preview"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          <div
+            className="flex-1 overflow-auto px-3 pb-3"
+            style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
+          >
+            <div ref={previewFitRef} className="w-full">
+              <div
+                className="mx-auto"
+                style={{ width: PREVIEW_W * previewScale, height: PREVIEW_H * previewScale }}
+              >
+                <iframe
+                  title="Invoice preview"
+                  srcDoc={previewHtml}
+                  sandbox=""
+                  scrolling="no"
+                  className="bg-white rounded-lg"
+                  style={{
+                    width: PREVIEW_W,
+                    height: PREVIEW_H,
+                    border: 0,
+                    transform: `scale(${previewScale})`,
+                    transformOrigin: "top left",
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -241,8 +241,8 @@ UPDATE_INVOICE_STYLE — restyle the musician's "Personal" invoice/estimate temp
 {
   "type": "UPDATE_INVOICE_STYLE",
   "data": {
-    "accent_color": "hex like #4f46e5 (optional — map colour names to a sensible hex, e.g. teal -> #0d9488, green -> #16a34a, navy -> #0f172a)",
-    "header_style": "band|minimal|centered (optional — 'band' = coloured header bar, 'minimal' = name + thin line, 'centered' = centred logo/name)",
+    "accent_color": "hex (optional). This is a business document, so prefer deep, muted tones over bright ones — the house set is Ink #14171c, Oxford #1c3a5e, Forest #1e4436, Claret #6d2434, Bronze #8a6a3c, Slate #4a5462. Map a requested colour to the nearest of those (green -> #1e4436, blue/navy -> #1c3a5e, red -> #6d2434, gold/tan -> #8a6a3c, grey -> #4a5462, black -> #14171c). Only pick a hex outside that set if the user names a specific shade or gives an exact hex, and even then darken it to document weight rather than using a vivid tone.",
+    "header_style": "band|minimal|centered (optional — 'band' = solid colour block header, 'minimal' = name + thin accent line, 'centered' = centred logo/name)",
     "font": "sans|serif (optional)",
     "footer_text": "string (optional — the thank-you line at the bottom, e.g. 'Thank you for the music. — Avi'. Keep it short)",
     "show_logo": "boolean (optional — whether to show their logo)"
