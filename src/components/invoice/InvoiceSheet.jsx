@@ -45,6 +45,7 @@ function Row({ onClick, disabled, children, className = "", style }) {
 export default function InvoiceSheet({
   doc, profile, clients, linkedEvent, sym: symProp,
   accent = "#1c3a5e",
+  fontStack,
   isInvoice, typeLabel, docNumberPlaceholder,
   onChange, onDiscountOrTaxChange,
   lineItemProps,          // { newItem, setNewItem, addLineItem, removeLineItem, updateLineItem, editingItem, setEditingItem }
@@ -84,7 +85,7 @@ export default function InvoiceSheet({
   return (
     <div
       className="doc-sheet rounded-2xl overflow-hidden shadow-lg shadow-black/30"
-      style={{ "--doc-accent": accent }}
+      style={{ "--doc-accent": accent, "--doc-font": fontStack || "inherit" }}
     >
       <div className="px-5 pt-5 pb-6 space-y-5">
 
@@ -92,7 +93,7 @@ export default function InvoiceSheet({
         <div className="grid grid-cols-[1fr_auto] items-start gap-4">
           <div className="min-w-0">
             <Label>From</Label>
-            <p className="doc-lead mt-1 truncate" style={{ fontWeight: 700 }}>
+            <p className="doc-lead mt-1 break-words" style={{ fontWeight: 700 }}>
               {profile?.business_name || "Your business"}
             </p>
             {addressLines.length > 0 && (
@@ -157,8 +158,10 @@ export default function InvoiceSheet({
             <Label>Billed to</Label>
             {client ? (
               <>
-                <p className="doc-lead mt-1 truncate">{client.name}</p>
-                {clientEmail && <p className="doc-fine truncate">{clientEmail}</p>}
+                <p className="doc-lead mt-1 break-words">{client.name}</p>
+                {clientEmail && (
+                  <p className="doc-fine" style={{ overflowWrap: "anywhere" }}>{clientEmail}</p>
+                )}
               </>
             ) : (
               <p className="doc-lead mt-1" style={{ color: "var(--doc-link)" }}>

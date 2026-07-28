@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   printInvoice, buildMailtoLink, buildInvoiceEmailParts, resolveTemplateId,
-  generateInvoiceHTML, getTemplateCustom,
+  generateInvoiceHTML, getTemplateCustom, FONT_STACKS,
 } from "@/lib/invoiceTemplates";
 import InvoiceSheet from "@/components/invoice/InvoiceSheet";
 import DocumentPreview from "@/components/invoice/DocumentPreview";
@@ -855,12 +855,12 @@ export default function DocumentDetail() {
     && (doc.total || 0) > 0
     && !!(doc.client_id || linkedEvent?.client_id);
 
-  // The sheet borrows the chosen template's accent so the editor and the
-  // printed document read as the same object.
-  const sheetAccent = useMemo(
-    () => getTemplateCustom(appSettings, resolveTemplateId(appSettings?.invoice_template)).accent_color,
-    [appSettings]
-  );
+  // The sheet borrows the chosen template's accent AND body font, so the editor
+  // and the printed document read as the same object.
+  const sheetStyle = useMemo(() => {
+    const c = getTemplateCustom(appSettings, resolveTemplateId(appSettings?.invoice_template));
+    return { accent: c.accent_color, fontStack: FONT_STACKS[c.font] };
+  }, [appSettings]);
 
   // Enrich doc with client_name for templates
   const docForPrint = useMemo(() => ({
@@ -1115,7 +1115,8 @@ export default function DocumentDetail() {
           clients={clients}
           linkedEvent={linkedEvent}
           sym={sym}
-          accent={sheetAccent}
+          accent={sheetStyle.accent}
+          fontStack={sheetStyle.fontStack}
           isInvoice={isInvoice}
           typeLabel={typeLabel}
           docNumberPlaceholder={isNew ? "Auto" : ""}

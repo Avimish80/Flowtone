@@ -103,6 +103,10 @@
      Atelier defaults to Ink (#14171c), which would render every link and
      affordance indistinguishable from body text. */
   --doc-link: #2f4fd0;
+  /* Set inline from the template's chosen body font so the editor is typeset
+     in the same face as the document it produces. */
+  --doc-font: inherit;
+  font-family: var(--doc-font);
   background: var(--paper);
   color: var(--doc-body);
 }
