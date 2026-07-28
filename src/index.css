@@ -82,6 +82,79 @@
   .hide-fees .sensitive { filter: blur(8px); }
 }
 
+/* ── Document sheet ───────────────────────────────────────────────────
+   The invoice editor is a light "paper" surface inside the dark app, so the
+   thing you edit looks like the thing that prints. Styles are scoped here
+   rather than written as inline Tailwind dark-mode overrides on every node.
+
+   color-scheme:light is load-bearing — without it the browser paints native
+   <input type="date"> and <select> internals (calendar glyph, dropdown arrow,
+   picker popover) for a dark UA, which renders them near-invisible on paper. */
+.doc-sheet {
+  color-scheme: light;
+  --paper: #ffffff;
+  --paper-sunk: #f6f7f9;
+  --doc-ink: #14171c;
+  --doc-body: #434a55;
+  --doc-muted: #8b929d;
+  --doc-hair: #e4e7ec;
+  --doc-accent: #1c3a5e; /* overridden inline from the template's saved accent */
+  /* Controls need to read as tappable regardless of the document's accent.
+     Atelier defaults to Ink (#14171c), which would render every link and
+     affordance indistinguishable from body text. */
+  --doc-link: #2f4fd0;
+  background: var(--paper);
+  color: var(--doc-body);
+}
+
+.doc-sheet .doc-label {
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-weight: 600;
+  color: var(--doc-muted);
+  display: block;
+}
+.doc-sheet .doc-lead { font-size: 15px; color: var(--doc-ink); font-weight: 500; }
+.doc-sheet .doc-fine { font-size: 12px; color: var(--doc-muted); line-height: 1.6; }
+.doc-sheet .doc-num  { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
+
+/* Editable fields read as paper, not as form controls, until focused. */
+.doc-sheet input,
+.doc-sheet textarea,
+.doc-sheet select {
+  background: transparent;
+  color: var(--doc-ink);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font: inherit;
+}
+.doc-sheet input::placeholder,
+.doc-sheet textarea::placeholder { color: #b6bcc5; }
+.doc-sheet input:focus,
+.doc-sheet textarea:focus,
+.doc-sheet select:focus {
+  outline: none;
+  background: var(--paper-sunk);
+  border-color: var(--doc-accent);
+}
+.doc-sheet input:disabled,
+.doc-sheet textarea:disabled,
+.doc-sheet select:disabled { color: var(--doc-body); opacity: 1; }
+
+/* Tappable rows: a whole block of the document acts as one control.
+   Visual affordance only — no display/width/text-align here. Those would win
+   on specificity over the Tailwind utilities each usage supplies and force
+   side-by-side blocks to overlap. */
+.doc-sheet .doc-row {
+  border-radius: 8px;
+  transition: background-color 120ms ease;
+}
+.doc-sheet .doc-row:active { background: var(--paper-sunk); }
+@media (hover: hover) {
+  .doc-sheet .doc-row:hover { background: var(--paper-sunk); }
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -207,6 +280,25 @@ html:not(.dark) .text-indigo-100 { color: rgb(var(--accent-900)) !important; }
 html:not(.dark) .text-indigo-200 { color: rgb(var(--accent-800)) !important; }
 html:not(.dark) .text-indigo-300 { color: rgb(var(--accent-700)) !important; }
 html:not(.dark) .text-indigo-400 { color: rgb(var(--accent-600)) !important; }
+/* …including the opacity variants (text-indigo-400/70 and friends), which the
+   plain class selectors above do not match. */
+html:not(.dark) [class*="text-indigo-200/"] { color: rgb(var(--accent-800)) !important; }
+html:not(.dark) [class*="text-indigo-300/"] { color: rgb(var(--accent-700)) !important; }
+html:not(.dark) [class*="text-indigo-400/"] { color: rgb(var(--accent-600)) !important; }
+
+/* Status text — indigo already had this treatment; the status hues never got
+   it, so blue/green/red actions sat near-invisible on a light background. */
+html:not(.dark) .text-blue-300   { color: #1d4ed8 !important; }
+html:not(.dark) .text-blue-400   { color: #2563eb !important; }
+html:not(.dark) .text-green-300  { color: #15803d !important; }
+html:not(.dark) .text-green-400  { color: #16a34a !important; }
+html:not(.dark) .text-red-300    { color: #b91c1c !important; }
+html:not(.dark) .text-yellow-300 { color: #a16207 !important; }
+
+/* Tinted action-button backgrounds */
+html:not(.dark) [class*="bg-blue-600/"]  { background-color: rgba(37,99,235,0.10)  !important; }
+html:not(.dark) [class*="bg-green-600/"] { background-color: rgba(22,163,74,0.10)  !important; }
+html:not(.dark) [class*="bg-indigo-950"] { background-color: rgb(var(--accent-50)) !important; }
 
 /* ── Borders ──────────────────────────────────────────────────────── */
 html:not(.dark) .border-gray-800  { border-color: #e2e8f0 !important; }

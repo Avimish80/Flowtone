@@ -18,6 +18,7 @@ import {
   ITEMS_STYLES, ITEMS_LABELS, TOTALS_STYLES, TOTALS_LABELS, DENSITIES, DENSITY_LABELS,
 } from "@/lib/invoiceTemplates";
 import TemplateThumb from "@/components/invoice/TemplateThumb";
+import DocumentPreview from "@/components/invoice/DocumentPreview";
 import { registerPush, unregisterPush, isPushActive, schedulePushNotifications, sendTestPush } from "@/lib/pushManager";
 import { DEFAULT_PREFS } from "@/lib/notificationPrefs";
 import { isGmailConnected, getGmailEmail, connectGmail, disconnectGmail } from "@/lib/gmailClient";
@@ -25,10 +26,6 @@ import { connectCalendar, getCalendarStatus, syncNow as calendarSyncNow, setSync
 import SmartCSVImport from "@/components/SmartCSVImport";
 import { exportFullApp, downloadCSV } from "@/lib/csvExport";
 import NotificationPrefsEditor, { Toggle } from "@/components/NotificationPrefsEditor";
-
-// A4 at the width the templates lay out to (820 × 210:297).
-const PREVIEW_W = 820;
-const PREVIEW_H = 1160;
 
 export default function AppSettings() {
   const { logout, user, isPreviewMode } = useAuth();
@@ -66,23 +63,7 @@ export default function AppSettings() {
   const [showCSVImport, setShowCSVImport] = useState(false);
 
   // ── Invoice template preview overlay ──────────────────────────────
-  // The sheet is rendered at full A4 width and scaled to fit, so the preview
-  // shows real page proportions. Letting a phone-width iframe reflow the
-  // document instead just shows a layout the printed invoice never has.
   const [previewHtml, setPreviewHtml] = useState("");
-  const [previewScale, setPreviewScale] = useState(1);
-  const previewFitRef = useRef(null);
-
-  useEffect(() => {
-    if (!previewHtml) return;
-    const el = previewFitRef.current;
-    if (!el) return;
-    const fit = () => setPreviewScale(Math.min(1, el.clientWidth / PREVIEW_W));
-    fit();
-    const ro = new ResizeObserver(fit);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [previewHtml]);
 
   useEffect(() => {
     Promise.all([
@@ -941,49 +922,11 @@ export default function AppSettings() {
 
       {showCSVImport && <SmartCSVImport onClose={() => setShowCSVImport(false)} onImported={() => setShowCSVImport(false)} />}
 
-      {previewHtml && (
-        <div className="fixed inset-0 z-50 bg-gray-950 flex flex-col">
-          <div
-            className="flex items-center justify-between px-4 py-3 flex-shrink-0"
-            style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top))" }}
-          >
-            <p className="text-sm text-gray-300">Sample invoice</p>
-            <button
-              onClick={() => setPreviewHtml("")}
-              className="text-gray-400 hover:text-white p-1.5 -mr-1.5 transition-colors"
-              aria-label="Close preview"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-          <div
-            className="flex-1 overflow-auto px-3 pb-3"
-            style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
-          >
-            <div ref={previewFitRef} className="w-full">
-              <div
-                className="mx-auto"
-                style={{ width: PREVIEW_W * previewScale, height: PREVIEW_H * previewScale }}
-              >
-                <iframe
-                  title="Invoice preview"
-                  srcDoc={previewHtml}
-                  sandbox=""
-                  scrolling="no"
-                  className="bg-white rounded-lg"
-                  style={{
-                    width: PREVIEW_W,
-                    height: PREVIEW_H,
-                    border: 0,
-                    transform: `scale(${previewScale})`,
-                    transformOrigin: "top left",
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <DocumentPreview
+        html={previewHtml}
+        title="Sample invoice"
+        onClose={() => setPreviewHtml("")}
+      />
     </div>
   );
 }
