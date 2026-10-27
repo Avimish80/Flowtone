@@ -5,7 +5,7 @@ import { useTheme } from "@/lib/ThemeContext";
 import { usePrivacy } from "@/lib/PrivacyContext";
 import {
   Music2, CalendarDays, CalendarRange, Users, Receipt,
-  Package, Mail, Car, Settings, LayoutDashboard, MoreHorizontal, X, Sun, Moon,
+  Package, Mail, Car, Settings, LayoutDashboard, MoreHorizontal, X, Sun, Moon, FileSpreadsheet,
   Music, Dumbbell, FileText, Bell, Loader2, Target, Eye, EyeOff, UserPlus
 } from "lucide-react";
 import AIAssistantButton from "@/components/AIAssistant/AIAssistantButton";
@@ -62,6 +62,7 @@ const NAV_GROUP = {
   Packages: "Leads",
   DrivingMode: "DrivingMode",
   AppSettings: "AppSettings",
+  SheetImport: "AppSettings",
 };
 
 // Map page names to user-friendly section labels
@@ -87,6 +88,7 @@ const SECTION_LABELS = {
   EmailInbox: "Inbox",
   DrivingMode: "Drive",
   AppSettings: "Settings",
+  SheetImport: "Import",
 };
 
 // Icon shown alongside the section label in the header
@@ -110,6 +112,7 @@ const SECTION_ICONS = {
   EmailInbox: Mail,
   DrivingMode: Car,
   AppSettings: Settings,
+  SheetImport: FileSpreadsheet,
   DocumentDetail: FileText,
 };
 

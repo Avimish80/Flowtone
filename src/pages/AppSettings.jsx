@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { Link } from "react-router-dom";
 import { appClient } from "@/api/appClient";
+import { createPageUrl } from "@/utils";
 import { useAuth } from "@/lib/AuthContext";
 import {
   Check, Mail, Bell, Banknote, Building2, CalendarDays, RefreshCw,
   ChevronDown, ChevronUp, Upload, X, Download, Upload as UploadIcon,
-  LogOut, Sparkles, Link2, Palette
+  LogOut, Sparkles, Link2, Palette, FileSpreadsheet
 } from "lucide-react";
 import { useTheme, ACCENT_THEMES } from "@/lib/ThemeContext";
 import { formatDistanceToNow } from "date-fns";
@@ -889,6 +891,11 @@ export default function AppSettings() {
           <SectionHeader icon={Download} label="Backup & Restore" sectionKey="data" />
           {openSections.has("data") && (
             <div className="bg-gray-800 rounded-xl p-4 space-y-2">
+              <Link to={createPageUrl("SheetImport")}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-gray-700 hover:bg-gray-600 text-gray-200 transition-colors">
+                <FileSpreadsheet className="w-4 h-4" />
+                Update gigs from a spreadsheet
+              </Link>
               <button onClick={() => setShowCSVImport(true)}
                 className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-gray-700 hover:bg-gray-600 text-gray-200 transition-colors">
                 <UploadIcon className="w-4 h-4" />

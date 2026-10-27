@@ -78,6 +78,7 @@ const Leads = lazy(() => import('./pages/Leads'));
 const Packages = lazy(() => import('./pages/Packages'));
 const Practice = lazy(() => import('./pages/Practice'));
 const WorkEventDetail = lazy(() => import('./pages/WorkEventDetail'));
+const SheetImport = lazy(() => import('./pages/SheetImport'));
 const Missions = lazy(() => import('./pages/Missions'));
 const MissionDetail = lazy(() => import('./pages/MissionDetail'));
 const WorkEvents = lazy(() => import('./pages/WorkEvents'));
@@ -106,6 +107,7 @@ export const PAGES = {
     "MissionDetail": MissionDetail,
     "Packages": Packages,
     "Practice": Practice,
+    "SheetImport": SheetImport,
     "WorkEventDetail": WorkEventDetail,
     "WorkEvents": WorkEvents,
 }

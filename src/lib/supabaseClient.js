@@ -25,12 +25,44 @@ export function isPreviewModeEnabled() {
 let client = null;
 let cachedSession = null;
 
+// Where supabase-js keeps the session. By default that is one key per
+// database host; the local stack gets a fixed key instead, because it is
+// reached at whatever address this Mac had at build time (its Wi-Fi IP, its
+// Tailscale name) and is the same database either way.
+export function authStorageKey() {
+  if (!isSupabaseConfigured) return null;
+  if (import.meta.env.MODE === "localdb") return "sb-flowtone-local-auth-token";
+  return `sb-${new URL(supabaseUrl).hostname.split(".")[0]}-auth-token`;
+}
+
+// Builds before 27 Oct 2026 stored the local session per IP address
+// (sb-192-auth-token, ...). Carry the freshest one over instead of signing
+// out: local sign-in codes only reach the Mac's Mailpit, so a phone away from
+// home could not sign back in. Then remove them all, so none is left to bring
+// back after a sign-out.
+function adoptLocalSession() {
+  if (import.meta.env.MODE !== "localdb") return;
+  try {
+    const key = authStorageKey();
+    const old = Object.keys(localStorage).filter((k) => /^sb-\d+-auth-token/.test(k));
+    if (!old.length) return;
+    if (!localStorage.getItem(key)) {
+      const expiry = (k) => { try { return JSON.parse(localStorage.getItem(k))?.expires_at || 0; } catch { return 0; } };
+      const freshest = old.filter((k) => /^sb-\d+-auth-token$/.test(k)).sort((a, b) => expiry(b) - expiry(a))[0];
+      if (freshest) localStorage.setItem(key, localStorage.getItem(freshest));
+    }
+    old.forEach((k) => localStorage.removeItem(k));
+  } catch { /* storage blocked */ }
+}
+
 export function getSupabaseClient() {
   if (!isSupabaseConfigured) return null;
   if (client) return client;
 
+  adoptLocalSession();
   client = createClient(supabaseUrl, supabaseAnonKey, {
     auth: {
+      storageKey: authStorageKey(),
       autoRefreshToken: true,
       detectSessionInUrl: true,
       persistSession: true,

@@ -268,10 +268,11 @@ NAVIGATE — open a specific page in the app
 {
   "type": "NAVIGATE",
   "data": {
-    "page": "Dashboard|CalendarView|WorkEvents|Practice|Charts|Clients|Finance",
+    "page": "Dashboard|CalendarView|WorkEvents|Practice|Charts|Clients|Finance|SheetImport",
     "params": {}
   }
 }
+SheetImport is the "Update gigs from a spreadsheet" screen. You cannot read files yourself: when the musician wants to bring in a spreadsheet, Excel/CSV file or Airtable export (fees, invoices, payments for many gigs), send them there.
 
 LOCATION_SEARCH — look up a venue, restaurant, or place by name to find its address and details (use ONLY for location/venue/parking queries)
 {
