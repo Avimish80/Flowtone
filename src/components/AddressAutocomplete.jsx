@@ -13,6 +13,7 @@ export default function AddressAutocomplete({
   onChange,
   placeholder = "Address or venue name",
   inputClassName = "",
+  inputId,
 }) {
   const [results, setResults] = useState([]);
   const [open, setOpen] = useState(false);
@@ -76,6 +77,7 @@ export default function AddressAutocomplete({
   return (
     <div className="relative" ref={boxRef}>
       <input
+        id={inputId}
         className={inputClassName}
         placeholder={placeholder}
         value={value}

@@ -10,11 +10,18 @@ function toMins(t) {
   return h * 60 + m;
 }
 
+/** Minutes from start to end; an end before the start means it runs past midnight. */
+function spanMins(start, end) {
+  const s = toMins(start), e = toMins(end);
+  if (s == null || e == null) return null;
+  const d = (e - s + 1440) % 1440;
+  return d === 0 ? null : d;
+}
+
 /** Return "Xh Ym" label from start_time + end_time strings, or null */
 function durationLabel(start, end) {
-  const s = toMins(start), e = toMins(end);
-  if (s == null || e == null || e <= s) return null;
-  const mins = e - s;
+  const mins = spanMins(start, end);
+  if (mins == null) return null;
   const h = Math.floor(mins / 60), m = mins % 60;
   if (h === 0) return `${m}m`;
   return m === 0 ? `${h}h` : `${h}h ${m}m`;
@@ -22,9 +29,41 @@ function durationLabel(start, end) {
 
 /** Convert start_time + end_time → decimal hours for the calendar */
 function toDurationHours(start, end) {
-  const s = toMins(start), e = toMins(end);
-  if (s == null || e == null || e <= s) return null;
-  return (e - s) / 60;
+  const mins = spanMins(start, end);
+  return mins == null ? null : mins / 60;
+}
+
+/** "HH:MM" plus whole hours, wrapping past midnight */
+function addHours(start, hours) {
+  const s = toMins(start);
+  if (s == null) return "";
+  const t = (s + hours * 60) % 1440;
+  return `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`;
+}
+
+const DURATION_CHIPS = [1, 2, 3, 4];
+
+// iOS never shows a placeholder for <input type="time"> — an empty one is just a
+// blank box — so the field draws its own. The input's text goes transparent
+// while empty so desktop browsers' "--:--" doesn't show through it.
+function TimeField({ id, label, value, onChange }) {
+  return (
+    <div className="relative">
+      <input
+        id={id}
+        type="time"
+        aria-label={label}
+        className={`${inputCls} min-h-[44px] appearance-none ${value ? "" : "text-transparent focus:text-white"}`}
+        value={value || ""}
+        onChange={e => onChange(e.target.value)}
+      />
+      {!value && (
+        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">
+          {label}
+        </span>
+      )}
+    </div>
+  );
 }
 
 const EVENT_TYPES = ["Gig", "Lesson", "Session", "Rehearsal", "Tour Day", "Residency", "Practice"];
@@ -104,6 +143,7 @@ export default function EventInfoSection({ event, onChange, clients }) {
       <div>
         <label className={labelCls + " flex items-center gap-1"}><User className="w-3 h-3" />Client</label>
         <select
+          id="event-client"
           className={inputCls}
           value={event.client_id || ""}
           onChange={e => onChange("client_id", e.target.value)}
@@ -135,42 +175,67 @@ export default function EventInfoSection({ event, onChange, clients }) {
           )}
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <div>
-            <p className="text-[11px] text-gray-500 mb-1">Start</p>
-            <input
-              type="time"
-              className={inputCls}
-              value={event.start_time || ""}
-              onChange={e => {
-                const start = e.target.value;
-                onChange("start_time", start);
-                onChange("time", start);
-                const dh = toDurationHours(start, event.end_time);
-                if (dh) onChange("duration_hours", dh);
-              }}
-            />
-          </div>
-          <div>
-            <p className="text-[11px] text-gray-500 mb-1">End</p>
-            <input
-              type="time"
-              className={inputCls}
-              value={event.end_time || ""}
-              onChange={e => {
-                const end = e.target.value;
-                onChange("end_time", end);
-                const dh = toDurationHours(event.start_time, end);
-                if (dh) onChange("duration_hours", dh);
-              }}
-            />
-          </div>
+          <TimeField
+            id="event-start-time"
+            label="Start"
+            value={event.start_time}
+            onChange={start => {
+              onChange("start_time", start);
+              onChange("time", start);
+              const dh = toDurationHours(start, event.end_time);
+              if (dh) onChange("duration_hours", dh);
+            }}
+          />
+          <TimeField
+            id="event-end-time"
+            label="End"
+            value={event.end_time}
+            onChange={end => {
+              onChange("end_time", end);
+              const dh = toDurationHours(event.start_time, end);
+              if (dh) onChange("duration_hours", dh);
+            }}
+          />
         </div>
+        {event.start_time && (
+          <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+            <span className="text-[11px] text-gray-500 mr-0.5">Ends after</span>
+            {DURATION_CHIPS.map(h => {
+              const active = toDurationHours(event.start_time, event.end_time) === h;
+              return (
+                <button
+                  key={h}
+                  type="button"
+                  onClick={() => {
+                    onChange("end_time", addHours(event.start_time, h));
+                    onChange("duration_hours", h);
+                  }}
+                  className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                    active ? "bg-indigo-600 text-white" : "bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-200"
+                  }`}
+                >
+                  {h}h
+                </button>
+              );
+            })}
+            {event.end_time && (
+              <button
+                type="button"
+                onClick={() => onChange("end_time", "")}
+                className="px-2 py-1 text-xs text-gray-500 hover:text-gray-300 transition-colors"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Location */}
       <div>
         <label className={labelCls + " flex items-center gap-1"}><MapPin className="w-3 h-3" />Location</label>
         <AddressAutocomplete
+          inputId="event-location"
           inputClassName={inputCls}
           placeholder="Address or venue name"
           value={event.location_address || ""}

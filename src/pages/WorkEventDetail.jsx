@@ -1,15 +1,18 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { flushSync } from "react-dom";
 import { appClient } from "@/api/appClient";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { createPageUrl, formatMoney } from "@/utils";
 import { useGoBack } from "@/hooks/useGoBack";
 import { format, parseISO } from "date-fns";
 import {
   ArrowLeft, Trash2, Banknote, Phone, User, Clock, MapPin,
-  Package, Mail, Navigation, ChevronDown, ChevronUp, AlertTriangle, FileText, CalendarDays, RefreshCw,
-  Dumbbell, Check, X, CheckCircle2, Target, ExternalLink, Loader2, MessageCircle
+  Package, Mail, Navigation, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, AlertTriangle, FileText, CalendarDays, RefreshCw,
+  Dumbbell, Check, X, CheckCircle2, Target, ExternalLink, Loader2, MessageCircle, Plus, Sparkles
 } from "lucide-react";
 import { deleteCalendarEvent } from "@/lib/calendarClient";
+import { suggestClientForEvent } from "@/lib/clientMatch";
+import { hasFee } from "@/lib/missingInfo";
 
 const STATUS_LABELS = { lead: "Tentative", confirmed: "Confirmed", completed: "Completed", cancelled: "Cancelled" };
 const SERIES_FIELDS = ["start_time", "end_time", "base_price", "total_price", "currency", "location_address"];
@@ -44,9 +47,19 @@ const SECTIONS = [
 
 const TODAY = format(new Date(), "yyyy-MM-dd");
 
+// Chronological order for prev/next: date, then start time, then a stable tiebreak.
+const eventOrderKey = (e) => `${e.date || ""}T${e.start_time || e.time || "00:00"}#${e.id}`;
+
+// Keyed on the event id so swiping to a neighbour mounts a clean page — the
+// loaded estimate/invoice, open section and prompts must not carry over.
 export default function WorkEventDetail() {
-  const params = new URLSearchParams(window.location.search);
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
   const id = params.get("id");
+  return <WorkEventDetailInner key={id || "new"} id={id} params={params} slideFrom={location.state?.slide} />;
+}
+
+function WorkEventDetailInner({ id, params, slideFrom }) {
   const prefilledDate     = params.get("date");         // passed from calendar when creating new event
   const prefilledType     = params.get("event_type");   // e.g. "Practice" from Practice page shortcut
   const prefilledLinkedGig = params.get("linked_gig_id"); // pre-link practice to a gig
@@ -74,11 +87,14 @@ export default function WorkEventDetail() {
   );
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  // Practice-specific state
+  // Every event, loaded once: feeds prev/next, linked practice sessions and
+  // the "preparing for" gig picker.
+  const [allEvents, setAllEvents] = useState([]);
   const [practiceGoals, setPracticeGoals] = useState([]);
-  const [upcomingGigs, setUpcomingGigs] = useState([]);
-  const [linkedPracticeSessions, setLinkedPracticeSessions] = useState([]);
   const [loggingPractice, setLoggingPractice] = useState(false);
+  // Proactive client link for an event with no client — see clientMatch.js.
+  // { client, confidence, applied, auto, fee, before } | null
+  const [clientSuggestion, setClientSuggestion] = useState(null);
   // "Apply to series" prompt — shown after a recurring event's time/price/
   // location changes vs. the baseline it was loaded with. `fields` lists what changed.
   const [seriesPrompt, setSeriesPrompt] = useState(null); // { fields: string[], event } | null
@@ -134,32 +150,39 @@ export default function WorkEventDetail() {
     });
   }, [id]);
 
-  // Load practice data — goals + upcoming gigs for practice events,
-  // linked practice sessions for non-practice events
   useEffect(() => {
-    if (isPractice) {
-      const todayStr = TODAY;
-      Promise.all([
-        appClient.entities.PracticeGoal.list(),
-        appClient.entities.WorkEvent.list("date", 500),
-      ]).then(([goals, events]) => {
-        setPracticeGoals(goals.filter(g => !g.completed));
-        setUpcomingGigs(
-          events
-            .filter(e => e.event_type !== "Practice" && e.date >= todayStr && e.id !== id)
-            .sort((a, b) => a.date.localeCompare(b.date))
-            .slice(0, 40)
-        );
-      });
-    } else if (id) {
-      // For gigs/lessons: load any practice events that are linked to this event
-      appClient.entities.WorkEvent.list("-date", 500).then(events => {
-        setLinkedPracticeSessions(
-          events.filter(e => e.event_type === "Practice" && e.linked_gig_id === id)
-        );
-      });
-    }
-  }, [isPractice, id]);
+    if (!id && !isPractice) return;
+    appClient.entities.WorkEvent.list("date", 1000).then(setAllEvents);
+  }, [id, isPractice]);
+
+  useEffect(() => {
+    if (!isPractice) return;
+    appClient.entities.PracticeGoal.list().then(goals => setPracticeGoals(goals.filter(g => !g.completed)));
+  }, [isPractice]);
+
+  const upcomingGigs = useMemo(() =>
+    allEvents
+      .filter(e => e.event_type !== "Practice" && e.date >= TODAY && e.id !== id)
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .slice(0, 40),
+    [allEvents, id]
+  );
+  const linkedPracticeSessions = useMemo(() =>
+    allEvents.filter(e => e.event_type === "Practice" && e.linked_gig_id === id),
+    [allEvents, id]
+  );
+
+  // Neighbours on the calendar, for swiping between events.
+  const { prevEvent, nextEvent } = useMemo(() => {
+    const ordered = allEvents
+      .filter(e => e.date)
+      .sort((a, b) => eventOrderKey(a).localeCompare(eventOrderKey(b)));
+    const i = ordered.findIndex(e => e.id === id);
+    return {
+      prevEvent: i > 0 ? ordered[i - 1] : null,
+      nextEvent: i >= 0 && i < ordered.length - 1 ? ordered[i + 1] : null,
+    };
+  }, [allEvents, id]);
 
   // ── Auto-save (existing events) ─────────────────────────────────────
   // Persist the latest event to the DB. Reads from refs so the debounced
@@ -211,13 +234,52 @@ export default function WorkEventDetail() {
     }
   }, []);
 
-  // Open an accordion section and scroll it into view — used by the hero's
-  // clickable rows/badges so a tap jumps straight to the editable fields.
-  const goToSection = (key) => {
-    setOpenSection(key);
+  // Open an accordion section — used by the hero's clickable rows/badges so a
+  // tap jumps straight to the editable fields. With a focusId the field is
+  // focused synchronously inside the tap (flushSync), which is what iOS needs
+  // to actually raise the keyboard; otherwise the section is scrolled into view.
+  const goToSection = (key, focusId) => {
+    flushSync(() => setOpenSection(key));
+    const field = focusId && document.getElementById(focusId);
+    if (field) {
+      field.focus();
+      return;
+    }
     setTimeout(() => {
       document.getElementById(`section-${key}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 60);
+  };
+
+  // Move to a neighbouring event. Any pending edit is saved first; the history
+  // entry is replaced so Back still returns to the list, not through every
+  // event swiped past.
+  const goToEvent = async (target, slide) => {
+    if (!target) return;
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+      await persist();
+    }
+    navigate(createPageUrl(`WorkEventDetail?id=${target.id}`), { replace: true, state: { slide } });
+  };
+
+  const touchRef = useRef(null);
+  const onTouchStart = (e) => {
+    const t = e.touches[0];
+    const el = e.target;
+    const typing = ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName) || el.isContentEditable;
+    // Leave the first strip of the screen to the OS back-swipe.
+    touchRef.current = !t || t.clientX < 24 || typing ? null : { x: t.clientX, y: t.clientY };
+  };
+  const onTouchEnd = (e) => {
+    const start = touchRef.current;
+    touchRef.current = null;
+    const t = e.changedTouches[0];
+    if (!start || !t) return;
+    const dx = t.clientX - start.x, dy = t.clientY - start.y;
+    if (Math.abs(dx) < 70 || Math.abs(dy) > 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    if (dx < 0) goToEvent(nextEvent, "left");
+    else goToEvent(prevEvent, "right");
   };
 
   const onChange = (field, value) => {
@@ -231,6 +293,45 @@ export default function WorkEventDetail() {
     }
     if (id) scheduleSave();
   };
+
+  // Link a client to this event; pull their usual fee in if the event has none.
+  const applyClient = (client, { auto } = {}) => {
+    const ev = eventRef.current;
+    const fee = !hasFee(ev) && Number(client.default_fee) > 0 ? Number(client.default_fee) : null;
+    const before = { client_id: ev.client_id || "", base_price: ev.base_price, total_price: ev.total_price, currency: ev.currency };
+    setEvent(prev => ({
+      ...prev,
+      client_id: client.id,
+      ...(fee ? { base_price: fee, total_price: fee, currency: client.default_currency || prev.currency } : {}),
+    }));
+    scheduleSave();
+    setClientSuggestion({ client, applied: true, auto, fee, before });
+  };
+
+  const undoClient = () => {
+    const before = clientSuggestion?.before;
+    setEvent(prev => ({ ...prev, ...(before || {}), client_suggestion_dismissed: true }));
+    scheduleSave();
+    setClientSuggestion(null);
+  };
+
+  const dismissClientSuggestion = () => {
+    setEvent(prev => ({ ...prev, client_suggestion_dismissed: true }));
+    scheduleSave();
+    setClientSuggestion(null);
+  };
+
+  // Once loaded: if the event has no client but its words name one we know,
+  // link it (sure match) or ask (partial match). Dismissals stick on the event.
+  useEffect(() => {
+    if (loading || !id) return;
+    const ev = eventRef.current;
+    if (ev.client_id || ev.client_suggestion_dismissed || ev.event_type === "Practice") return;
+    const match = suggestClientForEvent(ev, clients);
+    if (!match) return;
+    if (match.confidence === "high") applyClient(match.client, { auto: true });
+    else setClientSuggestion({ ...match, applied: false });
+  }, [loading]);
 
   // Flush before navigating back, so a half-typed change still lands.
   const handleBack = async () => {
@@ -387,11 +488,15 @@ export default function WorkEventDetail() {
   const linkedDocLabel = invoice ? "Invoice" : estimate ? "Estimate" : "";
   const practiceCount = linkedPracticeSessions.length;
   const heroBadge = "flex items-center gap-1.5 text-xs font-medium text-gray-200 bg-gray-800/60 hover:bg-gray-700/70 border border-gray-700/50 px-2.5 py-1 rounded-lg transition-colors";
+  const heroAddChip = "flex items-center gap-1 text-xs font-medium text-indigo-200/90 hover:text-white border border-dashed border-indigo-500/50 hover:border-indigo-400 px-2.5 py-1 rounded-lg transition-colors";
 
   if (loading) return <div className="p-4 text-gray-400">Loading...</div>;
 
+  const slideCls = slideFrom === "left" ? "animate-in slide-in-from-right-4 fade-in duration-200"
+    : slideFrom === "right" ? "animate-in slide-in-from-left-4 fade-in duration-200" : "";
+
   return (
-    <div className="max-w-xl mx-auto">
+    <div className="max-w-xl mx-auto" onTouchStart={id ? onTouchStart : undefined} onTouchEnd={id ? onTouchEnd : undefined}>
       {/* New events keep a small bar with Create — existing events navigate
            back via the bottom nav, so they need no header at all. */}
       {!id && (
@@ -412,7 +517,7 @@ export default function WorkEventDetail() {
 
       {/* Hero ticket — at-a-glance, fully clickable summary for an existing event */}
       {id && (
-        <div className="mx-4 mt-4 bg-gradient-to-br from-indigo-900/80 to-gray-900 rounded-2xl border border-indigo-700/30 overflow-hidden">
+        <div className={`mx-4 mt-4 bg-gradient-to-br from-indigo-900/80 to-gray-900 rounded-2xl border border-indigo-700/30 overflow-hidden ${slideCls}`}>
           <div className="p-6">
             <div className="flex items-start justify-between gap-3">
               <h2 className="text-2xl font-bold text-white leading-tight">{event.title || "Untitled Event"}</h2>
@@ -489,16 +594,45 @@ export default function WorkEventDetail() {
             )}
 
             {event.location_address && (
-              <a
-                href={buildNavUrl(event.location_address)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 mt-3 text-sm text-gray-300 hover:text-white transition-colors group"
-              >
-                <MapPin className="w-4 h-4 text-indigo-400 flex-shrink-0" />
-                <span className="truncate flex-1">{event.location_address}</span>
-                <Navigation className="w-4 h-4 text-indigo-400 flex-shrink-0 group-hover:text-indigo-300" />
-              </a>
+              <div className="flex items-center gap-2 mt-3 text-sm text-gray-300">
+                <button
+                  onClick={() => goToSection("info", "event-location")}
+                  className="flex items-center gap-2 min-w-0 flex-1 text-left hover:text-white transition-colors"
+                >
+                  <MapPin className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+                  <span className="truncate">{event.location_address}</span>
+                </button>
+                <a
+                  href={buildNavUrl(event.location_address)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Directions"
+                  className="p-1 -m-1 text-indigo-400 hover:text-indigo-300 transition-colors flex-shrink-0"
+                >
+                  <Navigation className="w-4 h-4" />
+                </a>
+              </div>
+            )}
+
+            {/* What's still missing — one tap lands in the field, keyboard up */}
+            {(!event.location_address || (!isPractice && !(eventFee > 0)) || !event.start_time) && (
+              <div className="flex flex-wrap items-center gap-2 mt-3">
+                {!event.location_address && (
+                  <button onClick={() => goToSection("info", "event-location")} className={heroAddChip}>
+                    <Plus className="w-3 h-3" /> Add location
+                  </button>
+                )}
+                {!isPractice && !(eventFee > 0) && (
+                  <button onClick={() => goToSection("financials", "event-fee")} className={heroAddChip}>
+                    <Plus className="w-3 h-3" /> Add fee
+                  </button>
+                )}
+                {!event.start_time && (
+                  <button onClick={() => goToSection("info", "event-start-time")} className={heroAddChip}>
+                    <Plus className="w-3 h-3" /> Add time
+                  </button>
+                )}
+              </div>
             )}
 
             {notesFirstLine && (
@@ -532,6 +666,85 @@ export default function WorkEventDetail() {
               </div>
             )}
           </div>
+
+          {/* Neighbours on the calendar — also reachable by swiping left/right */}
+          {(prevEvent || nextEvent) && (
+            <div className="flex items-stretch border-t border-indigo-700/20 divide-x divide-indigo-700/20">
+              <button
+                onClick={() => goToEvent(prevEvent, "right")}
+                disabled={!prevEvent}
+                className="flex-1 min-w-0 flex items-center gap-1.5 px-4 py-2.5 text-left hover:bg-indigo-900/30 disabled:invisible transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+                <span className="min-w-0">
+                  <span className="block text-[10px] uppercase tracking-wide text-gray-500">Previous</span>
+                  <span className="block text-xs text-gray-200 truncate">{prevEvent && `${eventDateLabel(prevEvent.date)} · ${prevEvent.title || "Untitled"}`}</span>
+                </span>
+              </button>
+              <button
+                onClick={() => goToEvent(nextEvent, "left")}
+                disabled={!nextEvent}
+                className="flex-1 min-w-0 flex items-center justify-end gap-1.5 px-4 py-2.5 text-right hover:bg-indigo-900/30 disabled:invisible transition-colors"
+              >
+                <span className="min-w-0">
+                  <span className="block text-[10px] uppercase tracking-wide text-gray-500">Next</span>
+                  <span className="block text-xs text-gray-200 truncate">{nextEvent && `${eventDateLabel(nextEvent.date)} · ${nextEvent.title || "Untitled"}`}</span>
+                </span>
+                <ChevronRight className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Client spotted in the title/notes — linked, or offered */}
+      {id && clientSuggestion && (
+        <div className="mx-4 mt-4 bg-indigo-950/60 border border-indigo-700/50 rounded-xl p-4">
+          <div className="flex items-start gap-3">
+            <Sparkles className="w-4 h-4 text-indigo-400 flex-shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              {clientSuggestion.applied ? (
+                <>
+                  <p className="text-sm text-indigo-100 font-medium">
+                    Linked to <Link to={createPageUrl(`ClientDetail?id=${clientSuggestion.client.id}`)} className="underline decoration-indigo-500/60 hover:text-white">{clientSuggestion.client.name}</Link>
+                  </p>
+                  <p className="text-xs text-indigo-300/70 mt-0.5">
+                    {clientSuggestion.auto ? "Their name is in this event. " : ""}
+                    {clientSuggestion.fee
+                      ? <>Fee set to <span className="sensitive">{formatMoney(clientSuggestion.fee, eventRef.current.currency || "GBP")}</span> from their usual rate.</>
+                      : null}
+                  </p>
+                </>
+              ) : (
+                <p className="text-sm text-indigo-100 font-medium">
+                  Is this for <span className="text-white">{clientSuggestion.client.name}</span>?
+                </p>
+              )}
+            </div>
+            {clientSuggestion.applied ? (
+              <button onClick={undoClient} className="text-xs text-indigo-300 hover:text-white transition-colors flex-shrink-0">Undo</button>
+            ) : (
+              <button onClick={dismissClientSuggestion} className="text-indigo-400/60 hover:text-indigo-300 transition-colors flex-shrink-0" aria-label="No">
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+          {!clientSuggestion.applied && (
+            <div className="flex gap-2 mt-3">
+              <button
+                onClick={() => applyClient(clientSuggestion.client)}
+                className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg py-2 text-sm font-medium flex items-center justify-center gap-1.5 transition-colors"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" /> Yes, link {clientSuggestion.client.name}
+              </button>
+              <button
+                onClick={dismissClientSuggestion}
+                className="px-4 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg py-2 text-sm font-medium transition-colors"
+              >
+                No
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -541,6 +754,15 @@ export default function WorkEventDetail() {
           <div className="flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0" />
             <span className="text-sm text-amber-100">This gig came from Google. Add the client, fee and any details to complete it.</span>
+          </div>
+          <div className="flex flex-wrap gap-2 mt-3">
+            <button onClick={() => goToSection("info", "event-client")} className="text-xs font-medium text-amber-100 bg-amber-800/40 hover:bg-amber-700/50 border border-amber-700/40 px-2.5 py-1 rounded-lg transition-colors">Add client</button>
+            {!isPractice && !(eventFee > 0) && (
+              <button onClick={() => goToSection("financials", "event-fee")} className="text-xs font-medium text-amber-100 bg-amber-800/40 hover:bg-amber-700/50 border border-amber-700/40 px-2.5 py-1 rounded-lg transition-colors">Add fee</button>
+            )}
+            {!event.location_address && (
+              <button onClick={() => goToSection("info", "event-location")} className="text-xs font-medium text-amber-100 bg-amber-800/40 hover:bg-amber-700/50 border border-amber-700/40 px-2.5 py-1 rounded-lg transition-colors">Add location</button>
+            )}
           </div>
         </div>
       )}
