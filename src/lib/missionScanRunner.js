@@ -11,7 +11,7 @@ import { getAssistantProfile, DEFAULT_LANGUAGE } from "@/lib/assistantProfile";
 // long list), so allow longer than the default 15s request timeout.
 const COMPOSE_TIMEOUT_MS = 60000;
 
-// Data timestamp at which the empty-payload refill was last attempted, so a
+// Data signature at which the empty-payload refill was last attempted, so a
 // refill that cannot complete does not force a full scan on every open.
 const BACKFILL_TRIED_KEY = "flowtone_mission_backfill_tried_at";
 
@@ -33,18 +33,24 @@ export async function runMissionScan() {
     appClient.entities.Lead.list("-created_at"),
   ]);
 
-  const dataTimestamp = Math.max(
-    latestUpdatedAt(events),
-    latestUpdatedAt(documents),
-    latestUpdatedAt(clients),
-    latestUpdatedAt(leads)
-  );
+  // What the scan last saw: newest edit plus how many records of each kind.
+  // The counts catch deletions, which leave no newer updated_at behind (a
+  // deleted gig must still drop out of its task and its group).
+  const dataSignature = [
+    Math.max(
+      latestUpdatedAt(events),
+      latestUpdatedAt(documents),
+      latestUpdatedAt(clients),
+      latestUpdatedAt(leads)
+    ),
+    events.length, documents.length, clients.length, leads.length,
+  ].join("|");
 
-  let lastScanData = 0;
-  let backfillTriedAt = 0;
+  let lastScanData = "";
+  let backfillTriedAt = "";
   try {
-    lastScanData = Number(localStorage.getItem("flowtone_mission_scan_data_at") || 0);
-    backfillTriedAt = Number(localStorage.getItem(BACKFILL_TRIED_KEY) || 0);
+    lastScanData = localStorage.getItem("flowtone_mission_scan_data_at") || "";
+    backfillTriedAt = localStorage.getItem(BACKFILL_TRIED_KEY) || "";
   } catch { /* ignore */ }
 
   const now = Date.now();
@@ -58,15 +64,15 @@ export async function runMissionScan() {
   // Items saved without their details (an old data-layer bug wrote an empty
   // payload) must be refilled — once per data state, so it can never loop.
   const needsBackfill = activeItems.some((i) => !i.payload?.payload_sig);
-  const backfillDue = needsBackfill && backfillTriedAt !== dataTimestamp;
-  const dataChanged = dataTimestamp > lastScanData || activeItems.length === 0 || hasDueSnooze || backfillDue;
+  const backfillDue = needsBackfill && backfillTriedAt !== dataSignature;
+  const dataChanged = dataSignature !== lastScanData || activeItems.length === 0 || hasDueSnooze || backfillDue;
 
   if (!dataChanged) return;
 
   const markScanned = () => {
     try {
-      localStorage.setItem("flowtone_mission_scan_data_at", String(dataTimestamp));
-      if (needsBackfill) localStorage.setItem(BACKFILL_TRIED_KEY, String(dataTimestamp));
+      localStorage.setItem("flowtone_mission_scan_data_at", dataSignature);
+      if (needsBackfill) localStorage.setItem(BACKFILL_TRIED_KEY, dataSignature);
     } catch { /* ignore */ }
   };
 
@@ -166,6 +172,11 @@ export async function runMissionScan() {
     return desiredByKey.has(itemKey(i));
   });
   const reopenedKeys = new Set(expiredSnoozes.map(itemKey));
+  // Re-opened items whose details moved on while they slept need a new title.
+  const reopenedChanged = expiredSnoozes
+    .map((item) => ({ item, d: desiredByKey.get(itemKey(item)) }))
+    .filter(({ item, d }) => d && (item.payload?.payload_sig || "") !== (d.payload?.payload_sig || ""));
+  const reopenedChangedIds = new Set(reopenedChanged.map(({ item }) => item.id));
 
   // Suppress items that are permanently dismissed or currently snoozed, and
   // items that come back by re-opening their snoozed row (never a second copy).
@@ -189,22 +200,6 @@ export async function runMissionScan() {
     }).catch(() => {});
   }
 
-  // Re-open expired snoozes (clear the AI's deferred label — it's active again).
-  // Details may have moved on while it slept (a group's count), so bring them up to date.
-  for (const item of expiredSnoozes) {
-    const d = desiredByKey.get(itemKey(item));
-    const updates = {
-      status: d?.desired_status || "open",
-      snoozed_until: null,
-      decision: "",
-    };
-    if (d && (item.payload?.payload_sig || "") !== (d.payload?.payload_sig || "")) {
-      updates.payload = { ...(item.payload || {}), ...(d.payload || {}), candidate_key: itemKey(d) };
-      if (isGroupItem(d)) updates.title = groupTitle(d);
-    }
-    await appClient.entities.ActionItem.update(item.id, updates).catch(() => {});
-  }
-
   // If AI did not run for decisioning, but we have new/refreshed items,
   // we still call AI to compose natural titles (legacy behavior). Only items
   // that will be shown on their own need one; groups have exact code titles.
@@ -214,6 +209,7 @@ export async function runMissionScan() {
     ...toCreate,
     ...toRefresh.map((r) => r.desired),
     ...toRestatus.filter((r) => r.desired.desired_status === "open").map((r) => r.desired),
+    ...reopenedChanged.map(({ d }) => d),
   ]) {
     if (d.desired_status === "open" && !isGroupItem(d)) surfacing.set(itemKey(d), d);
   }
@@ -243,6 +239,22 @@ export async function runMissionScan() {
     if (!aiTitle && d.desired_status === "grouped" && existingTitle) return existingTitle;
     return aiTitle || buildFallbackTitle(d);
   };
+
+  // Re-open expired snoozes (clear the AI's deferred label — it's active again).
+  // Details may have moved on while it slept, so bring them and the title up to date.
+  for (const item of expiredSnoozes) {
+    const d = desiredByKey.get(itemKey(item));
+    const updates = {
+      status: d?.desired_status || "open",
+      snoozed_until: null,
+      decision: "",
+    };
+    if (reopenedChangedIds.has(item.id)) {
+      updates.payload = { ...(item.payload || {}), ...(d.payload || {}), candidate_key: itemKey(d) };
+      updates.title = titleFor(d, item.title);
+    }
+    await appClient.entities.ActionItem.update(item.id, updates).catch(() => {});
+  }
 
   // Create new items
   for (const item of toCreate) {

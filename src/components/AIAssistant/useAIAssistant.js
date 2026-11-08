@@ -507,8 +507,9 @@ function tomorrowMorningIso() {
 }
 
 function briefIntro(profile, count) {
+  // Morning 05:00–11:59, afternoon 12:00–17:59, evening the rest (1 a.m. too).
   const h = new Date().getHours();
-  const part = h < 12 ? "Morning" : h < 18 ? "Afternoon" : "Evening";
+  const part = h >= 5 && h < 12 ? "Morning" : h >= 12 && h < 18 ? "Afternoon" : "Evening";
   const who = profile?.user_name ? ` ${profile.user_name}` : "";
   const what = count === 1 ? "One thing I'd sort now" : `${count === 2 ? "Two" : "Three"} things I'd sort now`;
   return `${part}${who}. ${what} — shall I?`;
