@@ -1,6 +1,13 @@
 import cron from 'node-cron';
 import webpush from 'web-push';
-import { getDuePushes, markPushSent, getSubscription, deleteSubscription } from './db.js';
+import {
+  getDuePushes,
+  markPushSent,
+  markPushDropped,
+  pruneHandledBefore,
+  getSubscription,
+  deleteSubscription,
+} from './db.js';
 import { syncAllConnectedUsers } from './lib/calendarSync.js';
 
 const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY;
@@ -12,6 +19,13 @@ if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
 } else {
   console.error('[scheduler] VAPID keys not set — push delivery will be disabled');
 }
+
+// A push more than this late (Mac asleep, server down) is dropped rather than
+// sent: a "leave now" two hours after the gig started only does harm. Ticks
+// run every 5 minutes, so normal lateness stays well inside this.
+export const STALE_AFTER_SECONDS = 10 * 60;
+// Handled pushes are kept a week for debugging, then pruned.
+const KEEP_HANDLED_SECONDS = 7 * 24 * 60 * 60;
 
 // ─── Send a single scheduled push ───────────────────────────────────
 async function sendScheduledPush(push) {
@@ -55,16 +69,30 @@ async function sendScheduledPush(push) {
   }
 }
 
+/** One queue tick: send what is due, drop what is stale, prune old history. */
+export async function processDuePushes(nowTs = Math.floor(Date.now() / 1000), send = sendScheduledPush) {
+  const duePushes = getDuePushes(nowTs);
+  const stale = duePushes.filter((p) => p.fire_at < nowTs - STALE_AFTER_SECONDS);
+  const fresh = duePushes.filter((p) => p.fire_at >= nowTs - STALE_AFTER_SECONDS);
+
+  for (const push of stale) markPushDropped(push.id);
+  if (stale.length) {
+    console.warn(`[scheduler] Dropped ${stale.length} stale push(es) (more than ${STALE_AFTER_SECONDS / 60} min late)`);
+  }
+
+  if (fresh.length) {
+    console.log(`[scheduler] Processing ${fresh.length} due push(es)`);
+    await Promise.allSettled(fresh.map(send));
+  }
+
+  pruneHandledBefore(nowTs - KEEP_HANDLED_SECONDS);
+  return { sent: fresh.length, dropped: stale.length };
+}
+
 // ─── Cron job ────────────────────────────────────────────────────────
 export function startScheduler() {
   cron.schedule('*/5 * * * *', async () => {
-    const nowTs = Math.floor(Date.now() / 1000);
-    const duePushes = getDuePushes(nowTs);
-
-    if (duePushes.length === 0) return;
-
-    console.log(`[scheduler] Processing ${duePushes.length} due push(es)`);
-    await Promise.allSettled(duePushes.map(sendScheduledPush));
+    await processDuePushes();
   });
 
   console.log('[scheduler] Push notification scheduler started (every 5 minutes)');

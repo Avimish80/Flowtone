@@ -165,9 +165,15 @@ export const NOTIF_SCHEMA = [
     types: [
       {
         key: 'daily_briefing',
-        label: 'Daily briefing',
-        example: '"Today: 1 gig at 18:30, leave at 17:10, 2 unpaid" · 7am',
-        timingKey: null,
+        label: 'Morning digest',
+        example: '"Today: Jazz Night at 19:30 · To sort: 2 gigs need a fee" · 8:30am',
+        timingKey: 'time',
+        timingOptions: [
+          { value: '07:30', label: '7:30am' },
+          { value: '08:30', label: '8:30am' },
+          { value: '09:00', label: '9am' },
+          { value: '10:00', label: '10am' },
+        ],
       },
       {
         key: 'weekly_digest',
@@ -199,7 +205,7 @@ export const DEFAULT_PREFS = {
     risk_alert:              { enabled: false },
     practice_reminder:       { enabled: false, timing: '30min' },
     goal_deadline:           { enabled: false },
-    daily_briefing:          { enabled: false },
+    daily_briefing:          { enabled: false, time: '08:30' },
     weekly_digest:           { enabled: false },
   },
   standard: {
@@ -219,7 +225,7 @@ export const DEFAULT_PREFS = {
     risk_alert:              { enabled: false },
     practice_reminder:       { enabled: false, timing: '30min' },
     goal_deadline:           { enabled: false },
-    daily_briefing:          { enabled: true },
+    daily_briefing:          { enabled: true,  time: '08:30' },
     weekly_digest:           { enabled: false },
   },
   full: {
@@ -239,7 +245,7 @@ export const DEFAULT_PREFS = {
     risk_alert:              { enabled: true },
     practice_reminder:       { enabled: false, timing: '30min' },
     goal_deadline:           { enabled: false },
-    daily_briefing:          { enabled: true },
+    daily_briefing:          { enabled: true,  time: '08:30' },
     weekly_digest:           { enabled: true },
   },
 };

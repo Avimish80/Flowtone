@@ -5,8 +5,9 @@
  * Structure of store.json:
  * {
  *   subscriptions:    { [endpoint]: { endpoint, p256dh, auth, user_agent, notification_level } },
- *   scheduledPushes:  { [id]:       { id, endpoint, fire_at, title, body, url, icon, actions, tag, sent } }
+ *   scheduledPushes:  { [id]:       { id, endpoint, fire_at, title, body, url, icon, actions, tag, sent, dropped? } }
  * }
+ * `dropped: 1` marks a push skipped because it was too late to be useful.
  */
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
@@ -92,6 +93,15 @@ export function deleteUnsentByTagAndEndpoint(tag, endpoint) {
   if (changed) save(store);
 }
 
+/** Replace an endpoint's whole unsent plan in one write (a browser re-planning). */
+export function replaceUnsentForEndpoint(endpoint, rows) {
+  for (const [id, push] of Object.entries(store.scheduledPushes)) {
+    if (push.endpoint === endpoint && push.sent === 0) delete store.scheduledPushes[id];
+  }
+  for (const row of rows) store.scheduledPushes[row.id] = { ...row, sent: 0 };
+  save(store);
+}
+
 export function getDuePushes(nowTs) {
   return Object.values(store.scheduledPushes).filter(
     (p) => p.sent === 0 && p.fire_at <= nowTs
@@ -103,4 +113,26 @@ export function markPushSent(id) {
     store.scheduledPushes[id].sent = 1;
     save(store);
   }
+}
+
+/** Mark a push as handled without sending it (it was too late to be useful). */
+export function markPushDropped(id) {
+  if (store.scheduledPushes[id]) {
+    store.scheduledPushes[id].sent = 1;
+    store.scheduledPushes[id].dropped = 1;
+    save(store);
+  }
+}
+
+/** Forget handled pushes whose fire time is before `beforeTs`; returns how many. */
+export function pruneHandledBefore(beforeTs) {
+  let removed = 0;
+  for (const [id, push] of Object.entries(store.scheduledPushes)) {
+    if (push.sent !== 0 && push.fire_at < beforeTs) {
+      delete store.scheduledPushes[id];
+      removed++;
+    }
+  }
+  if (removed) save(store);
+  return removed;
 }

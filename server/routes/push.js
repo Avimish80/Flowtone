@@ -7,6 +7,7 @@ import {
   deleteSubscription,
   insertScheduledPush,
   deleteUnsentByTagAndEndpoint,
+  replaceUnsentForEndpoint,
   getDuePushes,
   markPushSent,
 } from '../db.js';
@@ -60,18 +61,38 @@ router.post('/subscribe', async (req, res) => {
   }
 });
 
+/** Store row for one scheduled push, or null when fireAt/title/body are unusable. */
+function toScheduledRow(endpoint, { fireAt, title, body, url, tag, icon, actions, actionUrls }) {
+  if (!fireAt || !title || !body) return null;
+  const fire_at = Math.floor(new Date(fireAt).getTime() / 1000);
+  if (isNaN(fire_at)) return null;
+  return {
+    id: randomUUID(),
+    endpoint,
+    fire_at,
+    title,
+    body,
+    url: url ?? null,
+    icon: icon ?? null,
+    actions: actions ? JSON.stringify(actions) : null,
+    action_urls: actionUrls ? JSON.stringify(actionUrls) : null,
+    tag: tag ?? null,
+  };
+}
+
 // ─── POST /api/push/schedule ─────────────────────────────────────────
 // Body: { endpoint, fireAt (ISO string), title, body, url?, tag?, icon?, actions?, actionUrls? }
+// Single push; kept for older clients. New clients use /replan.
 router.post('/schedule', (req, res) => {
   try {
-    const { endpoint, fireAt, title, body, url, tag, icon, actions, actionUrls } = req.body;
+    const { endpoint, fireAt, title, body, tag } = req.body;
 
     if (!endpoint || !fireAt || !title || !body) {
       return res.status(400).json({ error: 'endpoint, fireAt, title, and body are required' });
     }
 
-    const fire_at = Math.floor(new Date(fireAt).getTime() / 1000);
-    if (isNaN(fire_at)) {
+    const row = toScheduledRow(endpoint, req.body);
+    if (!row) {
       return res.status(400).json({ error: 'fireAt must be a valid ISO date string' });
     }
 
@@ -80,25 +101,37 @@ router.post('/schedule', (req, res) => {
       deleteUnsentByTagAndEndpoint(tag, endpoint);
     }
 
-    const id = randomUUID();
+    insertScheduledPush(row);
 
-    insertScheduledPush({
-      id,
-      endpoint,
-      fire_at,
-      title,
-      body,
-      url: url ?? null,
-      icon: icon ?? null,
-      actions: actions ? JSON.stringify(actions) : null,
-      action_urls: actionUrls ? JSON.stringify(actionUrls) : null,
-      tag: tag ?? null,
-    });
-
-    res.status(201).json({ ok: true, id });
+    res.status(201).json({ ok: true, id: row.id });
   } catch (err) {
     console.error('[push/schedule error]', err);
     res.status(500).json({ error: 'Failed to schedule push notification' });
+  }
+});
+
+// ─── POST /api/push/replan ───────────────────────────────────────────
+// Body: { endpoint, pushes: [{ fireAt, title, body, url?, tag?, icon?, actions?, actionUrls? }] }
+// Replaces this browser's whole unsent plan, so reminders for gigs that were
+// cancelled or moved since the last plan disappear instead of piling up.
+const MAX_PLANNED_PUSHES = 500;
+
+router.post('/replan', (req, res) => {
+  try {
+    const { endpoint, pushes } = req.body;
+    if (!endpoint || !Array.isArray(pushes)) {
+      return res.status(400).json({ error: 'endpoint and pushes[] are required' });
+    }
+    if (pushes.length > MAX_PLANNED_PUSHES) {
+      return res.status(400).json({ error: `At most ${MAX_PLANNED_PUSHES} pushes per plan` });
+    }
+
+    const rows = pushes.map((p) => toScheduledRow(endpoint, p ?? {})).filter(Boolean);
+    replaceUnsentForEndpoint(endpoint, rows);
+    res.status(201).json({ ok: true, scheduled: rows.length, skipped: pushes.length - rows.length });
+  } catch (err) {
+    console.error('[push/replan error]', err);
+    res.status(500).json({ error: 'Failed to replace push plan' });
   }
 });
 

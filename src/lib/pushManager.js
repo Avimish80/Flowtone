@@ -96,6 +96,76 @@ function localDay(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+/** Daily nags repeat for this many mornings, so they keep coming even if the
+ *  app isn't opened (each open re-plans and moves the window forward). */
+const NAG_DAYS = 3;
+/** The morning digest is planned this many days ahead. */
+const DIGEST_DAYS = 7;
+
+/** The next `count` local mornings at hh:mm, starting today if that time is still ahead. */
+function nextMornings(count, hours = 9, minutes = 0) {
+  const first = new Date();
+  first.setHours(hours, minutes, 0, 0);
+  if (first.getTime() <= Date.now()) first.setDate(first.getDate() + 1);
+  return Array.from({ length: count }, (_, i) => {
+    const d = new Date(first);
+    d.setDate(first.getDate() + i);
+    return d;
+  });
+}
+
+// Short labels for grouping open suggestions in the morning digest: [one, many].
+const SUGGESTION_LABELS = {
+  invoice_overdue:       ['overdue invoice', 'overdue invoices'],
+  gig_missing_fee:       ['gig needs a fee', 'gigs need a fee'],
+  gig_missing_client:    ['gig needs a client', 'gigs need a client'],
+  gig_missing_contact:   ['client needs an email', 'clients need an email'],
+  gig_missing_location:  ['gig needs a location', 'gigs need a location'],
+  gig_ready_to_invoice:  ['gig ready to invoice', 'gigs ready to invoice'],
+  invoice_ready_to_send: ['invoice ready to send', 'invoices ready to send'],
+  invoice_ready_no_email:['invoice ready, no email', 'invoices ready, no email'],
+  invoice_draft_stale:   ['draft invoice waiting', 'draft invoices waiting'],
+  lead_new_unanswered:   ['new enquiry to answer', 'new enquiries to answer'],
+  lead_quote_no_reply:   ['quote with no reply', 'quotes with no reply'],
+};
+
+function clip(text, max = 72) {
+  const t = String(text || '').trim();
+  return t.length > max ? `${t.slice(0, max - 1).trimEnd()}…` : t;
+}
+
+/**
+ * Top open suggestions (ActionItems) as short phrases: grouped by type, highest
+ * priority first, at most `limit`. A type with one item uses that item's own
+ * title; several become "4 gigs need a client".
+ */
+export function summarizeSuggestions(actionItems = [], limit = 3) {
+  const now = Date.now();
+  const groups = new Map();
+  for (const item of actionItems) {
+    if (item.status !== 'open') continue;
+    if (item.snoozed_until && new Date(item.snoozed_until).getTime() > now) continue;
+    // Group items all share the type "group", so each one is its own entry and
+    // keeps its own title ("64 past gigs still have no fee"); singles bucket by type.
+    const key = item.item_type === 'group' ? `group:${item.id}` : (item.item_type || item.id);
+    const g = groups.get(key) || { type: item.item_type, items: [], priority: 0 };
+    g.items.push(item);
+    g.priority = Math.max(g.priority, item.priority || 0);
+    groups.set(key, g);
+  }
+  const sorted = [...groups.values()].sort(
+    (a, b) => b.priority - a.priority || b.items.length - a.items.length
+  );
+  const phrases = sorted.slice(0, limit).map((g) => {
+    const label = SUGGESTION_LABELS[g.type];
+    if (g.items.length === 1 || !label) {
+      return g.items.length === 1 ? clip(g.items[0].title) : `${g.items.length} × ${clip(g.items[0].title, 40)}`;
+    }
+    return `${g.items.length} ${label[1]}`;
+  });
+  return { phrases, more: Math.max(0, sorted.length - limit) };
+}
+
 // ─── Public API ─────────────────────────────────────────────────────────────
 // On the iOS app every entry point routes to iOS local notifications
 // (localNotifications.js); the web keeps server-scheduled web push.
@@ -196,17 +266,35 @@ export async function schedulePushNotifications(
   events = [],
   clients = [],
   documents = [],
-  settings = {}
+  settings = {},
+  actionItems = null
 ) {
-  if (isNative()) {
-    return scheduleLocalReminders(buildReminderPlan(events, clients, documents, settings));
+  const native = isNative();
+  const sub = native ? null : await getActiveSubscription();
+  if (!native && !sub) return;
+
+  // Open suggestions for the morning digest (callers may pass them in).
+  if (!actionItems) {
+    try {
+      const { appClient } = await import('@/api/appClient');
+      actionItems = await appClient.entities.ActionItem.filter({ status: 'open' });
+    } catch {
+      actionItems = [];
+    }
   }
 
-  const sub = await getActiveSubscription();
-  if (!sub) return;
+  const plan = buildReminderPlan(events, clients, documents, settings, actionItems);
+  if (native) return scheduleLocalReminders(plan);
 
-  const plan = buildReminderPlan(events, clients, documents, settings);
-  // Fire all scheduling requests in parallel (ignore individual failures)
+  // Replace this browser's whole plan on the server, so reminders for gigs
+  // that were cancelled or moved don't linger. Older servers lack /replan:
+  // fall back to one request per push (ignore individual failures).
+  const replaced = await fetch(`${API_BASE}/api/push/replan`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ endpoint: sub.endpoint, pushes: plan }),
+  }).then((res) => res.ok).catch(() => false);
+  if (replaced) return;
   await Promise.allSettled(plan.map((p) => schedule({ endpoint: sub.endpoint, ...p })));
 }
 
@@ -219,7 +307,8 @@ export function buildReminderPlan(
   events = [],
   clients = [],
   documents = [],
-  settings = {}
+  settings = {},
+  actionItems = []
 ) {
   const now = Date.now();
   const nowTs = Math.floor(now / 1000);
@@ -316,7 +405,9 @@ export function buildReminderPlan(
   }
 
   // ── L1b: Day-of morning summary ─────────────────────────────────────────
-  if (prefs.gig_day_of_summary?.enabled) {
+  // The morning digest (L5a) already leads with the day's events, so this only
+  // runs when the digest is off — one morning notification, not two.
+  if (prefs.gig_day_of_summary?.enabled && !prefs.daily_briefing?.enabled) {
     // Group events by date
     const byDate = {};
     for (const event of nonPracticeGigs) {
@@ -472,20 +563,19 @@ export function buildReminderPlan(
     for (const event of feeBlocked) {
       // The gig is already over (gigsMissingFee returns only past gigs), so
       // fireAt = gigEnd + 1day would be in the past and get dropped by push().
-      // Fire at the next 9am from NOW instead, so the alert reliably lands on
-      // the next app-open reschedule. The stable tag prevents duplicates.
-      const fireAt = new Date();
-      fireAt.setHours(9, 0, 0, 0);
-      if (fireAt.getTime() <= now) fireAt.setDate(fireAt.getDate() + 1);
-      tasks.push(push({
-        fireAt: fireAt.toISOString(),
-        tag: `needs-fee-${event.id}-${localDay(fireAt)}`,
-        title: `I need the fee for ${event.title}`,
-        body: `That gig's done but you never told me the fee, so I can't make the invoice. Tap to add the amount.`,
-        url: `/WorkEventDetail?id=${event.id}`,
-        actions: [{ action: 'open_gig', title: 'Add fee' }],
-        actionUrls: { open_gig: `/WorkEventDetail?id=${event.id}` },
-      }));
+      // Fire on the next few 9am mornings from NOW instead; each open re-plans
+      // and the per-day tag prevents duplicates.
+      for (const fireAt of nextMornings(NAG_DAYS)) {
+        tasks.push(push({
+          fireAt: fireAt.toISOString(),
+          tag: `needs-fee-${event.id}-${localDay(fireAt)}`,
+          title: `I need the fee for ${event.title}`,
+          body: `That gig's done but you never told me the fee, so I can't make the invoice. Tap to add the amount.`,
+          url: `/WorkEventDetail?id=${event.id}`,
+          actions: [{ action: 'open_gig', title: 'Add fee' }],
+          actionUrls: { open_gig: `/WorkEventDetail?id=${event.id}` },
+        }));
+      }
     }
   }
 
@@ -519,20 +609,21 @@ export function buildReminderPlan(
       if (inv.status !== 'sent' || !inv.due_date) continue;
       const dueDt = parseLocal(inv.due_date);
       if (!dueDt || dueDt.getTime() >= todayStart.getTime()) continue; // not yet overdue
-      const daysOver = Math.floor((todayStart.getTime() - dueDt.getTime()) / (24 * 60 * 60 * 1000));
-      // Fire at 9am today (or tomorrow if 9am already passed)
-      const fireAt = new Date();
-      fireAt.setHours(9, 0, 0, 0);
-      if (fireAt.getTime() <= now) fireAt.setDate(fireAt.getDate() + 1);
-      tasks.push(push({
-        fireAt: fireAt.toISOString(),
-        tag: `inv-overdue-${inv.id}-${localDay(fireAt)}`,
-        title: `Overdue invoice: ${inv.title || inv.document_number}`,
-        body: `Overdue by ${daysOver} day${daysOver !== 1 ? 's' : ''} · ${fmt(inv.total, currency)}`,
-        url: `/DocumentDetail?id=${inv.id}`,
-        actions: [{ action: 'open_invoice', title: 'Open Invoice' }],
-        actionUrls: { open_invoice: `/DocumentDetail?id=${inv.id}` },
-      }));
+      // 9am on the next few mornings (today's 9am if it's still ahead)
+      for (const fireAt of nextMornings(NAG_DAYS)) {
+        const fireDay = new Date(fireAt);
+        fireDay.setHours(0, 0, 0, 0);
+        const daysOver = Math.round((fireDay.getTime() - dueDt.getTime()) / (24 * 60 * 60 * 1000));
+        tasks.push(push({
+          fireAt: fireAt.toISOString(),
+          tag: `inv-overdue-${inv.id}-${localDay(fireAt)}`,
+          title: `Overdue invoice: ${inv.title || inv.document_number}`,
+          body: `Overdue by ${daysOver} day${daysOver !== 1 ? 's' : ''} · ${fmt(inv.total, currency)}`,
+          url: `/DocumentDetail?id=${inv.id}`,
+          actions: [{ action: 'open_invoice', title: 'Open Invoice' }],
+          actionUrls: { open_invoice: `/DocumentDetail?id=${inv.id}` },
+        }));
+      }
     }
   }
 
@@ -552,7 +643,7 @@ export function buildReminderPlan(
         : '/Finance?filter=sent';
       tasks.push(push({
         fireAt: nextMon.toISOString(),
-        tag: `weekly-unpaid-${nextMon.toISOString().slice(0, 10)}`,
+        tag: `weekly-unpaid-${localDay(nextMon)}`,
         title: `${fmt(totalUnpaid, currency)} unpaid`,
         body: `${unpaid.length} invoice${unpaid.length !== 1 ? 's' : ''} waiting to be paid`,
         url: unpaidUrl,
@@ -592,26 +683,25 @@ export function buildReminderPlan(
   // ── L3a-bis: Imported event missing details ─────────────────────────────
   if (prefs.imported_event_incomplete?.enabled) {
     for (const { event, missingLocation, missingFee } of importedIncomplete) {
-      // Imported just now — prompt soon (next 9am from now) rather than waiting
-      // until 2 days before the gig. Stable tag means reopening won't spam, and
-      // once the user fills the field the finder drops it next reschedule.
-      const fireAt = new Date();
-      fireAt.setHours(9, 0, 0, 0);
-      if (fireAt.getTime() <= now) fireAt.setDate(fireAt.getDate() + 1);
+      // Imported just now — prompt soon (next few 9am mornings) rather than
+      // waiting until 2 days before the gig. Per-day tags mean reopening won't
+      // spam, and once the user fills the field the finder drops it next re-plan.
       const miss = missingLocation && missingFee
         ? 'a location or the fee'
         : missingLocation
           ? 'a location'
           : 'the fee';
-      tasks.push(push({
-        fireAt: fireAt.toISOString(),
-        tag: `imported-incomplete-${event.id}-${localDay(fireAt)}`,
-        title: `I added "${event.title}" from your calendar`,
-        body: `It's missing ${miss} — I can't plan around it yet. Tap to fill in the details.`,
-        url: `/WorkEventDetail?id=${event.id}`,
-        actions: [{ action: 'open_gig', title: 'Add details' }],
-        actionUrls: { open_gig: `/WorkEventDetail?id=${event.id}` },
-      }));
+      for (const fireAt of nextMornings(NAG_DAYS)) {
+        tasks.push(push({
+          fireAt: fireAt.toISOString(),
+          tag: `imported-incomplete-${event.id}-${localDay(fireAt)}`,
+          title: `I added "${event.title}" from your calendar`,
+          body: `It's missing ${miss} — I can't plan around it yet. Tap to fill in the details.`,
+          url: `/WorkEventDetail?id=${event.id}`,
+          actions: [{ action: 'open_gig', title: 'Add details' }],
+          actionUrls: { open_gig: `/WorkEventDetail?id=${event.id}` },
+        }));
+      }
     }
   }
 
@@ -621,20 +711,20 @@ export function buildReminderPlan(
       if (event.status !== 'lead') continue;
       const startDt = parseLocal(event.date);
       if (!startDt) continue;
-      const daysUntil = Math.floor((startDt.getTime() - now) / (24 * 60 * 60 * 1000));
-      if (daysUntil < 3 || daysUntil > 14) continue; // only nudge 3–14 days out
-      const fireAt = new Date();
-      fireAt.setDate(fireAt.getDate() + 1);
-      fireAt.setHours(9, 0, 0, 0);
-      tasks.push(push({
-        fireAt: fireAt.toISOString(),
-        tag: `unconfirmed-${event.id}-${localDay(fireAt)}`,
-        title: `Still tentative: ${event.title}`,
-        body: `${daysUntil} days away — is this confirmed yet?`,
-        url: `/WorkEventDetail?id=${event.id}`,
-        actions: [{ action: 'open_gig', title: 'Review' }],
-        actionUrls: { open_gig: `/WorkEventDetail?id=${event.id}` },
-      }));
+      // Nudge on the next few 9am mornings while the gig is 3–14 days out
+      for (const fireAt of nextMornings(NAG_DAYS)) {
+        const daysUntil = Math.round((startDt.getTime() - new Date(fireAt).setHours(0, 0, 0, 0)) / (24 * 60 * 60 * 1000));
+        if (daysUntil < 3 || daysUntil > 14) continue;
+        tasks.push(push({
+          fireAt: fireAt.toISOString(),
+          tag: `unconfirmed-${event.id}-${localDay(fireAt)}`,
+          title: `Still tentative: ${event.title}`,
+          body: `${daysUntil} days away — is this confirmed yet?`,
+          url: `/WorkEventDetail?id=${event.id}`,
+          actions: [{ action: 'open_gig', title: 'Review' }],
+          actionUrls: { open_gig: `/WorkEventDetail?id=${event.id}` },
+        }));
+      }
     }
   }
 
@@ -696,32 +786,48 @@ export function buildReminderPlan(
 
   // ── LAYER 5: Smart Assistant ───────────────────────────────────────────────
 
-  // ── L5a: Daily briefing (7am tomorrow) ─────────────────────────────────
+  // ── L5a: Morning digest (one notification a day) ────────────────────────
+  // Leads with the day's events, then the top open suggestions from Missions.
+  // Planned DIGEST_DAYS ahead so it keeps arriving if the app isn't opened;
+  // the suggestions are as of the last open (each open re-plans).
   if (prefs.daily_briefing?.enabled) {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowStr = tomorrow.toISOString().slice(0, 10);
-    const tomorrowEvents = nonPracticeGigs.filter(e => e.date === tomorrowStr);
-    if (tomorrowEvents.length > 0) {
-      const sorted = [...tomorrowEvents].sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''));
-      const first = sorted[0];
-      const unpaidCount = allInvoices.filter(i => i.status === 'sent').length;
+    const [hh, mm] = String(prefs.daily_briefing.time || '08:30').split(':').map(Number);
+    const { phrases, more } = summarizeSuggestions(actionItems, 3);
+    const suggestLine = phrases.length
+      ? `To sort: ${phrases.join(' · ')}${more ? ` · +${more} more` : ''}`
+      : '';
 
-      const fireAt = new Date(tomorrow);
-      fireAt.setHours(7, 0, 0, 0);
+    for (const fireAt of nextMornings(DIGEST_DAYS, hh || 0, mm || 0)) {
+      const dayStr = localDay(fireAt);
+      const dayEvents = nonPracticeGigs
+        .filter(e => e.date === dayStr)
+        .sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''));
+      if (dayEvents.length === 0 && !suggestLine) continue;
 
-      let body = `${tomorrowEvents.length} gig${tomorrowEvents.length !== 1 ? 's' : ''}`;
-      if (first.start_time) body += ` · first at ${fmtTime(first.start_time)}`;
-      if (unpaidCount > 0) body += ` · ${unpaidCount} unpaid invoice${unpaidCount !== 1 ? 's' : ''}`;
+      let title;
+      let eventLine = '';
+      if (dayEvents.length === 1) {
+        const e = dayEvents[0];
+        title = `Today: ${e.title}${e.start_time ? ` at ${fmtTime(e.start_time)}` : ''}`;
+        eventLine = e.location_address || '';
+      } else if (dayEvents.length > 1) {
+        title = `Today: ${dayEvents.length} events${dayEvents[0].start_time ? `, first at ${fmtTime(dayEvents[0].start_time)}` : ''}`;
+        eventLine = dayEvents
+          .slice(0, 3)
+          .map(e => `${e.start_time ? fmtTime(e.start_time) + ' ' : ''}${clip(e.title, 30)}`)
+          .join(', ') + (dayEvents.length > 3 ? ` +${dayEvents.length - 3} more` : '');
+      } else {
+        title = 'Good morning — nothing booked today';
+      }
 
       tasks.push(push({
         fireAt: fireAt.toISOString(),
-        tag: `daily-brief-${tomorrowStr}`,
-        title: `Tomorrow: ${first.title}`,
-        body,
-        url: '/Dashboard',
-        actions: [{ action: 'open_dash', title: 'Open Dashboard' }],
-        actionUrls: { open_dash: '/Dashboard' },
+        tag: `daily-brief-${dayStr}`,
+        title,
+        body: [eventLine, suggestLine].filter(Boolean).join('\n') || 'Tap to see your day',
+        url: '/Missions',
+        actions: [{ action: 'open_missions', title: 'Open Missions' }],
+        actionUrls: { open_missions: '/Missions' },
       }));
     }
   }
@@ -763,7 +869,7 @@ export function buildReminderPlan(
 
       tasks.push(push({
         fireAt: nextMon.toISOString(),
-        tag: `weekly-digest-${nextMon.toISOString().slice(0, 10)}`,
+        tag: `weekly-digest-${localDay(nextMon)}`,
         title: `Weekly digest`,
         body: parts.join(' · ') || 'Review your week',
         url: '/Dashboard',
