@@ -9,7 +9,8 @@ import {
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { useTheme, ACCENT_THEMES } from "@/lib/ThemeContext";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, format } from "date-fns";
+import { LocalNotifications } from "@capacitor/local-notifications";
 import { getAssistantProfile, DEFAULT_ASSISTANT_NAME, DEFAULT_LANGUAGE } from "@/lib/assistantProfile";
 import { LANGUAGE_OPTIONS } from "@/components/onboarding/onboardingScript";
 import {
@@ -24,7 +25,7 @@ import DocumentPreview from "@/components/invoice/DocumentPreview";
 import { registerPush, unregisterPush, isPushActive, schedulePushNotifications, sendTestPush } from "@/lib/pushManager";
 import { isNative, getLocalPermission, getPendingCount, openIosSettings } from "@/lib/localNotifications";
 import { useAppResume } from "@/lib/useAppResume";
-import { DEFAULT_PREFS } from "@/lib/notificationPrefs";
+import { DEFAULT_PREFS, NOTIF_SCHEMA } from "@/lib/notificationPrefs";
 import { isGmailConnected, getGmailEmail, connectGmail, disconnectGmail } from "@/lib/gmailClient";
 import { connectCalendar, getCalendarStatus, syncNow as calendarSyncNow, setSyncEnabled as setCalendarSyncEnabled, disconnectCalendar } from "@/lib/calendarClient";
 import SmartCSVImport from "@/components/SmartCSVImport";
@@ -57,6 +58,7 @@ export default function AppSettings() {
   const native = isNative();
   const [nativePerm, setNativePerm] = useState("prompt");
   const [nativePending, setNativePending] = useState(0);
+  const [nativeNextDigest, setNativeNextDigest] = useState(null);
   // Coming back from iOS Settings may have changed the permission.
   useAppResume((reason) => {
     if (!native || reason !== "resume") return;
@@ -209,6 +211,15 @@ export default function AppSettings() {
   async function refreshNativeState() {
     setNativePerm(await getLocalPermission());
     setNativePending(await getPendingCount());
+    try {
+      const { notifications } = await LocalNotifications.getPending();
+      const next = notifications
+        .filter(n => n.extra?.tag?.startsWith("daily-brief-"))
+        .map(n => new Date(n.schedule?.at))
+        .filter(d => !isNaN(d))
+        .sort((a, b) => a - b)[0];
+      setNativeNextDigest(next || null);
+    } catch { setNativeNextDigest(null); }
   }
 
   const reschedule = useCallback(async (currentSettings) => {
@@ -220,7 +231,7 @@ export default function AppSettings() {
       ]);
       await schedulePushNotifications(events, clients, documents, currentSettings);
     } catch (err) { console.warn("Push reschedule failed:", err); }
-    if (isNative()) setNativePending(await getPendingCount());
+    if (isNative()) await refreshNativeState();
   }, []);
 
   const handleEnablePush = async () => {
@@ -249,6 +260,20 @@ export default function AppSettings() {
   const handleLevelChange = async (level) => {
     const updatedSettings = { ...settings, notification_level: level };
     if (level === "full" && !settings?.notification_prefs) updatedSettings.notification_prefs = DEFAULT_PREFS.full;
+    setSettings(updatedSettings);
+    scheduleSave();
+    if (pushActive) await reschedule(updatedSettings);
+  };
+
+  // Morning digest time, offered at Standard without switching to Full. Starts
+  // from the full defaults when nothing is saved yet, so a later switch to Full
+  // shows a complete editor rather than a sparse one.
+  const DIGEST_TIMES = NOTIF_SCHEMA.flatMap(l => l.types).find(t => t.key === "daily_briefing")?.timingOptions || [];
+  const handleDigestTimeChange = async (time) => {
+    const saved = settings?.notification_prefs;
+    const currentPrefs = saved && Object.keys(saved).length ? saved : DEFAULT_PREFS.full;
+    const updatedPrefs = { ...currentPrefs, daily_briefing: { ...(currentPrefs.daily_briefing || {}), time } };
+    const updatedSettings = { ...settings, notification_prefs: updatedPrefs };
     setSettings(updatedSettings);
     scheduleSave();
     if (pushActive) await reschedule(updatedSettings);
@@ -802,6 +827,29 @@ export default function AppSettings() {
                 </div>
               </div>
 
+              {(settings.notification_level || "standard") === "standard" && (() => {
+                const digestTime = settings.notification_prefs?.daily_briefing?.time || DEFAULT_PREFS.standard.daily_briefing.time;
+                const digestLabel = DIGEST_TIMES.find(o => o.value === digestTime)?.label || digestTime;
+                return (
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm text-gray-200">Morning digest · {digestLabel}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">Today's events and what to sort, once a day</p>
+                    </div>
+                    <select
+                      value={digestTime}
+                      onChange={e => handleDigestTimeChange(e.target.value)}
+                      aria-label="Morning digest time"
+                      className="flex-shrink-0 bg-transparent text-sm text-ink focus:outline-none cursor-pointer"
+                    >
+                      {DIGEST_TIMES.map(o => (
+                        <option key={o.value} value={o.value} className="bg-gray-900 text-gray-200">{o.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                );
+              })()}
+
               {(settings.notification_level || "standard") === "full" && (
                 <NotificationPrefsEditor prefs={settings.notification_prefs || DEFAULT_PREFS.full} onChange={handlePrefChange} />
               )}
@@ -826,6 +874,7 @@ export default function AppSettings() {
                         <p>Delivery: iOS local notifications (iPhone app)</p>
                         <p>Permission: {nativePerm}</p>
                         <p>Pending on this phone: {nativePending} (iOS keeps at most 64)</p>
+                        <p>Next morning digest on this phone: {nativeNextDigest ? format(nativeNextDigest, "EEE d MMM, HH:mm") : "none"}</p>
                       </>
                     ) : (
                       <>

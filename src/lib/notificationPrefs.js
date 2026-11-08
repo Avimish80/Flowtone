@@ -256,7 +256,11 @@ export const DEFAULT_PREFS = {
  */
 export function getEffectivePrefs(level = 'standard', userPrefs = {}) {
   const base = DEFAULT_PREFS[level] ?? DEFAULT_PREFS.standard;
-  if (level !== 'full') return base;
+  if (level !== 'full') {
+    // The morning digest's time is the one choice offered below Full.
+    const time = userPrefs?.daily_briefing?.time;
+    return time ? { ...base, daily_briefing: { ...base.daily_briefing, time } } : base;
+  }
   // Deep-merge user overrides into full defaults
   const merged = {};
   for (const key of Object.keys(base)) {
