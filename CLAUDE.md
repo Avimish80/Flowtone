@@ -43,7 +43,7 @@ Everything below is built and verified locally but **uncommitted**. Launch order
 - Database + auth: Supabase (project `jducrkssrtzhjpymldrw`) — Postgres with RLS, email OTP sign-in, custom SMTP via Resend
 - Billing: Stripe (server routes in `server/routes/billing.js`; access gating in `server/lib/access.js`)
 
-**Local dev:** `npm run dev` → `http://localhost:3000`, also on LAN via `http://192.168.0.8:3000` (phone testing). Local `.env` has the Supabase keys, so local dev signed-in sessions share the same cloud data as production.
+**Local dev:** `npm run dev` → `http://localhost:3000`, which talks to the LOCAL Supabase stack on this Mac (`.env` → `http://127.0.0.1:54321`; the cloud project `jducrkssrtzhjpymldrw` has been paused since Oct 2026, its values sit in `.env-backup-cloud-paused`). Sign-in codes never reach a real inbox: they land in Mailpit at `http://127.0.0.1:54324` (from the iPhone, with Tailscale on: `http://flowtone-mac.tailb906e2.ts.net:54324`); the sign-in screen links there. Phone builds use `.env.localdb` (`npm run dev:local`, `npm run build:ios`). Local accounts: `avi.mishali@gmail.com` holds all the data; `avi@easypassports.co.il` and `avi@easypassports.co.uk` are separate, empty logins (added 8 Nov 2026).
 
 ---
 

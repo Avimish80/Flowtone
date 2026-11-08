@@ -22,6 +22,23 @@ export function isPreviewModeEnabled() {
   return !isSupabaseConfigured;
 }
 
+// The local Supabase stack delivers sign-in codes to Mailpit on the Mac
+// (port 54324, next to the API on 54321), never to a real inbox. Returns
+// Mailpit's address when the app talks to such a stack, so the sign-in
+// screen can point there; null for a cloud project.
+export function mailpitUrl() {
+  if (!supabaseUrl) return null;
+  try {
+    const url = new URL(supabaseUrl);
+    if (url.protocol !== "http:" || url.port !== "54321") return null;
+    url.port = "54324";
+    url.pathname = "/";
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
 let client = null;
 let cachedSession = null;
 
