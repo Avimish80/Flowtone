@@ -4,11 +4,64 @@
 
 /* ── Accent themes ────────────────────────────────────────────────────────────
    Every `indigo-*` utility in the app resolves through these variables
-   (see tailwind.config.js). :root holds stock indigo — the default look, so
-   nothing changes unless a theme is chosen. Picking a theme sets data-accent
-   on <html> and recolors the whole app. Dark/light mode is independent and
-   untouched. Values are RGB triplets (for Tailwind's <alpha-value>). */
+   (see tailwind.config.js). :root holds Graphite, the default look: 50-400
+   are light (text and icons on dark), 500-950 are dark (fills and borders
+   that carry white text). Picking another theme sets data-accent on <html>
+   and recolors the whole app. `--ink` / `--ink-fg` are the main-action fill
+   and its label (bg-ink text-ink-fg). Dark/light mode is independent.
+   Values are RGB triplets (for Tailwind's <alpha-value>). */
 :root {
+  --accent-50: 255 255 255;
+  --accent-100: 250 250 250;
+  --accent-200: 244 244 245;
+  --accent-300: 228 228 231;
+  --accent-400: 212 212 216;
+  --accent-500: 113 113 122;
+  --accent-600: 82 82 91;
+  --accent-700: 63 63 70;
+  --accent-800: 52 52 56;
+  --accent-900: 39 39 42;
+  --accent-950: 24 24 27;
+  --ink: 244 244 245;
+  --ink-fg: 9 9 11;
+}
+
+/* Brass — warm, jazz-club. Kept to main actions: it sits near amber "attention". */
+[data-accent='brass'] {
+  --accent-50: 252 248 238;
+  --accent-100: 246 238 218;
+  --accent-200: 236 222 186;
+  --accent-300: 224 202 150;
+  --accent-400: 214 180 116;
+  --accent-500: 184 148 86;
+  --accent-600: 150 118 64;
+  --accent-700: 118 92 50;
+  --accent-800: 88 69 38;
+  --accent-900: 60 47 27;
+  --accent-950: 36 28 16;
+  --ink: 214 180 116;
+  --ink-fg: 28 21 10;
+}
+
+/* Teal — cool. Close to green "paid"; check status text when it is chosen. */
+[data-accent='teal'] {
+  --accent-50: 240 253 250;
+  --accent-100: 204 251 241;
+  --accent-200: 153 246 228;
+  --accent-300: 94 234 212;
+  --accent-400: 45 212 191;
+  --accent-500: 20 184 166;
+  --accent-600: 13 148 136;
+  --accent-700: 15 118 110;
+  --accent-800: 17 94 89;
+  --accent-900: 19 78 74;
+  --accent-950: 4 47 46;
+  --ink: 94 234 212;
+  --ink-fg: 4 47 46;
+}
+
+/* Indigo (classic) — the original look, stock Tailwind indigo. */
+[data-accent='indigo'] {
   --accent-50: 238 242 255;
   --accent-100: 224 231 255;
   --accent-200: 199 210 254;
@@ -20,51 +73,15 @@
   --accent-800: 55 48 163;
   --accent-900: 49 46 129;
   --accent-950: 30 27 75;
+  --ink: 99 102 241;
+  --ink-fg: 255 255 255;
 }
 
-/* Jade — deep stage-light green */
-[data-accent='jade'] {
-  --accent-50: 236 253 245;
-  --accent-100: 209 250 229;
-  --accent-200: 167 243 208;
-  --accent-300: 110 231 183;
-  --accent-400: 52 211 153;
-  --accent-500: 16 185 129;
-  --accent-600: 5 150 105;
-  --accent-700: 4 120 87;
-  --accent-800: 6 95 70;
-  --accent-900: 6 78 59;
-  --accent-950: 2 44 34;
-}
-
-/* Gold — warm brass-section amber */
-[data-accent='gold'] {
-  --accent-50: 255 251 235;
-  --accent-100: 254 243 199;
-  --accent-200: 253 230 138;
-  --accent-300: 252 211 77;
-  --accent-400: 251 191 36;
-  --accent-500: 245 158 11;
-  --accent-600: 217 119 6;
-  --accent-700: 180 83 9;
-  --accent-800: 146 64 14;
-  --accent-900: 120 53 15;
-  --accent-950: 69 26 3;
-}
-
-/* Crimson — velvet-curtain red */
-[data-accent='crimson'] {
-  --accent-50: 255 241 242;
-  --accent-100: 255 228 230;
-  --accent-200: 254 205 211;
-  --accent-300: 253 164 175;
-  --accent-400: 251 113 133;
-  --accent-500: 244 63 94;
-  --accent-600: 225 29 72;
-  --accent-700: 190 18 60;
-  --accent-800: 159 18 57;
-  --accent-900: 136 19 55;
-  --accent-950: 76 5 25;
+/* Graphite in light mode: ink flips to a near-black fill with a white label.
+   The other themes keep their own ink in both modes. */
+html:not(.dark):not([data-accent]) {
+  --ink: 24 24 27;
+  --ink-fg: 255 255 255;
 }
 
 /* Privacy mode — mask fees as dots (like a password field) so it reads as
@@ -222,29 +239,29 @@
    ═══════════════════════════════════════════════════════════════════ */
 
 html:not(.dark) {
-  background-color: #f0f4f8;
-  color: #0f172a;
+  background-color: #f4f4f5;
+  color: #18181b;
 }
 
 /* ── Page backgrounds ─────────────────────────────────────────────── */
-html:not(.dark) .bg-gray-950 { background-color: #eef2f7 !important; }
-html:not(.dark) .bg-gray-900 { background-color: #f8fafc !important; }
+html:not(.dark) .bg-gray-950 { background-color: #f4f4f5 !important; }
+html:not(.dark) .bg-gray-900 { background-color: #fafafa !important; }
 html:not(.dark) .bg-gray-800 { background-color: #ffffff !important; }
-html:not(.dark) .bg-gray-700 { background-color: #e8eef4 !important; }
+html:not(.dark) .bg-gray-700 { background-color: #e4e4e7 !important; }
 
 /* Opacity bg variants */
 html:not(.dark) [class*="bg-gray-800/"] { background-color: rgba(255,255,255,0.85) !important; }
-html:not(.dark) [class*="bg-gray-900/"] { background-color: rgba(248,250,252,0.85) !important; }
-html:not(.dark) [class*="bg-gray-700/"] { background-color: rgba(232,238,244,0.85) !important; }
+html:not(.dark) [class*="bg-gray-900/"] { background-color: rgba(250,250,250,0.85) !important; }
+html:not(.dark) [class*="bg-gray-700/"] { background-color: rgba(228,228,231,0.85) !important; }
 
 /* ── Gradient cards (Dashboard hero "Next Up") ────────────────────── */
 /* Override the Tailwind CSS variables for gradient from/to classes */
 html:not(.dark) [class*="from-indigo-900"] {
   --tw-gradient-from: rgb(var(--accent-100)) !important;
-  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to, rgba(221,228,255,0)) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to, rgba(250,250,250,0)) !important;
 }
 html:not(.dark) [class*="to-gray-900"] {
-  --tw-gradient-to: #eef2f7 !important;
+  --tw-gradient-to: #f4f4f5 !important;
 }
 /* Also handle the border on gradient cards */
 html:not(.dark) [class*="from-indigo-900"] + * { border-color: rgb(var(--accent-500) / 0.2) !important; }
@@ -268,16 +285,20 @@ html:not(.dark) [class*="bg-yellow-950"] { background-color: rgba(254,252,232,1)
 html:not(.dark) [class*="bg-yellow-500/"] { background-color: rgba(234,179,8,0.14)  !important; }
 html:not(.dark) [class*="bg-blue-500/"]   { background-color: rgba(59,130,246,0.12) !important; }
 html:not(.dark) [class*="bg-green-500/"]  { background-color: rgba(34,197,94,0.12)  !important; }
-html:not(.dark) [class*="bg-gray-500/"]   { background-color: rgba(107,114,128,0.1) !important; }
+html:not(.dark) [class*="bg-gray-500/"]   { background-color: rgba(113,113,122,0.1) !important; }
 
 /* ── Text colours ─────────────────────────────────────────────────── */
-html:not(.dark) .text-white    { color: #0f172a !important; }
-html:not(.dark) .text-gray-100 { color: #1e293b !important; }
-html:not(.dark) .text-gray-200 { color: #334155 !important; }
-html:not(.dark) .text-gray-300 { color: #475569 !important; }
-html:not(.dark) .text-gray-400 { color: #64748b !important; }
-html:not(.dark) .text-gray-500 { color: #94a3b8 !important; }
-html:not(.dark) .text-gray-600 { color: #94a3b8 !important; }
+html:not(.dark) .text-white    { color: #18181b !important; }
+/* ...except white labels on solid colour fills (buttons, badges), which sit on
+   a dark fill in both modes and must stay white. */
+html:not(.dark) :is(.bg-indigo-500, .bg-indigo-600, .bg-indigo-700, .bg-blue-500, .bg-blue-600, .bg-blue-700, .bg-green-500, .bg-green-600, .bg-green-700, .bg-red-500, .bg-red-600, .bg-red-700, .bg-teal-500, .bg-teal-600, .bg-yellow-500, .bg-yellow-600, .bg-ink).text-white,
+html:not(.dark) :is(.bg-indigo-500, .bg-indigo-600, .bg-indigo-700, .bg-blue-500, .bg-blue-600, .bg-blue-700, .bg-green-500, .bg-green-600, .bg-green-700, .bg-red-500, .bg-red-600, .bg-red-700, .bg-teal-500, .bg-teal-600, .bg-yellow-500, .bg-yellow-600, .bg-ink) .text-white { color: #ffffff !important; }
+html:not(.dark) .text-gray-100 { color: #27272a !important; }
+html:not(.dark) .text-gray-200 { color: #3f3f46 !important; }
+html:not(.dark) .text-gray-300 { color: #52525b !important; }
+html:not(.dark) .text-gray-400 { color: #71717a !important; }
+html:not(.dark) .text-gray-500 { color: #a1a1aa !important; }
+html:not(.dark) .text-gray-600 { color: #a1a1aa !important; }
 
 /* Indigo text — darken for readability on light backgrounds */
 html:not(.dark) .text-indigo-100 { color: rgb(var(--accent-900)) !important; }
@@ -305,13 +326,13 @@ html:not(.dark) [class*="bg-green-600/"] { background-color: rgba(22,163,74,0.10
 html:not(.dark) [class*="bg-indigo-950"] { background-color: rgb(var(--accent-50)) !important; }
 
 /* ── Borders ──────────────────────────────────────────────────────── */
-html:not(.dark) .border-gray-800  { border-color: #e2e8f0 !important; }
-html:not(.dark) .border-gray-700  { border-color: #cbd5e1 !important; }
-html:not(.dark) .border-gray-600  { border-color: #94a3b8 !important; }
+html:not(.dark) .border-gray-800  { border-color: #e4e4e7 !important; }
+html:not(.dark) .border-gray-700  { border-color: #d4d4d8 !important; }
+html:not(.dark) .border-gray-600  { border-color: #a1a1aa !important; }
 html:not(.dark) [class*="border-indigo-700"]  { border-color: rgb(var(--accent-500) / 0.25) !important; }
 html:not(.dark) [class*="border-indigo-500"]  { border-color: rgb(var(--accent-500) / 0.30) !important; }
-html:not(.dark) [class*="border-gray-700/"]   { border-color: rgba(203,213,225,0.8) !important; }
-html:not(.dark) [class*="border-gray-800/"]   { border-color: rgba(226,232,240,0.9) !important; }
+html:not(.dark) [class*="border-gray-700/"]   { border-color: rgba(212,212,216,0.8) !important; }
+html:not(.dark) [class*="border-gray-800/"]   { border-color: rgba(228,228,231,0.9) !important; }
 html:not(.dark) [class*="border-red-700"]     { border-color: rgba(239,68,68,0.35)  !important; }
 html:not(.dark) [class*="border-green-700"]   { border-color: rgba(34,197,94,0.35)  !important; }
 html:not(.dark) [class*="border-blue-700"]    { border-color: rgba(59,130,246,0.35) !important; }
@@ -326,12 +347,12 @@ html:not(.dark) .bg-gray-800 {
 html:not(.dark) input,
 html:not(.dark) select,
 html:not(.dark) textarea {
-  background-color: #f8fafc !important;
-  color: #0f172a !important;
-  border-color: #cbd5e1 !important;
+  background-color: #fafafa !important;
+  color: #18181b !important;
+  border-color: #d4d4d8 !important;
 }
 html:not(.dark) input::placeholder,
-html:not(.dark) textarea::placeholder { color: #94a3b8 !important; }
+html:not(.dark) textarea::placeholder { color: #a1a1aa !important; }
 html:not(.dark) input:focus,
 html:not(.dark) select:focus,
 html:not(.dark) textarea:focus { border-color: rgb(var(--accent-500)) !important; outline-color: rgb(var(--accent-500) / 0.3) !important; }
@@ -340,20 +361,20 @@ html:not(.dark) textarea:focus { border-color: rgb(var(--accent-500)) !important
 
 /* Top header bar */
 html:not(.dark) header.sticky {
-  background-color: #f8fafc !important;
-  border-bottom-color: #e2e8f0 !important;
+  background-color: #fafafa !important;
+  border-bottom-color: #e4e4e7 !important;
   box-shadow: 0 1px 4px rgba(0,0,0,0.05) !important;
 }
 
 /* Document detail sticky header uses bg-gray-900 class */
 html:not(.dark) .sticky.bg-gray-900,
 html:not(.dark) .bg-gray-900.sticky {
-  background-color: #f8fafc !important;
-  border-bottom-color: #e2e8f0 !important;
+  background-color: #fafafa !important;
+  border-bottom-color: #e4e4e7 !important;
 }
 
 /* Calendar sticky day-header row */
-html:not(.dark) .bg-gray-950.sticky { background-color: #eef2f7 !important; }
+html:not(.dark) .bg-gray-950.sticky { background-color: #f4f4f5 !important; }
 
 /* Calendar time-grid cells */
 html:not(.dark) .bg-gray-950.min-h-\[72px\] { background-color: #ffffff !important; }
@@ -361,22 +382,22 @@ html:not(.dark) .bg-gray-950.min-h-\[72px\] { background-color: #ffffff !importa
 /* Bottom navigation */
 html:not(.dark) nav.fixed {
   background-color: #ffffff !important;
-  border-top-color: #e2e8f0 !important;
+  border-top-color: #e4e4e7 !important;
   box-shadow: 0 -2px 14px rgba(0,0,0,0.07) !important;
 }
 
 /* More-menu overlay backdrop */
-html:not(.dark) .bg-black\/50 { background-color: rgba(15,23,42,0.3) !important; }
+html:not(.dark) .bg-black\/50 { background-color: rgba(24,24,27,0.3) !important; }
 
 /* More-menu panel */
 html:not(.dark) .fixed.bg-gray-900.border-t {
   background-color: #ffffff !important;
-  border-color: #e2e8f0 !important;
+  border-color: #e4e4e7 !important;
   box-shadow: 0 -4px 24px rgba(0,0,0,0.1) !important;
 }
 
 /* ── Scrollbar ────────────────────────────────────────────────────── */
 html:not(.dark) ::-webkit-scrollbar { width: 6px; height: 6px; }
-html:not(.dark) ::-webkit-scrollbar-track { background: #f0f4f8; }
-html:not(.dark) ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-html:not(.dark) ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+html:not(.dark) ::-webkit-scrollbar-track { background: #f4f4f5; }
+html:not(.dark) ::-webkit-scrollbar-thumb { background: #d4d4d8; border-radius: 3px; }
+html:not(.dark) ::-webkit-scrollbar-thumb:hover { background: #a1a1aa; }

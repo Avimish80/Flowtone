@@ -1,20 +1,33 @@
 import { createContext, useContext, useEffect, useState } from "react";
 
-// Accent themes (Pro feature). "indigo" is the stock look — no data-accent
-// attribute, zero visual change. The others recolor every indigo-* utility
+// Accent themes (Pro feature). "graphite" is the default look — no data-accent
+// attribute. The others recolor every indigo-* utility and the ink token
 // app-wide via CSS variables (see index.css + tailwind.config.js).
 // Dark/light mode is a separate, independent axis — do not couple them.
 export const ACCENT_THEMES = [
-  { id: "indigo", label: "Indigo", swatch: "#6366f1", pro: false },
-  { id: "jade", label: "Jade", swatch: "#10b981", pro: true },
-  { id: "gold", label: "Gold", swatch: "#f59e0b", pro: true },
-  { id: "crimson", label: "Crimson", swatch: "#f43f5e", pro: true },
+  { id: "graphite", label: "Graphite", swatch: "#e4e4e7", pro: false },
+  { id: "brass", label: "Brass", swatch: "#d6b474", pro: true },
+  { id: "teal", label: "Teal", swatch: "#5eead4", pro: true },
+  { id: "indigo", label: "Indigo", swatch: "#6366f1", pro: true },
 ];
+
+// The choice used to live under "mos_accent", which the app wrote on every
+// start, so nearly every device has "indigo" saved without anyone picking it.
+// Read the old key once, map it to the new themes, then use the new key only.
+const ACCENT_KEY = "mos_accent_v2";
+const LEGACY_ACCENT = { indigo: "graphite", crimson: "graphite", jade: "teal", gold: "brass" };
+
+function loadAccent() {
+  const saved = localStorage.getItem(ACCENT_KEY);
+  if (saved) return saved;
+  const legacy = localStorage.getItem("mos_accent");
+  return (legacy && LEGACY_ACCENT[legacy]) || "graphite";
+}
 
 const ThemeContext = createContext({
   theme: "dark",
   toggleTheme: () => {},
-  accent: "indigo",
+  accent: "graphite",
   setAccent: () => {},
 });
 
@@ -24,9 +37,9 @@ export function ThemeProvider({ children }) {
   });
   const [accent, setAccent] = useState(() => {
     try {
-      const saved = localStorage.getItem("mos_accent") || "indigo";
-      return ACCENT_THEMES.some(t => t.id === saved) ? saved : "indigo";
-    } catch { return "indigo"; }
+      const saved = loadAccent();
+      return ACCENT_THEMES.some(t => t.id === saved) ? saved : "graphite";
+    } catch { return "graphite"; }
   });
 
   useEffect(() => {
@@ -41,12 +54,12 @@ export function ThemeProvider({ children }) {
 
   useEffect(() => {
     const root = document.documentElement;
-    if (accent === "indigo") {
-      delete root.dataset.accent; // stock look — no attribute at all
+    if (accent === "graphite") {
+      delete root.dataset.accent; // default look — no attribute at all
     } else {
       root.dataset.accent = accent;
     }
-    try { localStorage.setItem("mos_accent", accent); } catch {}
+    try { localStorage.setItem(ACCENT_KEY, accent); } catch {}
   }, [accent]);
 
   const toggleTheme = () => setTheme(t => t === "dark" ? "light" : "dark");

@@ -10,10 +10,31 @@ module.exports = {
   			sm: 'calc(var(--radius) - 4px)'
   		},
   		colors: {
+  			// Graphite surfaces: Tailwind's stock gray is blue-tinted, which gave
+  			// every screen a navy cast. These are neutral (Tailwind zinc values).
+  			gray: {
+  				'50': '#fafafa',
+  				'100': '#f4f4f5',
+  				'200': '#e4e4e7',
+  				'300': '#d4d4d8',
+  				'400': '#a1a1aa',
+  				'500': '#71717a',
+  				'600': '#52525b',
+  				'700': '#3f3f46',
+  				'800': '#27272a',
+  				'900': '#18181b',
+  				'950': '#09090b'
+  			},
+  			// The main action on a screen: `bg-ink text-ink-fg`. Set per theme
+  			// and per light/dark mode in index.css.
+  			ink: {
+  				DEFAULT: 'rgb(var(--ink) / <alpha-value>)',
+  				fg: 'rgb(var(--ink-fg) / <alpha-value>)'
+  			},
   			// Accent themes: `indigo` (the app-wide accent) resolves through CSS
-  			// variables set in index.css. Default values are Tailwind's stock
-  			// indigo, so with no data-accent attribute nothing changes. Other
-  			// palettes are applied via [data-accent="..."] on <html>.
+  			// variables set in index.css. The default (no data-accent attribute)
+  			// is Graphite; other palettes are applied via [data-accent="..."] on
+  			// <html>.
   			indigo: {
   				'50': 'rgb(var(--accent-50) / <alpha-value>)',
   				'100': 'rgb(var(--accent-100) / <alpha-value>)',
