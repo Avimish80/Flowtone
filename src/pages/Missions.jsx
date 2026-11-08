@@ -3,10 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { appClient } from "@/api/appClient";
 import { createPageUrl } from "@/utils";
 import { runMissionScan } from "@/lib/missionScanRunner";
+import { isGroupItem, itemKey, missionActionLabel, missionTarget } from "@/lib/actionItemScanner";
 import { isGmailConnected, sendGmailEmail } from "@/lib/gmailClient";
 import {
   MapPin, FileText, AlertCircle, Send, Banknote, Download,
-  Check, Target, RefreshCw, UserPlus, Mail,
+  Check, Target, RefreshCw, UserPlus, Mail, ChevronDown,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
@@ -49,6 +50,7 @@ export default function Missions() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("open");
   const [resetting, setResetting] = useState(false);
+  const [expanded, setExpanded] = useState({}); // group id → members shown
   const navigate = useNavigate();
 
   const loadItems = () => {
@@ -65,6 +67,7 @@ export default function Missions() {
     let list = items;
     if (tab === "open") list = items.filter((i) => i.status === "open");
     else if (tab === "resolved") list = items.filter((i) => i.status === "resolved" || i.status === "dismissed");
+    else list = items.filter((i) => i.status !== "grouped"); // members show inside their group
 
     return list.sort((a, b) => {
       if (a.status === "open" && b.status !== "open") return -1;
@@ -76,9 +79,16 @@ export default function Missions() {
 
   const openCount = useMemo(() => items.filter((i) => i.status === "open").length, [items]);
 
+  // Members folded into a group item (status "grouped"), by their stable key.
+  const membersOf = useMemo(() => {
+    const byKey = new Map(items.filter((i) => i.status === "grouped").map((i) => [itemKey(i), i]));
+    return (group) => (group.payload?.member_keys || []).map((k) => byKey.get(k)).filter(Boolean);
+  }, [items]);
+
   function handleAction(item) {
-    if (item.action_target) {
-      navigate(createPageUrl(item.action_target));
+    const target = missionTarget(item);
+    if (target) {
+      navigate(createPageUrl(target));
     }
   }
 
@@ -227,8 +237,11 @@ export default function Missions() {
       {/* Items list */}
       <div className="space-y-2">
         {filtered.map((item) => {
-          const Icon = ITEM_ICONS[item.item_type] || FileText;
-          const iconColor = ITEM_COLORS[item.item_type] || "text-gray-400";
+          const isGroup = isGroupItem(item);
+          const typeKey = isGroup ? item.payload?.member_type : item.item_type;
+          const Icon = ITEM_ICONS[typeKey] || FileText;
+          const iconColor = ITEM_COLORS[typeKey] || "text-gray-400";
+          const members = isGroup ? membersOf(item) : [];
           const isResolved = item.status === "resolved" || item.status === "dismissed";
           const isOpen = item.status === "open";
 
@@ -263,8 +276,42 @@ export default function Missions() {
                     </p>
                   </button>
 
+                  {/* Group — one bulk action, members on demand */}
+                  {isOpen && isGroup && (
+                    <div className="mt-2.5">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button onClick={() => handleAction(item)} className="text-xs bg-indigo-600/25 border border-indigo-500/30 text-indigo-300 px-3 py-1 rounded-lg hover:bg-indigo-600/40 transition-colors">
+                          {missionActionLabel(item)}
+                        </button>
+                        {members.length > 0 && (
+                          <button
+                            onClick={() => setExpanded((prev) => ({ ...prev, [item.id]: !prev[item.id] }))}
+                            className="text-gray-500 hover:text-gray-300 text-xs flex items-center gap-1 transition-colors"
+                          >
+                            {expanded[item.id] ? "Hide" : `Show ${members.length}`}
+                            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${expanded[item.id] ? "rotate-180" : ""}`} />
+                          </button>
+                        )}
+                      </div>
+                      {expanded[item.id] && (
+                        <div className="mt-2 divide-y divide-gray-700/30 border-t border-gray-700/30">
+                          {members.map((m) => (
+                            <button
+                              key={m.id}
+                              onClick={() => handleAction(m)}
+                              className="w-full text-left py-2 text-xs text-gray-400 hover:text-gray-200 transition-colors"
+                            >
+                              {m.payload?.event_title || m.payload?.invoice_title || m.title}
+                              {m.payload?.event_date && <span className="text-gray-600"> · {m.payload.event_date}</span>}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {/* One-tap action — full controls live in the ticket */}
-                  {isOpen && (
+                  {isOpen && !isGroup && (
                     <div className="flex flex-wrap items-center gap-2 mt-2.5">
                       {item.item_type === "gig_ready_to_invoice" && item.payload?.has_email && (
                         <>

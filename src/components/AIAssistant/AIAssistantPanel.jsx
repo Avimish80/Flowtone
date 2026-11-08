@@ -35,6 +35,57 @@ function AssistantBubble({ message }) {
   );
 }
 
+// The assistant speaking first: its top suggestions, each one tap from done.
+function BriefCard({ message, onAccept, onLater }) {
+  const items = message.items || [];
+
+  return (
+    <div className="flex items-start gap-2.5 mb-3">
+      <div className="flex-shrink-0 w-7 h-7 rounded-full bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center">
+        <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+      </div>
+      <div className="max-w-[92%] flex-1 bg-gray-800 text-gray-100 rounded-2xl rounded-tl-sm text-sm leading-relaxed shadow overflow-hidden">
+        <p className="px-4 pt-2.5 pb-2">{message.content}</p>
+        <div className="divide-y divide-gray-700/50 border-t border-gray-700/50">
+          {items.map((item) => (
+            <div key={item.id} className="px-4 py-2.5">
+              <p className={`text-sm leading-snug ${item.state ? "text-gray-500" : "text-gray-100"}`}>{item.title}</p>
+              {item.state === "accepted" && <p className="text-xs text-gray-500 mt-1">On it.</p>}
+              {item.state === "later" && <p className="text-xs text-gray-500 mt-1">I'll bring it back tomorrow morning.</p>}
+              {!item.state && (
+                <div className="flex items-center gap-2 mt-2">
+                  <button
+                    onClick={() => onAccept(item)}
+                    disabled={!item.target}
+                    title={item.label}
+                    className="text-xs bg-indigo-600/25 border border-indigo-500/30 text-indigo-300 px-3 py-1 rounded-lg hover:bg-indigo-600/40 transition-colors disabled:opacity-40"
+                  >
+                    Yes
+                  </button>
+                  <button
+                    onClick={() => onLater(item)}
+                    className="text-xs text-gray-400 hover:text-gray-200 px-2 py-1 transition-colors"
+                  >
+                    Not now
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+        {message.more > 0 && (
+          <button
+            onClick={() => onAccept({ id: "all", target: "Missions" })}
+            className="w-full text-left px-4 py-2 border-t border-gray-700/50 text-xs text-gray-400 hover:text-gray-200 transition-colors"
+          >
+            {message.more} more waiting — see all
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ActionCard({ message, navigate, onClose }) {
   const action = message.action || {};
   const isError = action.type === "ERROR";
@@ -229,6 +280,8 @@ export default function AIAssistantPanel({
   clearHistory,
   pendingNavigate,
   clearPendingNavigate,
+  acceptSuggestion,
+  snoozeSuggestion,
 }) {
   const [input, setInput] = useState("");
   const messagesEndRef = useRef(null);
@@ -369,6 +422,15 @@ export default function AIAssistantPanel({
               return <UserBubble key={msg.id} message={msg} />;
             if (msg.role === "assistant")
               return <AssistantBubble key={msg.id} message={msg} />;
+            if (msg.role === "brief")
+              return (
+                <BriefCard
+                  key={msg.id}
+                  message={msg}
+                  onAccept={(item) => acceptSuggestion?.(item)}
+                  onLater={(item) => snoozeSuggestion?.(item)}
+                />
+              );
             if (msg.role === "action")
               return (
                 <ActionCard key={msg.id} message={msg} navigate={navigate} onClose={onClose} />

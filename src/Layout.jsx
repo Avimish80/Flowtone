@@ -211,20 +211,6 @@ export default function Layout({ children, currentPageName }) {
       .catch(() => {});
   }, []);
 
-  // Persistent missions scanner — detects problems + opportunities in user data,
-  // stores findings in Supabase, and only calls AI when something changed.
-  useEffect(() => {
-    try {
-      const last = Number(localStorage.getItem("flowtone_mission_scan_at") || 0);
-      if (Date.now() - last < 10 * 60 * 1000) return; // throttle: 10 min minimum
-    } catch { /* ignore */ }
-    runMissionScan()
-      .then(() => {
-        try { localStorage.setItem("flowtone_mission_scan_at", String(Date.now())); } catch { /* ignore */ }
-      })
-      .catch(() => {});
-  }, []);
-
   const {
     messages,
     loading: aiLoading,
@@ -235,7 +221,29 @@ export default function Layout({ children, currentPageName }) {
     clearHistory,
     pendingNavigate,
     clearPendingNavigate,
+    hasSuggestion,
+    refreshSuggestions,
+    acceptSuggestion,
+    snoozeSuggestion,
   } = useAIAssistant();
+
+  // Persistent missions scanner — detects problems + opportunities in user data,
+  // stores findings in Supabase, and only calls AI when something changed.
+  // Runs on open and every time the app comes back to the front (10 min
+  // minimum between scans); the assistant's dot is refreshed either way.
+  useAppResume((reason) => {
+    let last = 0;
+    try { last = Number(localStorage.getItem("flowtone_mission_scan_at") || 0); } catch { /* ignore */ }
+    if (Date.now() - last < 10 * 60 * 1000) {
+      console.info(`[missions] scan skipped on ${reason} (scanned under 10 min ago)`);
+      return refreshSuggestions();
+    }
+    console.info(`[missions] scan on ${reason}`);
+    try { localStorage.setItem("flowtone_mission_scan_at", String(Date.now())); } catch { /* ignore */ }
+    return runMissionScan()
+      .catch((err) => console.warn("[missions] scan failed", err))
+      .then(() => refreshSuggestions());
+  });
 
   // Onboarding "Ask the assistant" handoff — open the panel and send the prefilled message once
   useEffect(() => {
@@ -370,7 +378,7 @@ export default function Layout({ children, currentPageName }) {
       <CoachMarks />
 
       {/* AI Assistant */}
-      <AIAssistantButton onClick={openPanel} />
+      <AIAssistantButton onClick={openPanel} hasSuggestion={hasSuggestion} />
       <AIAssistantPanel
         open={aiOpen}
         onClose={closePanel}
@@ -381,6 +389,8 @@ export default function Layout({ children, currentPageName }) {
         clearHistory={clearHistory}
         pendingNavigate={pendingNavigate}
         clearPendingNavigate={clearPendingNavigate}
+        acceptSuggestion={acceptSuggestion}
+        snoozeSuggestion={snoozeSuggestion}
       />
 
       {/* Bottom Nav — 5 items */}

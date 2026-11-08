@@ -5,6 +5,7 @@ import { setTemplateCustom, resolveTemplateId, TEMPLATE_DEFS } from "@/lib/invoi
 import { getAssistantProfile } from "@/lib/assistantProfile";
 import { searchPlaces, getUserRegion } from "@/lib/geocode";
 import { notify } from "@/lib/appBadge";
+import { rankMissions, missionActionLabel, missionTarget } from "@/lib/actionItemScanner";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -472,12 +473,116 @@ function personalGreeting(profile) {
   return `Hey ${profile.user_name}! ${aiName} — ask me anything about your gigs, clients and invoices. I can create, find, update or cancel events and invoices, add clients, record payments, and look up venues.`;
 }
 
+// ─── Opening brief ──────────────────────────────────────────────────────────
+// When the panel opens with open missions, the assistant speaks first: the top
+// three, each with Yes (go do it) and Not now (snooze to tomorrow morning).
+// "Seen" = the open items (id + last change) shown in a brief; anything new
+// since then lights the dot on the assistant button.
+
+const SEEN_KEY = "flowtone_suggestions_seen";
+const BRIEF_SIZE = 3;
+
+function suggestionStamp(item) {
+  return `${item.id}@${item.updated_at || item.created_at || ""}`;
+}
+
+function readSeen() {
+  try { return new Set(JSON.parse(localStorage.getItem(SEEN_KEY) || "[]")); } catch { return new Set(); }
+}
+
+function writeSeen(items) {
+  try { localStorage.setItem(SEEN_KEY, JSON.stringify(items.map(suggestionStamp))); } catch { /* ignore */ }
+}
+
+async function loadOpenMissions() {
+  const rows = await appClient.entities.ActionItem.filter({ status: "open" });
+  return rankMissions(rows || []);
+}
+
+function tomorrowMorningIso() {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  d.setHours(8, 0, 0, 0);
+  return d.toISOString();
+}
+
+function briefIntro(profile, count) {
+  const h = new Date().getHours();
+  const part = h < 12 ? "Morning" : h < 18 ? "Afternoon" : "Evening";
+  const who = profile?.user_name ? ` ${profile.user_name}` : "";
+  const what = count === 1 ? "One thing I'd sort now" : `${count === 2 ? "Two" : "Three"} things I'd sort now`;
+  return `${part}${who}. ${what} — shall I?`;
+}
+
 export function useAIAssistant() {
   const [messages, setMessages] = useState([makeMessage("assistant", DEFAULT_GREETING)]);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   // pendingNavigate: { page, params } — set when AI returns NAVIGATE action
   const [pendingNavigate, setPendingNavigate] = useState(null);
+  const [hasSuggestion, setHasSuggestion] = useState(false);
+
+  // Dot on the assistant button: any open mission not shown in a brief yet.
+  const refreshSuggestions = useCallback(async () => {
+    try {
+      const items = await loadOpenMissions();
+      const seen = readSeen();
+      setHasSuggestion(items.some((i) => !seen.has(suggestionStamp(i))));
+    } catch { /* ignore */ }
+  }, []);
+
+  // Speak first: replace the opening message with a brief of the top missions,
+  // unless a conversation is already under way.
+  const showBrief = useCallback(async () => {
+    let items = [];
+    try { items = await loadOpenMissions(); } catch { return; }
+    const profile = await getAssistantProfile().catch(() => null);
+    writeSeen(items);
+    setHasSuggestion(false);
+
+    setMessages((prev) => {
+      if (prev.some((m) => m.role === "user")) return prev;
+      if (!items.length) {
+        return prev[0]?.role === "brief" ? [makeMessage("assistant", personalGreeting(profile))] : prev;
+      }
+      const top = items.slice(0, BRIEF_SIZE);
+      return [makeMessage("brief", briefIntro(profile, top.length), {
+        items: top.map((i) => ({
+          id: i.id,
+          title: i.title,
+          label: missionActionLabel(i),
+          target: missionTarget(i),
+          state: "",
+        })),
+        more: Math.max(0, items.length - top.length),
+      })];
+    });
+  }, []);
+
+  const setBriefItemState = useCallback((itemId, state) => {
+    setMessages((prev) => prev.map((m) => (m.role === "brief"
+      ? { ...m, items: m.items.map((it) => (it.id === itemId ? { ...it, state } : it)) }
+      : m)));
+  }, []);
+
+  // Yes: go where the job gets done. Nothing is sent from here — the page it
+  // opens has the Send button.
+  const acceptSuggestion = useCallback((item) => {
+    if (!item?.target) return;
+    setBriefItemState(item.id, "accepted");
+    setPendingNavigate({ page: item.target, params: {} });
+  }, [setBriefItemState]);
+
+  // Not now: back tomorrow morning (the scan re-opens it once the time passes).
+  const snoozeSuggestion = useCallback(async (item) => {
+    if (!item?.id) return;
+    setBriefItemState(item.id, "later");
+    await appClient.entities.ActionItem.update(item.id, {
+      status: "snoozed",
+      snoozed_until: tomorrowMorningIso(),
+      decision: "deferred",
+    }).catch(() => setBriefItemState(item.id, ""));
+  }, [setBriefItemState]);
 
   // Personalize the greeting once the assistant profile loads —
   // only if the user hasn't started chatting yet
@@ -648,7 +753,10 @@ export function useAIAssistant() {
     setPendingNavigate(null);
   }, []);
 
-  const openPanel = useCallback(() => setOpen(true), []);
+  const openPanel = useCallback(() => {
+    setOpen(true);
+    showBrief();
+  }, [showBrief]);
   const closePanel = useCallback(() => setOpen(false), []);
 
   return {
@@ -661,5 +769,9 @@ export function useAIAssistant() {
     clearHistory,
     pendingNavigate,
     clearPendingNavigate: useCallback(() => setPendingNavigate(null), []),
+    hasSuggestion,
+    refreshSuggestions,
+    acceptSuggestion,
+    snoozeSuggestion,
   };
 }

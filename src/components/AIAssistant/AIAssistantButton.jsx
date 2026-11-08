@@ -4,15 +4,17 @@ import { Sparkles } from "lucide-react";
  * Floating action button that opens the AI Assistant panel.
  *
  * Props:
- *   onClick — called when the button is clicked
+ *   onClick       — called when the button is clicked
+ *   hasSuggestion — true when the assistant has something new to say; shows a
+ *                   steady amber dot (no glow: glow is reserved for urgency)
  */
-export default function AIAssistantButton({ onClick }) {
+export default function AIAssistantButton({ onClick, hasSuggestion = false }) {
   return (
     <button
       type="button"
       onClick={onClick}
       data-tour="ai"
-      aria-label="Open Flowtone Assistant"
+      aria-label={hasSuggestion ? "Open Flowtone Assistant, suggestion waiting" : "Open Flowtone Assistant"}
       title="Flowtone Assistant"
       className={[
         // Positioning — above the bottom nav bar
@@ -24,34 +26,26 @@ export default function AIAssistantButton({ onClick }) {
         // Shape & size
         "w-12 h-12 rounded-full",
         // Color
-        "bg-indigo-600 text-white",
-        // Glow / shadow
-        "shadow-xl shadow-indigo-900/60",
-        // Ring glow animation
-        "ring-2 ring-indigo-500/40",
+        "bg-ink text-ink-fg",
+        // Plain lift off the page
+        "shadow-lg shadow-black/40",
         // Hover / active
-        "hover:bg-indigo-500 hover:scale-105 active:scale-95",
+        "hover:bg-ink/90 hover:scale-105 active:scale-95",
         // Transition
         "transition-all duration-150",
         // Focus
-        "focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 focus:ring-offset-gray-950",
-        // Subtle pulse on the ring to draw attention
-        "animate-[pulse_3s_ease-in-out_infinite]",
+        "focus:outline-none focus-visible:ring-2 focus-visible:ring-ink/40 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950",
       ].join(" ")}
-      style={{
-        // Override the default pulse to affect only the box-shadow ring, not opacity
-        animation: "flowtone-ai-glow 3s ease-in-out infinite",
-      }}
     >
-      <style>{`
-        @keyframes flowtone-ai-glow {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(99,102,241,0.5), 0 10px 30px -6px rgba(99,102,241,0.6); }
-          50%       { box-shadow: 0 0 0 6px rgba(99,102,241,0), 0 10px 30px -6px rgba(99,102,241,0.4); }
-        }
-      `}</style>
       <span className="flex items-center justify-center w-full h-full">
         <Sparkles className="w-5 h-5" />
       </span>
+      {hasSuggestion && (
+        <span
+          aria-hidden="true"
+          className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-amber-400 ring-2 ring-white dark:ring-gray-950"
+        />
+      )}
     </button>
   );
 }

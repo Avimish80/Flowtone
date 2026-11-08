@@ -5,6 +5,7 @@ import { appClient } from "@/api/appClient";
 import { Sparkles, X, ChevronRight, MapPin, FileText, AlertCircle, Send, Banknote, Download, UserPlus, Mail } from "lucide-react";
 import { getCachedProfileSync, DEFAULT_ASSISTANT_NAME } from "@/lib/assistantProfile";
 import { hasLocation, hasFee, hasInvoice } from "@/lib/missingInfo";
+import { isGroupItem, missionActionLabel, missionTarget } from "@/lib/actionItemScanner";
 
 const ITEM_ICONS = {
   gig_missing_location: MapPin,
@@ -86,8 +87,9 @@ export function AIDashboardBriefing({ events = [], documents = [] }) {
   const extraCount = visibleItems.length - shown.length;
 
   function handleAction(item) {
-    if (item.action_target) {
-      navigate(createPageUrl(item.action_target));
+    const target = missionTarget(item);
+    if (target) {
+      navigate(createPageUrl(target));
     }
   }
 
@@ -157,7 +159,8 @@ export function AIDashboardBriefing({ events = [], documents = [] }) {
       {/* Items */}
       <div className="divide-y divide-gray-700/30">
         {shown.map((item) => {
-          const Icon = ITEM_ICONS[item.item_type] || FileText;
+          const isGroup = isGroupItem(item);
+          const Icon = ITEM_ICONS[isGroup ? item.payload?.member_type : item.item_type] || FileText;
           const isOpportunity = item.item_type === "gig_ready_to_invoice" ||
             item.item_type === "invoice_ready_to_send" ||
             item.item_type === "invoice_ready_no_email";
@@ -178,6 +181,13 @@ export function AIDashboardBriefing({ events = [], documents = [] }) {
                   </button>
 
                   <div className="flex flex-wrap items-center gap-2">
+                    {/* group — one bulk fix for the whole pile */}
+                    {isGroup && (
+                      <button onClick={() => handleAction(item)} className="text-xs bg-indigo-600/25 border border-indigo-500/30 text-indigo-300 px-3 py-1 rounded-lg hover:bg-indigo-600/40 transition-colors">
+                        {missionActionLabel(item)}
+                      </button>
+                    )}
+
                     {/* gig_ready_to_invoice — email-aware buttons */}
                     {item.item_type === "gig_ready_to_invoice" && item.payload?.has_email && (
                       <>

@@ -7,6 +7,7 @@ import { flowtoneJson } from "@/lib/flowtoneApi";
 import { isPreviewModeEnabled } from "@/lib/supabaseClient";
 import { getAssistantProfile, getCachedProfileSync, DEFAULT_LANGUAGE, DEFAULT_ASSISTANT_NAME } from "@/lib/assistantProfile";
 import MicButton from "@/components/MicButton";
+import { isGroupItem, itemKey, missionActionLabel } from "@/lib/actionItemScanner";
 import {
   ArrowLeft, MapPin, FileText, AlertCircle, Send, Banknote, Download,
   Sparkles, Ban, Loader2, CornerDownLeft, CheckCircle2, UserPlus, Mail,
@@ -26,21 +27,6 @@ const ITEM_ICONS = {
   lead_quote_no_reply: Send,
 };
 
-// Label for the single primary call-to-action (the one thing this ticket is about).
-const CTA_LABELS = {
-  gig_missing_location: "Add location",
-  gig_missing_fee: "Add fee",
-  gig_missing_client: "Add client",
-  gig_missing_contact: "Add email",
-  gig_ready_to_invoice: "Review invoice",
-  invoice_overdue: "Open invoice",
-  invoice_draft_stale: "Review draft",
-  invoice_ready_to_send: "Open to send",
-  invoice_ready_no_email: "Get PDF",
-  lead_new_unanswered: "Open lead",
-  lead_quote_no_reply: "Open lead",
-};
-
 export default function MissionDetail() {
   const [params] = useSearchParams();
   const id = params.get("id");
@@ -52,6 +38,7 @@ export default function MissionDetail() {
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [reply, setReply] = useState("");
+  const [members, setMembers] = useState([]); // for a group ticket: the tasks it folds
 
   useEffect(() => {
     let active = true;
@@ -67,6 +54,14 @@ export default function MissionDetail() {
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [id]);
+
+  useEffect(() => {
+    if (!isGroupItem(task)) { setMembers([]); return; }
+    const keys = new Set(task.payload?.member_keys || []);
+    appClient.entities.ActionItem.filter({ status: "grouped" })
+      .then((rows) => setMembers((rows || []).filter((r) => keys.has(itemKey(r)))))
+      .catch(() => {});
+  }, [task]);
 
   const assistantName = getCachedProfileSync()?.assistant_name || DEFAULT_ASSISTANT_NAME;
 
@@ -182,9 +177,10 @@ export default function MissionDetail() {
     );
   }
 
-  const Icon = ITEM_ICONS[task.item_type] || FileText;
+  const isGroup = isGroupItem(task);
+  const Icon = ITEM_ICONS[isGroup ? task.payload?.member_type : task.item_type] || FileText;
   const p = task.payload || {};
-  const ctaLabel = CTA_LABELS[task.item_type] || "Open";
+  const ctaLabel = missionActionLabel(task);
   const isClosed = task.status === "dismissed" || task.status === "resolved" || task.status === "snoozed";
   const amount = p.total ?? p.fee;
 
@@ -206,6 +202,7 @@ export default function MissionDetail() {
             <h1 className="text-base font-semibold text-white leading-snug">{task.title}</h1>
             <div className="flex flex-wrap gap-1.5 mt-2">
               {p.client_name && <span className="text-[11px] px-2 py-0.5 rounded-full bg-gray-700/50 text-gray-300">{p.client_name}</span>}
+              {isGroup && <span className="text-[11px] px-2 py-0.5 rounded-full bg-gray-700/50 text-gray-300">{p.count} tasks</span>}
               {amount != null && <span className="text-[11px] px-2 py-0.5 rounded-full bg-gray-700/50 text-gray-300 sensitive">{formatMoney(amount, p.currency)}</span>}
               {p.event_date && <span className="text-[11px] px-2 py-0.5 rounded-full bg-gray-700/50 text-gray-300">{p.event_date}</span>}
               {p.due_date && <span className="text-[11px] px-2 py-0.5 rounded-full bg-gray-700/50 text-gray-300">Due {p.due_date}</span>}
@@ -223,6 +220,22 @@ export default function MissionDetail() {
           </button>
         )}
       </div>
+
+      {/* Group — the tasks it folds, each one tap from its own fix */}
+      {isGroup && members.length > 0 && !isClosed && (
+        <div className="mt-3 rounded-2xl border border-gray-700/40 bg-gray-800/30 divide-y divide-gray-700/30">
+          {members.map((m) => (
+            <button
+              key={m.id}
+              onClick={() => m.action_target && navigate(createPageUrl(m.action_target))}
+              className="w-full text-left px-4 py-2.5 text-sm text-gray-300 hover:text-white transition-colors"
+            >
+              {m.payload?.event_title || m.payload?.invoice_title || m.title}
+              {m.payload?.event_date && <span className="text-xs text-gray-500"> · {m.payload.event_date}</span>}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Assistant reply + your last note */}
       {(reply || task.user_directive) && (
