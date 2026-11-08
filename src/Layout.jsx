@@ -13,6 +13,8 @@ import AIAssistantPanel from "@/components/AIAssistant/AIAssistantPanel";
 import CoachMarks from "@/components/tour/CoachMarks";
 import { useAIAssistant } from "@/components/AIAssistant/useAIAssistant";
 import { isPushActive, schedulePushNotifications, reRegisterSubscription } from "@/lib/pushManager";
+import { onReminderTap } from "@/lib/localNotifications";
+import { useAppResume } from "@/lib/useAppResume";
 import { maybeSyncOnOpen } from "@/lib/calendarClient";
 import { syncLinkedCalendars } from "@/lib/deviceCalendarSync";
 import { appClient } from "@/api/appClient";
@@ -132,11 +134,12 @@ export default function Layout({ children, currentPageName }) {
   const { theme, toggleTheme } = useTheme();
   const { hideFees, toggleHideFees } = usePrivacy();
 
-  // Schedule push notifications on app open (if user has push enabled)
-  useEffect(() => {
-    isPushActive().then(active => {
+  // Plan reminders on app open and on every resume (if reminders are on):
+  // iOS local notifications in the iPhone app, server web push in browsers.
+  useAppResume(() => {
+    return isPushActive().then(active => {
       if (!active) return;
-      Promise.all([
+      return Promise.all([
         appClient.entities.WorkEvent.list().catch(() => []),
         appClient.entities.Client.list().catch(() => []),
         appClient.entities.AppSettings.list().catch(() => []),
@@ -146,12 +149,15 @@ export default function Layout({ children, currentPageName }) {
         // Re-register subscription with server (fixes Railway restarts wiping store.json)
         reRegisterSubscription(level).catch(() => {});
         // Load documents for finance-layer notifications
-        appClient.entities.Document.list().catch(() => []).then(documents => {
-          schedulePushNotifications(events, clients, documents, appSettings).catch(() => {});
-        });
+        return appClient.entities.Document.list().catch(() => []).then(documents =>
+          schedulePushNotifications(events, clients, documents, appSettings).catch(() => {})
+        );
       });
     });
-  }, []);
+  }, { throttleMs: 30 * 1000 });
+
+  // iOS app: tapping a reminder opens the page it is about.
+  useEffect(() => onReminderTap((url) => navigate(url)), [navigate]);
 
   // Silent two-way calendar sync on app open AND whenever the app returns to
   // the foreground (installed PWAs often don't re-mount on resume). No-op

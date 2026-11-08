@@ -4,6 +4,14 @@
 import { getEffectivePrefs, timingToMinutes } from './notificationPrefs.js';
 import { gigsMissingFee, importedEventsIncomplete, hasFee } from './missingInfo.js';
 import { getSupabaseClient, isPreviewModeEnabled } from './supabaseClient.js';
+import {
+  isNative,
+  areLocalRemindersOn,
+  enableLocalReminders,
+  disableLocalReminders,
+  scheduleLocalReminders,
+  sendLocalTest,
+} from './localNotifications.js';
 
 /** Current session's access token, sent as a Bearer header so the server can
  *  verify (not just trust) which user a push subscription belongs to —
@@ -89,8 +97,11 @@ function localDay(d) {
 }
 
 // ─── Public API ─────────────────────────────────────────────────────────────
+// On the iOS app every entry point routes to iOS local notifications
+// (localNotifications.js); the web keeps server-scheduled web push.
 
 export async function registerPush(notificationLevel = 'standard') {
+  if (isNative()) return enableLocalReminders();
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
     return { success: false, reason: 'not_supported' };
   }
@@ -114,6 +125,7 @@ export async function registerPush(notificationLevel = 'standard') {
 }
 
 export async function unregisterPush() {
+  if (isNative()) return disableLocalReminders();
   const sub = await getActiveSubscription();
   if (!sub) return;
   try {
@@ -127,6 +139,7 @@ export async function unregisterPush() {
 }
 
 export async function reRegisterSubscription(notificationLevel = 'standard') {
+  if (isNative()) return;
   const sub = await getActiveSubscription();
   if (!sub) return;
   try {
@@ -140,6 +153,7 @@ export async function reRegisterSubscription(notificationLevel = 'standard') {
 }
 
 export async function sendTestPush() {
+  if (isNative()) return sendLocalTest();
   const sub = await getActiveSubscription();
   if (!sub) return { success: false, reason: 'not_subscribed' };
   try {
@@ -162,6 +176,7 @@ export async function sendTestPush() {
 }
 
 export async function isPushActive() {
+  if (isNative()) return areLocalRemindersOn();
   const sub = await getActiveSubscription();
   return !!sub;
 }
@@ -169,7 +184,8 @@ export async function isPushActive() {
 // ─── Main scheduler ─────────────────────────────────────────────────────────
 
 /**
- * Schedule all push notifications for the next 30 days.
+ * Schedule all reminders for the next 30 days: iOS local notifications on the
+ * iOS app, server-scheduled web push elsewhere (only if this browser is subscribed).
  *
  * @param {Array}  events    — WorkEvent records
  * @param {Array}  clients   — Client records
@@ -182,10 +198,29 @@ export async function schedulePushNotifications(
   documents = [],
   settings = {}
 ) {
+  if (isNative()) {
+    return scheduleLocalReminders(buildReminderPlan(events, clients, documents, settings));
+  }
+
   const sub = await getActiveSubscription();
   if (!sub) return;
 
-  const endpoint = sub.endpoint;
+  const plan = buildReminderPlan(events, clients, documents, settings);
+  // Fire all scheduling requests in parallel (ignore individual failures)
+  await Promise.allSettled(plan.map((p) => schedule({ endpoint: sub.endpoint, ...p })));
+}
+
+/**
+ * Work out every reminder due in the next 30 days, honouring the user's
+ * notification level and prefs. Pure: returns
+ * [{ fireAt, tag, title, body, url, actions, actionUrls }].
+ */
+export function buildReminderPlan(
+  events = [],
+  clients = [],
+  documents = [],
+  settings = {}
+) {
   const now = Date.now();
   const nowTs = Math.floor(now / 1000);
   const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
@@ -196,12 +231,12 @@ export async function schedulePushNotifications(
 
   const clientMap = Object.fromEntries((clients || []).map(c => [c.id, c]));
 
-  // Helper to only schedule if fireAt is in the future
+  // Helper to only keep reminders whose fireAt is in the future
   const push = (p) => {
     const fireTs = Math.floor(new Date(p.fireAt).getTime() / 1000);
     if (fireTs <= nowTs) return null; // already past
     if (fireTs > nowTs + thirtyDaysMs / 1000) return null; // beyond 30-day window
-    return schedule({ endpoint, ...p });
+    return p;
   };
 
   const tasks = [];
@@ -744,6 +779,5 @@ export async function schedulePushNotifications(
     }
   }
 
-  // Fire all scheduling requests in parallel (ignore individual failures)
-  await Promise.allSettled(tasks.filter(Boolean));
+  return tasks.filter(Boolean);
 }

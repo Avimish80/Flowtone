@@ -22,6 +22,8 @@ import {
 import TemplateThumb from "@/components/invoice/TemplateThumb";
 import DocumentPreview from "@/components/invoice/DocumentPreview";
 import { registerPush, unregisterPush, isPushActive, schedulePushNotifications, sendTestPush } from "@/lib/pushManager";
+import { isNative, getLocalPermission, getPendingCount, openIosSettings } from "@/lib/localNotifications";
+import { useAppResume } from "@/lib/useAppResume";
 import { DEFAULT_PREFS } from "@/lib/notificationPrefs";
 import { isGmailConnected, getGmailEmail, connectGmail, disconnectGmail } from "@/lib/gmailClient";
 import { connectCalendar, getCalendarStatus, syncNow as calendarSyncNow, setSyncEnabled as setCalendarSyncEnabled, disconnectCalendar } from "@/lib/calendarClient";
@@ -51,6 +53,16 @@ export default function AppSettings() {
   const [pushError, setPushError] = useState("");
   const [testResult, setTestResult] = useState("");
   const [diagOpen, setDiagOpen] = useState(false);
+  // iOS app only: notification permission and how many reminders are queued on the phone
+  const native = isNative();
+  const [nativePerm, setNativePerm] = useState("prompt");
+  const [nativePending, setNativePending] = useState(0);
+  // Coming back from iOS Settings may have changed the permission.
+  useAppResume((reason) => {
+    if (!native || reason !== "resume") return;
+    refreshNativeState();
+    isPushActive().then(setPushActive).catch(() => {});
+  });
 
   // ── Gmail state ───────────────────────────────────────────────────
   const [gmailConnected, setGmailConnected] = useState(false);
@@ -101,6 +113,7 @@ export default function AppSettings() {
     }).catch(() => setLoading(false));
 
     isPushActive().then(setPushActive).catch(() => {});
+    if (native) refreshNativeState();
     setGmailConnected(isGmailConnected());
     setGmailEmail(getGmailEmail());
 
@@ -193,6 +206,11 @@ export default function AppSettings() {
   };
 
   // ── Push helpers ───────────────────────────────────────────────────
+  async function refreshNativeState() {
+    setNativePerm(await getLocalPermission());
+    setNativePending(await getPendingCount());
+  }
+
   const reschedule = useCallback(async (currentSettings) => {
     try {
       const [events, clients, documents] = await Promise.all([
@@ -202,6 +220,7 @@ export default function AppSettings() {
       ]);
       await schedulePushNotifications(events, clients, documents, currentSettings);
     } catch (err) { console.warn("Push reschedule failed:", err); }
+    if (isNative()) setNativePending(await getPendingCount());
   }, []);
 
   const handleEnablePush = async () => {
@@ -210,9 +229,12 @@ export default function AppSettings() {
     try {
       const result = await registerPush(level);
       if (result.success) { setPushActive(true); await reschedule(settings); }
-      else if (result.reason === "denied") setPushError("Notification permission was denied. Please allow notifications in your browser settings.");
+      else if (result.reason === "denied") setPushError(native
+        ? "Notifications are turned off for Flowtone in iOS Settings."
+        : "Notification permission was denied. Please allow notifications in your browser settings.");
       else setPushError("Push notifications are not supported on this device or browser.");
     } catch { setPushError("Something went wrong enabling notifications."); }
+    if (native) await refreshNativeState();
     setPushLoading(false);
   };
 
@@ -220,6 +242,7 @@ export default function AppSettings() {
     setPushLoading(true); setPushError("");
     try { await unregisterPush(); setPushActive(false); }
     catch { setPushError("Something went wrong disabling notifications."); }
+    if (native) await refreshNativeState();
     setPushLoading(false);
   };
 
@@ -300,7 +323,9 @@ export default function AppSettings() {
   const handleTestPush = async () => {
     setTestResult("Sending…");
     const result = await sendTestPush();
-    if (result.success) setTestResult("Sent — it should arrive in a few seconds.");
+    if (result.success) setTestResult(native
+      ? "Scheduled for 5 seconds from now — lock your phone to see the banner."
+      : "Sent — it should arrive in a few seconds.");
     else if (result.reason === "not_subscribed") setTestResult("Not subscribed — turn notifications off and on again.");
     else setTestResult("Failed: " + (result.reason || "unknown error"));
   };
@@ -722,15 +747,37 @@ export default function AppSettings() {
             <div className="bg-gray-800 rounded-xl p-4 space-y-5">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-sm text-gray-200">Push notifications</p>
+                  <p className="text-sm text-gray-200">{native ? "Reminders on this iPhone" : "Push notifications"}</p>
                   <p className="text-xs text-gray-500 mt-0.5">
-                    {pushLoading ? (pushActive ? "Turning off…" : "Turning on…") : pushActive ? "Active on this device" : "Off"}
+                    {pushLoading ? (pushActive ? "Turning off…" : "Turning on…")
+                      : native
+                        ? (pushActive
+                            ? `On · ${nativePending} reminder${nativePending === 1 ? "" : "s"} set on this phone`
+                            : nativePerm === "denied" ? "Blocked in iOS Settings" : "Off")
+                        : pushActive ? "Active on this device" : "Off"}
                   </p>
                 </div>
                 <Toggle on={pushActive} disabled={pushLoading} onClick={pushActive ? handleDisablePush : handleEnablePush} />
               </div>
 
               {pushError && <p className="text-xs text-red-400 bg-red-900/30 rounded-lg px-3 py-2">{pushError}</p>}
+
+              {native && nativePerm === "denied" && (
+                <div className="rounded-lg bg-gray-900 px-3 py-2.5 space-y-2">
+                  <p className="text-xs text-gray-400">
+                    iOS is blocking Flowtone's notifications. Turn on Allow Notifications for Flowtone, then come back here.
+                  </p>
+                  <button onClick={openIosSettings} className="text-xs font-medium text-indigo-400 hover:text-indigo-300 transition-colors">
+                    Open iOS Settings
+                  </button>
+                </div>
+              )}
+
+              {native && pushActive && (
+                <p className="text-xs text-gray-500">
+                  Your phone sets the reminders itself, so they arrive even when Flowtone is closed or offline. They are refreshed each time you open the app.
+                </p>
+              )}
 
               <div>
                 <label className={labelCls}>Level</label>
@@ -774,9 +821,19 @@ export default function AppSettings() {
                 </button>
                 {diagOpen && (
                   <div className="text-[11px] text-gray-600 space-y-0.5 mt-1.5">
-                    <p>Push API: {'PushManager' in window ? "available" : "not available — install as PWA"}</p>
-                    <p>Permission: {typeof Notification !== 'undefined' ? Notification.permission : "unknown"}</p>
-                    <p>Display: {window.matchMedia('(display-mode: standalone)').matches ? "standalone (PWA)" : "browser tab"}</p>
+                    {native ? (
+                      <>
+                        <p>Delivery: iOS local notifications (iPhone app)</p>
+                        <p>Permission: {nativePerm}</p>
+                        <p>Pending on this phone: {nativePending} (iOS keeps at most 64)</p>
+                      </>
+                    ) : (
+                      <>
+                        <p>Push API: {'PushManager' in window ? "available" : "not available — install as PWA"}</p>
+                        <p>Permission: {typeof Notification !== 'undefined' ? Notification.permission : "unknown"}</p>
+                        <p>Display: {window.matchMedia('(display-mode: standalone)').matches ? "standalone (PWA)" : "browser tab"}</p>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
