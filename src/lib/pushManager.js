@@ -130,7 +130,9 @@ const SUGGESTION_LABELS = {
 };
 
 function clip(text, max = 72) {
-  const t = String(text || '').trim();
+  // Drop a trailing question ("… — want to fill them from your rates?"): the
+  // digest only needs the fact; the question lives in Missions.
+  const t = String(text || '').trim().replace(/\s+—\s+[^—]*\?$/, '');
   return t.length > max ? `${t.slice(0, max - 1).trimEnd()}…` : t;
 }
 
@@ -148,13 +150,15 @@ export function summarizeSuggestions(actionItems = [], limit = 3) {
     // Group items all share the type "group", so each one is its own entry and
     // keeps its own title ("64 past gigs still have no fee"); singles bucket by type.
     const key = item.item_type === 'group' ? `group:${item.id}` : (item.item_type || item.id);
-    const g = groups.get(key) || { type: item.item_type, items: [], priority: 0 };
+    const g = groups.get(key) || { type: item.item_type, items: [], priority: 0, weight: 0 };
     g.items.push(item);
     g.priority = Math.max(g.priority, item.priority || 0);
+    // A group item stands for `count` tasks; weigh it by that, not as one.
+    g.weight += item.item_type === 'group' ? Number(item.payload?.count ?? item.count) || 1 : 1;
     groups.set(key, g);
   }
   const sorted = [...groups.values()].sort(
-    (a, b) => b.priority - a.priority || b.items.length - a.items.length
+    (a, b) => b.priority - a.priority || b.weight - a.weight
   );
   const phrases = sorted.slice(0, limit).map((g) => {
     const label = SUGGESTION_LABELS[g.type];
@@ -317,6 +321,10 @@ export function buildReminderPlan(
   const level = settings.notification_level || 'standard';
   const prefs = getEffectivePrefs(level, settings.notification_prefs || {});
   const currency = settings.default_currency || 'GBP';
+  // While the morning digest is on, its "To sort" line already carries the
+  // mission items (overdue invoices, fee-less gigs, imported gigs missing
+  // details), so their separate 9am nags stay quiet: one morning notification.
+  const digestOn = Boolean(prefs.daily_briefing?.enabled);
 
   const clientMap = Object.fromEntries((clients || []).map(c => [c.id, c]));
 
@@ -551,7 +559,7 @@ export function buildReminderPlan(
   }
 
   // ── L2a-bis: Gig needs a fee (blocks the invoice) ───────────────────────
-  if (prefs.gig_needs_fee?.enabled) {
+  if (prefs.gig_needs_fee?.enabled && !digestOn) {
     // Past, billable gigs with no fee and no invoice — limited to the last 14
     // days so we don't nag about ancient gigs. The app literally can't make the
     // invoice until it knows the amount.
@@ -602,7 +610,7 @@ export function buildReminderPlan(
   }
 
   // ── L2c: Overdue invoice ────────────────────────────────────────────────
-  if (prefs.invoice_overdue?.enabled) {
+  if (prefs.invoice_overdue?.enabled && !digestOn) {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
     for (const inv of allInvoices) {
@@ -681,7 +689,7 @@ export function buildReminderPlan(
   }
 
   // ── L3a-bis: Imported event missing details ─────────────────────────────
-  if (prefs.imported_event_incomplete?.enabled) {
+  if (prefs.imported_event_incomplete?.enabled && !digestOn) {
     for (const { event, missingLocation, missingFee } of importedIncomplete) {
       // Imported just now — prompt soon (next few 9am mornings) rather than
       // waiting until 2 days before the gig. Per-day tags mean reopening won't
