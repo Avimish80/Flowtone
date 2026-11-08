@@ -56,14 +56,12 @@ export default function OnboardingInput({ input, onSubmit, disabled }) {
             onKeyDown={handleKeyDown}
             placeholder={input.placeholder || ""}
             disabled={disabled}
+            className="bg-gray-900 border border-gray-700 text-white placeholder-gray-500"
             style={{
               flex: "1 1 0%",
               minWidth: 0,
-              background: "#18181b",
-              border: "1px solid #3f3f46",
               borderRadius: "16px",
               padding: "10px 14px",
-              color: "white",
               fontSize: "16px",
               outline: "none",
             }}
@@ -72,6 +70,7 @@ export default function OnboardingInput({ input, onSubmit, disabled }) {
             onClick={() => submit()}
             disabled={disabled || (!value.trim() && !input.defaultValue)}
             aria-label="Send"
+            className={disabled || (!value.trim() && !input.defaultValue) ? "bg-gray-800 text-gray-600" : "bg-ink text-ink-fg"}
             style={{
               flexShrink: 0,
               width: "36px",
@@ -80,8 +79,6 @@ export default function OnboardingInput({ input, onSubmit, disabled }) {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              background: disabled || (!value.trim() && !input.defaultValue) ? "#27272a" : "rgb(var(--ink))",
-              color: disabled || (!value.trim() && !input.defaultValue) ? "#52525b" : "rgb(var(--ink-fg))",
               border: "none",
               cursor: disabled ? "not-allowed" : "pointer",
             }}

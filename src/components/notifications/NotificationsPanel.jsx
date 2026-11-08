@@ -12,7 +12,7 @@ const TYPE_ICONS = {
 };
 
 const TYPE_COLOURS = {
-  gig_added: "text-indigo-400",
+  gig_added: "text-gray-400",
   calendar_change: "text-blue-400",
   email_received: "text-green-400",
   ai_problem: "text-amber-400",
@@ -80,10 +80,10 @@ export default function NotificationsPanel({ open, onClose }) {
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800" style={{ paddingTop: "max(12px, env(safe-area-inset-top))" }}>
           <div className="flex items-center gap-2">
-            <Bell className="w-4 h-4 text-indigo-400" />
+            <Bell className="w-4 h-4 text-gray-400" />
             <span className="font-semibold text-white text-sm">Notifications</span>
             {unreadCount > 0 && (
-              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-indigo-600 text-white">
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-gray-700 text-white">
                 {unreadCount}
               </span>
             )}
@@ -108,7 +108,7 @@ export default function NotificationsPanel({ open, onClose }) {
         <div className="flex-1 overflow-y-auto">
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+              <div className="w-5 h-5 border-2 border-gray-500 border-t-transparent rounded-full animate-spin" />
             </div>
           ) : notifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
@@ -139,7 +139,7 @@ export default function NotificationsPanel({ open, onClose }) {
                             {n.title}
                           </p>
                           {isUnread && (
-                            <span className="mt-1 flex-shrink-0 w-2 h-2 rounded-full bg-indigo-500" />
+                            <span className="mt-1 flex-shrink-0 w-2 h-2 rounded-full bg-red-500" />
                           )}
                         </div>
                         {n.body ? (

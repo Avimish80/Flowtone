@@ -56,7 +56,7 @@ function RuleEditor({ rule, clients, symbol, onChange, onDone, onDelete }) {
           <div className="flex rounded-lg border border-gray-700 overflow-hidden flex-shrink-0">
             {[["add", symbol], ["percent", "%"]].map(([k, l]) => (
               <button key={k} onClick={() => set({ kind: k })}
-                className={`px-3 py-2 text-sm ${rule.kind === k ? "bg-ink text-ink-fg" : "text-gray-400"}`}>{l}</button>
+                className={`px-3 py-2 text-sm ${rule.kind === k ? "bg-gray-700 text-white" : "text-gray-400"}`}>{l}</button>
             ))}
           </div>
         )}

@@ -125,13 +125,13 @@ export default function InvoiceLessonsModal({ clientId, clientName, onClose, onC
               <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() => setLayout("per_event")}
-                  className={`py-2 rounded-lg text-xs font-medium transition-colors ${layout === "per_event" ? "bg-ink text-ink-fg" : "bg-gray-800 text-gray-400 hover:bg-gray-700"}`}
+                  className={`py-2 rounded-lg text-xs font-medium transition-colors ${layout === "per_event" ? "bg-gray-700 text-white" : "bg-gray-800 text-gray-400 hover:bg-gray-700"}`}
                 >
                   One line per {nounSingular}
                 </button>
                 <button
                   onClick={() => setLayout("bundled")}
-                  className={`py-2 rounded-lg text-xs font-medium transition-colors ${layout === "bundled" ? "bg-ink text-ink-fg" : "bg-gray-800 text-gray-400 hover:bg-gray-700"}`}
+                  className={`py-2 rounded-lg text-xs font-medium transition-colors ${layout === "bundled" ? "bg-gray-700 text-white" : "bg-gray-800 text-gray-400 hover:bg-gray-700"}`}
                 >
                   Bundled single line
                 </button>

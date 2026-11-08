@@ -106,7 +106,8 @@ export default function Dashboard() {
   const todayEvents = events.filter(e => e.date === todayStr && e.status !== "cancelled");
   const doneTodayCount = todayEvents.filter(e => isEventDone(e, now)).length;
   const hour = now.getHours();
-  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  // Same hours as the assistant's brief (useAIAssistant): 05-11 morning, 12-17 afternoon.
+  const greeting = hour >= 5 && hour < 12 ? "Good morning" : hour >= 12 && hour < 18 ? "Good afternoon" : "Good evening";
   // Preview mode's stub user would derive "Flowtone" — show no name instead
   const fallbackName = isPreviewModeEnabled() ? "" : deriveFallbackName(user);
   const firstName = (profile?.user_name || fallbackName || "").trim();

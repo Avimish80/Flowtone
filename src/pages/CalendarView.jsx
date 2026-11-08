@@ -18,8 +18,9 @@ const STATUS_COLORS = {
   cancelled: { bg: "bg-gray-400",    bar: "bg-gray-400",    pill: "bg-gray-400/15 text-gray-500 border-gray-400/30", dot: "bg-gray-500" },
 };
 // Practice events always render neutral regardless of status: they are
-// personal time, and colour is kept for business status.
-const PRACTICE_COLOR = { bg: "bg-gray-300", bar: "bg-gray-300", pill: "bg-gray-400/15 text-gray-600 dark:text-gray-300 border-gray-400/30", dot: "bg-gray-300" };
+// personal time, and colour is kept for business status. Their month-grid dot
+// is a hollow ring so it never reads as a cancelled (solid grey) event.
+const PRACTICE_COLOR = { bg: "bg-gray-300", bar: "bg-gray-300", pill: "bg-gray-400/15 text-gray-700 dark:text-gray-300 border-gray-400/30", dot: "ring-[1.5px] ring-inset ring-gray-400" };
 const getEventColors = (event) => event.event_type === "Practice" ? PRACTICE_COLOR : (STATUS_COLORS[event.status] || STATUS_COLORS.lead);
 
 const STATUS_LABELS = { lead: "Tentative", confirmed: "Confirmed", completed: "Completed", cancelled: "Cancelled" };
@@ -497,7 +498,7 @@ export default function CalendarView() {
             <p className="font-bold text-white">{format(day, "d MMMM yyyy")}</p>
           </div>
           <div className="flex items-center gap-2">
-            <Link to={createPageUrl(`WorkEventDetail?date=${format(day, "yyyy-MM-dd")}`)} className="bg-ink hover:bg-ink/90 text-ink-fg text-xs px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors">
+            <Link to={createPageUrl(`WorkEventDetail?date=${format(day, "yyyy-MM-dd")}`)} className="bg-gray-700 hover:bg-gray-600 text-white text-xs px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors">
               <Plus className="w-3 h-3" /> Add
             </Link>
             <button onClick={onClose} className="text-gray-500 hover:text-white text-xs px-2 py-1.5 transition-colors">✕</button>
@@ -566,7 +567,7 @@ export default function CalendarView() {
             <div className="flex gap-2 mt-2">
               <a href={buildNavUrl(event.location_address, navApp)} target="_blank" rel="noopener noreferrer"
                 onClick={e => e.stopPropagation()}
-                className="flex items-center gap-1 text-[10px] bg-ink hover:bg-ink/90 text-ink-fg px-2 py-1 rounded-lg transition-colors">
+                className="flex items-center gap-1 text-[10px] bg-gray-700 hover:bg-gray-600 text-white px-2 py-1 rounded-lg transition-colors">
                 <Car className="w-3 h-3" /> Drive
               </a>
               <a href={buildUberUrl(event.location_address)} target="_blank" rel="noopener noreferrer"
@@ -623,7 +624,7 @@ export default function CalendarView() {
           {/* Actions */}
           <button
             onClick={() => setShowFilters(v => !v)}
-            className={`relative p-2 rounded-lg transition-colors ${showFilters || filtersActive ? "bg-ink text-ink-fg" : "bg-gray-800 text-gray-400 hover:text-white"}`}
+            className={`relative p-2 rounded-lg transition-colors ${showFilters || filtersActive ? "bg-gray-700 text-white" : "bg-gray-800 text-gray-400 hover:text-white"}`}
             title="Filter events"
           >
             <SlidersHorizontal className="w-4 h-4" />
@@ -665,7 +666,7 @@ export default function CalendarView() {
                 <button key={s} onClick={() => setFilterStatus(s)}
                   className={`text-xs px-4 py-1.5 rounded-full border font-medium transition-colors ${
                     filterStatus === s
-                      ? "bg-ink text-ink-fg border-ink/60"
+                      ? "bg-gray-700 text-white border-gray-600"
                       : "text-gray-300 border-gray-600 hover:border-gray-400"
                   }`}>
                   {s === "all" ? "All" : s === "lead" ? "Tentative" : s.charAt(0).toUpperCase() + s.slice(1)}
@@ -680,7 +681,7 @@ export default function CalendarView() {
                 <button key={t} onClick={() => setFilterType(t)}
                   className={`text-xs px-4 py-1.5 rounded-full border font-medium transition-colors ${
                     filterType === t
-                      ? "bg-ink text-ink-fg border-ink/60"
+                      ? "bg-gray-700 text-white border-gray-600"
                       : "text-gray-300 border-gray-600 hover:border-gray-400"
                   }`}>
                   {t === "all" ? "All" : t}

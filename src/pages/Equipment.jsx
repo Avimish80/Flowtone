@@ -7,11 +7,6 @@ import SortDropdown from "@/components/SortDropdown";
 
 const CATEGORIES = ["instrument", "amp", "pedal", "accessory", "other"];
 
-const catColors = {
-  instrument: "text-gray-400", amp: "text-gray-400",
-  pedal: "text-gray-400", accessory: "text-gray-400", other: "text-gray-400"
-};
-
 const SORT_OPTIONS = [
   { key: "name", label: "Name", type: "text" },
   { key: "category", label: "Category", type: "text" },
@@ -108,7 +103,7 @@ export default function Equipment() {
           >
             {selectMode ? "Cancel" : "Select"}
           </button>
-          <button onClick={openNew} className="bg-ink hover:bg-ink/90 text-ink-fg px-3 py-2 rounded-lg flex items-center gap-1 text-sm font-medium transition-colors">
+          <button onClick={openNew} className={`${editing ? "bg-gray-700 hover:bg-gray-600 text-white" : "bg-ink hover:bg-ink/90 text-ink-fg"} px-3 py-2 rounded-lg flex items-center gap-1 text-sm font-medium transition-colors`}>
             <Plus className="w-4 h-4" /> Add
           </button>
         </div>
@@ -200,7 +195,7 @@ export default function Equipment() {
                     {isSelected ? <CheckSquare className="w-5 h-5" /> : <Square className="w-5 h-5 text-gray-600" />}
                   </button>
                 )}
-                <Package className={`w-5 h-5 flex-shrink-0 ${catColors[item.category] || "text-gray-400"}`} />
+                <Package className="w-5 h-5 flex-shrink-0 text-gray-400" />
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-white">{item.name}</p>
                   <p className="text-xs text-gray-500 capitalize">{item.category}{item.serial_number ? ` · #${item.serial_number}` : ""}</p>

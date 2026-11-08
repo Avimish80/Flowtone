@@ -9,7 +9,7 @@ import RichText, { hasList } from "./RichText";
 function UserBubble({ message }) {
   return (
     <div className="flex justify-end mb-3">
-      <div className="max-w-[80%] bg-indigo-600 text-white px-4 py-2.5 rounded-2xl rounded-br-sm text-sm leading-relaxed shadow-lg shadow-indigo-900/30">
+      <div className="max-w-[80%] bg-gray-700 text-white px-4 py-2.5 rounded-2xl rounded-br-sm text-sm leading-relaxed">
         {message.content}
       </div>
     </div>
@@ -23,8 +23,8 @@ function AssistantBubble({ message }) {
   return (
     <div className="flex items-start gap-2.5 mb-3">
       {/* Avatar */}
-      <div className="flex-shrink-0 w-7 h-7 rounded-full bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center">
-        <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+      <div className="flex-shrink-0 w-7 h-7 rounded-full bg-gray-700/50 border border-gray-700/60 flex items-center justify-center">
+        <Sparkles className="w-3.5 h-3.5 text-gray-400" />
       </div>
       <div
         className={`${wide ? "max-w-[92%]" : "max-w-[80%]"} bg-gray-800 text-gray-100 px-4 py-2.5 rounded-2xl rounded-tl-sm text-sm leading-relaxed shadow`}
@@ -41,8 +41,8 @@ function BriefCard({ message, onAccept, onLater }) {
 
   return (
     <div className="flex items-start gap-2.5 mb-3">
-      <div className="flex-shrink-0 w-7 h-7 rounded-full bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center">
-        <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+      <div className="flex-shrink-0 w-7 h-7 rounded-full bg-gray-700/50 border border-gray-700/60 flex items-center justify-center">
+        <Sparkles className="w-3.5 h-3.5 text-gray-400" />
       </div>
       <div className="max-w-[92%] flex-1 bg-gray-800 text-gray-100 rounded-2xl rounded-tl-sm text-sm leading-relaxed shadow overflow-hidden">
         <p className="px-4 pt-2.5 pb-2">{message.content}</p>
@@ -58,7 +58,7 @@ function BriefCard({ message, onAccept, onLater }) {
                     onClick={() => onAccept(item)}
                     disabled={!item.target}
                     title={item.label}
-                    className="text-xs bg-indigo-600/25 border border-indigo-500/30 text-indigo-300 px-3 py-1 rounded-lg hover:bg-indigo-600/40 transition-colors disabled:opacity-40"
+                    className="text-xs bg-gray-700/50 border border-gray-700/60 text-gray-300 px-3 py-1 rounded-lg hover:bg-gray-700/60 transition-colors disabled:opacity-40"
                   >
                     Yes
                   </button>
@@ -106,24 +106,24 @@ function ActionCard({ message, navigate, onClose }) {
       <div
         className={`flex items-center justify-between border rounded-xl px-4 py-2.5 shadow ${
           isError
-            ? "bg-amber-900/30 border-amber-700/50"
-            : "bg-teal-900/40 border-teal-700/50"
+            ? "bg-yellow-950/40 border-yellow-700/40"
+            : "bg-green-950/40 border-green-700/40"
         }`}
       >
         <div className="flex items-center gap-2 min-w-0">
           {isError ? (
             <AlertCircle className="w-4 h-4 text-amber-400 flex-shrink-0" />
           ) : (
-            <span className="text-teal-400 text-base leading-none flex-shrink-0">✓</span>
+            <span className="text-green-400 text-base leading-none flex-shrink-0">✓</span>
           )}
-          <span className={`text-sm truncate ${isError ? "text-amber-100" : "text-teal-100"}`}>
+          <span className={`text-sm truncate text-gray-200`}>
             {message.content}
           </span>
         </div>
         {page && !isError && (
           <button
             onClick={handleView}
-            className="flex-shrink-0 ml-3 flex items-center gap-1 text-xs text-teal-400 hover:text-teal-200 transition-colors font-medium"
+            className="flex-shrink-0 ml-3 flex items-center gap-1 text-xs text-green-400 hover:text-green-300 transition-colors font-medium"
           >
             View
             <ExternalLink className="w-3 h-3" />
@@ -145,8 +145,8 @@ function LocationCard({ message, onPick }) {
   if (dismissed) {
     return (
       <div className="flex items-start gap-2.5 mb-3">
-        <div className="flex-shrink-0 w-7 h-7 rounded-full bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center">
-          <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+        <div className="flex-shrink-0 w-7 h-7 rounded-full bg-gray-700/50 border border-gray-700/60 flex items-center justify-center">
+          <Sparkles className="w-3.5 h-3.5 text-gray-400" />
         </div>
         <p className="text-[11px] text-gray-500 px-1 max-w-[85%] mt-1.5">
           No problem — I'll remind you about the address later.
@@ -157,8 +157,8 @@ function LocationCard({ message, onPick }) {
 
   return (
     <div className="flex items-start gap-2.5 mb-3">
-      <div className="flex-shrink-0 w-7 h-7 rounded-full bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center">
-        <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+      <div className="flex-shrink-0 w-7 h-7 rounded-full bg-gray-700/50 border border-gray-700/60 flex items-center justify-center">
+        <Sparkles className="w-3.5 h-3.5 text-gray-400" />
       </div>
       <div className="max-w-[85%] w-full space-y-1.5">
         <p className="text-[11px] text-gray-500 px-1">{message.content || "Tap the right place:"}</p>
@@ -168,7 +168,7 @@ function LocationCard({ message, onPick }) {
             onClick={() => onPick(loc.address)}
             className="w-full text-left flex items-start gap-2 bg-gray-800/70 hover:bg-gray-700 border border-gray-700/60 rounded-xl px-3 py-2 transition-colors"
           >
-            <MapPin className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0 mt-0.5" />
+            <MapPin className="w-3.5 h-3.5 text-gray-400 flex-shrink-0 mt-0.5" />
             <span className="min-w-0">
               <span className="block text-sm text-white truncate">{loc.label}</span>
               <span className="block text-[11px] text-gray-400 truncate">{loc.address}</span>
@@ -210,8 +210,8 @@ function ContactPickerCard({ message, onPick }) {
 
   return (
     <div className="flex items-start gap-2.5 mb-3">
-      <div className="flex-shrink-0 w-7 h-7 rounded-full bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center">
-        <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+      <div className="flex-shrink-0 w-7 h-7 rounded-full bg-gray-700/50 border border-gray-700/60 flex items-center justify-center">
+        <Sparkles className="w-3.5 h-3.5 text-gray-400" />
       </div>
       <div className="max-w-[85%] w-full space-y-2">
         <p className="text-sm text-gray-100 bg-gray-800 px-4 py-2.5 rounded-2xl rounded-tl-sm shadow">
@@ -220,7 +220,7 @@ function ContactPickerCard({ message, onPick }) {
         <button
           onClick={handlePick}
           disabled={picking}
-          className="flex items-center gap-2 bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-600/40 text-indigo-300 text-sm font-medium rounded-xl px-4 py-2 transition-colors disabled:opacity-50"
+          className="flex items-center gap-2 bg-gray-700/50 hover:bg-gray-700/60 border border-gray-700/60 text-gray-300 text-sm font-medium rounded-xl px-4 py-2 transition-colors disabled:opacity-50"
         >
           <BookUser className="w-4 h-4" />
           {picking ? "Opening contacts…" : "Pick from contacts"}
@@ -233,21 +233,21 @@ function ContactPickerCard({ message, onPick }) {
 function LoadingBubble() {
   return (
     <div className="flex items-start gap-2.5 mb-3">
-      <div className="flex-shrink-0 w-7 h-7 rounded-full bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center">
-        <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+      <div className="flex-shrink-0 w-7 h-7 rounded-full bg-gray-700/50 border border-gray-700/60 flex items-center justify-center">
+        <Sparkles className="w-3.5 h-3.5 text-gray-400" />
       </div>
       <div className="bg-gray-800 rounded-2xl rounded-tl-sm px-4 py-3 shadow">
         <div className="flex gap-1.5 items-center">
           <span
-            className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-bounce"
+            className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce"
             style={{ animationDelay: "0ms" }}
           />
           <span
-            className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-bounce"
+            className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce"
             style={{ animationDelay: "150ms" }}
           />
           <span
-            className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-bounce"
+            className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce"
             style={{ animationDelay: "300ms" }}
           />
         </div>
@@ -384,14 +384,14 @@ export default function AIAssistantPanel({
         {/* ── Header ── */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800 flex-shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-900/50">
-              <Sparkles className="w-3.5 h-3.5 text-white" />
+            <div className="w-7 h-7 rounded-full bg-gray-700/50 border border-gray-700/60 flex items-center justify-center">
+              <Sparkles className="w-3.5 h-3.5 text-gray-300" />
             </div>
             <div>
               <p className="text-sm font-semibold text-white leading-tight">
                 Flowtone Assistant
               </p>
-              <p className="text-[10px] text-indigo-400 leading-tight">
+              <p className="text-[10px] text-gray-400 leading-tight">
                 AI-powered musician OS
               </p>
             </div>
@@ -496,14 +496,12 @@ export default function AIAssistantPanel({
               onKeyDown={handleKeyDown}
               placeholder="Ask anything…"
               disabled={loading}
+              className="bg-gray-900 border border-gray-700 text-white placeholder-gray-500"
               style={{
                 flex: "1 1 0%",
                 minWidth: 0,
-                background: "#111827",
-                border: "1px solid #374151",
                 borderRadius: "16px",
                 padding: "10px 14px",
-                color: "white",
                 fontSize: "16px",
                 outline: "none",
               }}
@@ -513,10 +511,10 @@ export default function AIAssistantPanel({
                 type="button"
                 onClick={handleMicClick}
                 aria-label="Start voice input"
+                className="bg-gray-800 border border-gray-700 text-gray-400"
                 style={{
                   flexShrink: 0, width: "36px", height: "36px", borderRadius: "50%",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  background: "#1f2937", border: "1px solid #374151", color: "#9ca3af", cursor: "pointer",
+                  display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
                 }}
               >
                 <Mic size={16} />
@@ -526,6 +524,7 @@ export default function AIAssistantPanel({
               onClick={handleSend}
               disabled={loading || !input.trim()}
               aria-label="Send"
+              className={loading || !input.trim() ? "bg-gray-800 text-gray-600" : "bg-ink text-ink-fg"}
               style={{
                 flexShrink: 0,
                 width: "36px",
@@ -534,8 +533,6 @@ export default function AIAssistantPanel({
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                background: loading || !input.trim() ? "#1f2937" : "#4f46e5",
-                color: loading || !input.trim() ? "#4b5563" : "white",
                 border: "none",
                 cursor: loading || !input.trim() ? "not-allowed" : "pointer",
               }}

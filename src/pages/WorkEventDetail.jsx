@@ -658,7 +658,7 @@ export default function WorkEventDetail() {
               onClick={() => toggleSection(key)}
               className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-800/50 transition-colors"
             >
-              <Icon className={`w-4 h-4 flex-shrink-0 text-gray-400`} />
+              <Icon className="w-4 h-4 flex-shrink-0 text-gray-400" />
               <span className="flex-1 font-medium text-gray-200 text-sm">{label}</span>
               {openSection === key ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
             </button>

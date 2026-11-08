@@ -45,7 +45,7 @@ export default function EmailInbox() {
             key={s}
             onClick={() => setFilter(s)}
             className={`px-3 py-1.5 rounded-full text-xs font-medium flex-shrink-0 transition-colors ${
-              filter === s ? "bg-ink text-ink-fg" : "bg-gray-800 text-gray-400 hover:text-white"
+              filter === s ? "bg-gray-700 text-white" : "bg-gray-800 text-gray-400 hover:text-white"
             }`}
           >
             {s.charAt(0).toUpperCase() + s.slice(1)}

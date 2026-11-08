@@ -26,16 +26,16 @@ const ITEM_ICONS = {
 };
 
 const ITEM_COLORS = {
-  gig_missing_location: "text-indigo-400",
-  gig_missing_fee: "text-indigo-400",
-  gig_missing_client: "text-indigo-400",
-  gig_missing_contact: "text-indigo-400",
+  gig_missing_location: "text-gray-400",
+  gig_missing_fee: "text-gray-400",
+  gig_missing_client: "text-gray-400",
+  gig_missing_contact: "text-gray-400",
   gig_ready_to_invoice: "text-green-400",
   invoice_overdue: "text-red-400",
   invoice_draft_stale: "text-gray-400",
   invoice_ready_to_send: "text-green-400",
   invoice_ready_no_email: "text-green-400",
-  lead_new_unanswered: "text-indigo-400",
+  lead_new_unanswered: "text-amber-400",
   lead_quote_no_reply: "text-amber-400",
 };
 
@@ -216,7 +216,7 @@ export default function Missions() {
           >
             {t.label}
             {t.key === "open" && openCount > 0 && (
-              <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-600/30 text-indigo-300">
+              <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-gray-700/50 text-gray-300">
                 {openCount}
               </span>
             )}
@@ -280,7 +280,7 @@ export default function Missions() {
                   {isOpen && isGroup && (
                     <div className="mt-2.5">
                       <div className="flex flex-wrap items-center gap-2">
-                        <button onClick={() => handleAction(item)} className="text-xs bg-indigo-600/25 border border-indigo-500/30 text-indigo-300 px-3 py-1 rounded-lg hover:bg-indigo-600/40 transition-colors">
+                        <button onClick={() => handleAction(item)} className="text-xs bg-gray-700/50 border border-gray-700/60 text-gray-300 px-3 py-1 rounded-lg hover:bg-gray-700/60 transition-colors">
                           {missionActionLabel(item)}
                         </button>
                         {members.length > 0 && (
@@ -318,20 +318,20 @@ export default function Missions() {
                           <button onClick={() => handleAction(item)} className="text-xs bg-green-600/20 border border-green-500/30 text-green-300 px-3 py-1 rounded-lg hover:bg-green-600/30 transition-colors">
                             Review Invoice
                           </button>
-                          <button onClick={() => handleAction(item)} className="text-xs bg-indigo-600/25 border border-indigo-500/30 text-indigo-300 px-3 py-1 rounded-lg hover:bg-indigo-600/40 transition-colors">
+                          <button onClick={() => handleAction(item)} className="text-xs bg-gray-700/50 border border-gray-700/60 text-gray-300 px-3 py-1 rounded-lg hover:bg-gray-700/60 transition-colors">
                             Send
                           </button>
                         </>
                       )}
                       {item.item_type === "gig_ready_to_invoice" && !item.payload?.has_email && (
-                        <button onClick={() => handleAction(item)} className="text-xs bg-indigo-600/25 border border-indigo-500/30 text-indigo-300 px-3 py-1 rounded-lg hover:bg-indigo-600/40 transition-colors">
+                        <button onClick={() => handleAction(item)} className="text-xs bg-gray-700/50 border border-gray-700/60 text-gray-300 px-3 py-1 rounded-lg hover:bg-gray-700/60 transition-colors">
                           Create Invoice
                         </button>
                       )}
 
                       {item.item_type === "invoice_ready_to_send" && (
                         item.entity_type === "event" ? (
-                          <button onClick={() => handleAction(item)} className="text-xs bg-indigo-600/25 border border-indigo-500/30 text-indigo-300 px-3 py-1 rounded-lg hover:bg-indigo-600/40 transition-colors">
+                          <button onClick={() => handleAction(item)} className="text-xs bg-gray-700/50 border border-gray-700/60 text-gray-300 px-3 py-1 rounded-lg hover:bg-gray-700/60 transition-colors">
                             Send
                           </button>
                         ) : (
@@ -339,7 +339,7 @@ export default function Missions() {
                             <button onClick={() => handleAction(item)} className="text-xs bg-green-600/20 border border-green-500/30 text-green-300 px-3 py-1 rounded-lg hover:bg-green-600/30 transition-colors">
                               Review
                             </button>
-                            <button onClick={() => handleAction(item)} className="text-xs bg-indigo-600/25 border border-indigo-500/30 text-indigo-300 px-3 py-1 rounded-lg hover:bg-indigo-600/40 transition-colors">
+                            <button onClick={() => handleAction(item)} className="text-xs bg-gray-700/50 border border-gray-700/60 text-gray-300 px-3 py-1 rounded-lg hover:bg-gray-700/60 transition-colors">
                               Send
                             </button>
                           </>
@@ -348,7 +348,7 @@ export default function Missions() {
 
                       {item.item_type === "invoice_ready_no_email" && (
                         item.entity_type === "event" ? (
-                          <button onClick={() => handleAction(item)} className="text-xs bg-indigo-600/25 border border-indigo-500/30 text-indigo-300 px-3 py-1 rounded-lg hover:bg-indigo-600/40 transition-colors">
+                          <button onClick={() => handleAction(item)} className="text-xs bg-gray-700/50 border border-gray-700/60 text-gray-300 px-3 py-1 rounded-lg hover:bg-gray-700/60 transition-colors">
                             Create Invoice
                           </button>
                         ) : (
@@ -356,7 +356,7 @@ export default function Missions() {
                             <button onClick={() => handleAction(item)} className="text-xs bg-green-600/20 border border-green-500/30 text-green-300 px-3 py-1 rounded-lg hover:bg-green-600/30 transition-colors">
                               Get PDF
                             </button>
-                            <button onClick={() => handleMarkSent(item)} className="text-xs bg-indigo-600/25 border border-indigo-500/30 text-indigo-300 px-3 py-1 rounded-lg hover:bg-indigo-600/40 transition-colors">
+                            <button onClick={() => handleMarkSent(item)} className="text-xs bg-gray-700/50 border border-gray-700/60 text-gray-300 px-3 py-1 rounded-lg hover:bg-gray-700/60 transition-colors">
                               Mark sent
                             </button>
                           </>
@@ -374,7 +374,7 @@ export default function Missions() {
                         item.item_type === "gig_missing_client" ||
                         item.item_type === "gig_missing_contact" ||
                         item.item_type === "invoice_draft_stale") && (
-                        <button onClick={() => handleAction(item)} className="text-xs bg-indigo-600/25 border border-indigo-500/30 text-indigo-300 px-3 py-1 rounded-lg hover:bg-indigo-600/40 transition-colors">
+                        <button onClick={() => handleAction(item)} className="text-xs bg-gray-700/50 border border-gray-700/60 text-gray-300 px-3 py-1 rounded-lg hover:bg-gray-700/60 transition-colors">
                           {item.item_type === "gig_missing_location" && "Add location"}
                           {item.item_type === "gig_missing_fee" && "Add fee"}
                           {item.item_type === "gig_missing_client" && "Add client"}
@@ -384,7 +384,7 @@ export default function Missions() {
                       )}
 
                       {item.item_type === "lead_new_unanswered" && (
-                        <button onClick={() => handleAction(item)} className="text-xs bg-indigo-600/25 border border-indigo-500/30 text-indigo-300 px-3 py-1 rounded-lg hover:bg-indigo-600/40 transition-colors">
+                        <button onClick={() => handleAction(item)} className="text-xs bg-gray-700/50 border border-gray-700/60 text-gray-300 px-3 py-1 rounded-lg hover:bg-gray-700/60 transition-colors">
                           Open lead
                         </button>
                       )}
@@ -394,7 +394,7 @@ export default function Missions() {
                           <button onClick={() => handleChaseLead(item)} className="text-xs bg-amber-600/20 border border-amber-500/30 text-amber-300 px-3 py-1 rounded-lg hover:bg-amber-600/30 transition-colors">
                             Chase by email
                           </button>
-                          <button onClick={() => handleAction(item)} className="text-xs bg-indigo-600/25 border border-indigo-500/30 text-indigo-300 px-3 py-1 rounded-lg hover:bg-indigo-600/40 transition-colors">
+                          <button onClick={() => handleAction(item)} className="text-xs bg-gray-700/50 border border-gray-700/60 text-gray-300 px-3 py-1 rounded-lg hover:bg-gray-700/60 transition-colors">
                             Open lead
                           </button>
                         </>

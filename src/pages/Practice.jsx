@@ -12,11 +12,11 @@ import {
 // ── Constants ────────────────────────────────────────────────────────
 
 const CATEGORIES = [
-  { value: "technique",    label: "Technique",     icon: Dumbbell, color: "text-gray-400" },
-  { value: "repertoire",   label: "Repertoire",    icon: Music,    color: "text-gray-400" },
-  { value: "theory",       label: "Theory",        icon: Brain,    color: "text-gray-400" },
-  { value: "performance",  label: "Performance",   icon: Mic2,     color: "text-gray-400" },
-  { value: "sight_reading",label: "Sight-Reading", icon: Eye,      color: "text-gray-400" },
+  { value: "technique",    label: "Technique",     icon: Dumbbell },
+  { value: "repertoire",   label: "Repertoire",    icon: Music },
+  { value: "theory",       label: "Theory",        icon: Brain },
+  { value: "performance",  label: "Performance",   icon: Mic2 },
+  { value: "sight_reading",label: "Sight-Reading", icon: Eye },
 ];
 
 const ENERGY = [
@@ -68,7 +68,7 @@ function CategoryBadge({ value }) {
   if (!cat) return null;
   const Icon = cat.icon;
   return (
-    <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-gray-700/80 ${cat.color}`}>
+    <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-gray-700/80 text-gray-400`}>
       <Icon className="w-2.5 h-2.5" /> {cat.label}
     </span>
   );
@@ -288,7 +288,7 @@ export default function Practice() {
               <button key={e.value} onClick={() => setSessionForm(p => ({ ...p, energy_rating: e.value }))}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
                   sessionForm.energy_rating === e.value
-                    ? "bg-ink border-ink/60 text-ink-fg"
+                    ? "bg-gray-700 border-gray-600 text-white"
                     : "bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-600"
                 }`}>
                 {e.label}

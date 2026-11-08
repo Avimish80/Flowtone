@@ -134,12 +134,12 @@ export function AIDashboardBriefing({ events = [], documents = [] }) {
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700/30">
         <div className="flex items-center gap-2 min-w-0">
-          <Sparkles className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0" />
+          <Sparkles className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
           <span className="text-sm font-medium text-gray-200 truncate">
             {profile?.assistant_name || DEFAULT_ASSISTANT_NAME}
           </span>
           {visibleItems.length > 0 && (
-            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-indigo-600/30 text-indigo-300 border border-indigo-500/20">
+            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-gray-700/50 text-gray-300 border border-gray-700/60">
               {visibleItems.length}
             </span>
           )}
@@ -183,7 +183,7 @@ export function AIDashboardBriefing({ events = [], documents = [] }) {
                   <div className="flex flex-wrap items-center gap-2">
                     {/* group — one bulk fix for the whole pile */}
                     {isGroup && (
-                      <button onClick={() => handleAction(item)} className="text-xs bg-indigo-600/25 border border-indigo-500/30 text-indigo-300 px-3 py-1 rounded-lg hover:bg-indigo-600/40 transition-colors">
+                      <button onClick={() => handleAction(item)} className="text-xs bg-gray-700/50 border border-gray-700/60 text-gray-300 px-3 py-1 rounded-lg hover:bg-gray-700/60 transition-colors">
                         {missionActionLabel(item)}
                       </button>
                     )}
@@ -194,20 +194,20 @@ export function AIDashboardBriefing({ events = [], documents = [] }) {
                         <button onClick={() => handleAction(item)} className="text-xs bg-green-600/20 border border-green-500/30 text-green-300 px-3 py-1 rounded-lg hover:bg-green-600/30 transition-colors">
                           Review Invoice
                         </button>
-                        <button onClick={() => handleAction(item)} className="text-xs bg-indigo-600/25 border border-indigo-500/30 text-indigo-300 px-3 py-1 rounded-lg hover:bg-indigo-600/40 transition-colors">
+                        <button onClick={() => handleAction(item)} className="text-xs bg-gray-700/50 border border-gray-700/60 text-gray-300 px-3 py-1 rounded-lg hover:bg-gray-700/60 transition-colors">
                           Send
                         </button>
                       </>
                     )}
                     {item.item_type === "gig_ready_to_invoice" && !item.payload?.has_email && (
-                      <button onClick={() => handleAction(item)} className="text-xs bg-indigo-600/25 border border-indigo-500/30 text-indigo-300 px-3 py-1 rounded-lg hover:bg-indigo-600/40 transition-colors">
+                      <button onClick={() => handleAction(item)} className="text-xs bg-gray-700/50 border border-gray-700/60 text-gray-300 px-3 py-1 rounded-lg hover:bg-gray-700/60 transition-colors">
                         Create Invoice
                       </button>
                     )}
 
                     {item.item_type === "invoice_ready_to_send" && (
                       item.entity_type === "event" ? (
-                        <button onClick={() => handleAction(item)} className="text-xs bg-indigo-600/25 border border-indigo-500/30 text-indigo-300 px-3 py-1 rounded-lg hover:bg-indigo-600/40 transition-colors">
+                        <button onClick={() => handleAction(item)} className="text-xs bg-gray-700/50 border border-gray-700/60 text-gray-300 px-3 py-1 rounded-lg hover:bg-gray-700/60 transition-colors">
                           Send
                         </button>
                       ) : (
@@ -215,7 +215,7 @@ export function AIDashboardBriefing({ events = [], documents = [] }) {
                           <button onClick={() => handleAction(item)} className="text-xs bg-green-600/20 border border-green-500/30 text-green-300 px-3 py-1 rounded-lg hover:bg-green-600/30 transition-colors">
                             Review
                           </button>
-                          <button onClick={() => handleAction(item)} className="text-xs bg-indigo-600/25 border border-indigo-500/30 text-indigo-300 px-3 py-1 rounded-lg hover:bg-indigo-600/40 transition-colors">
+                          <button onClick={() => handleAction(item)} className="text-xs bg-gray-700/50 border border-gray-700/60 text-gray-300 px-3 py-1 rounded-lg hover:bg-gray-700/60 transition-colors">
                             Send
                           </button>
                         </>
@@ -224,7 +224,7 @@ export function AIDashboardBriefing({ events = [], documents = [] }) {
 
                     {item.item_type === "invoice_ready_no_email" && (
                       item.entity_type === "event" ? (
-                        <button onClick={() => handleAction(item)} className="text-xs bg-indigo-600/25 border border-indigo-500/30 text-indigo-300 px-3 py-1 rounded-lg hover:bg-indigo-600/40 transition-colors">
+                        <button onClick={() => handleAction(item)} className="text-xs bg-gray-700/50 border border-gray-700/60 text-gray-300 px-3 py-1 rounded-lg hover:bg-gray-700/60 transition-colors">
                           Create Invoice
                         </button>
                       ) : (
@@ -232,7 +232,7 @@ export function AIDashboardBriefing({ events = [], documents = [] }) {
                           <button onClick={() => handleAction(item)} className="text-xs bg-green-600/20 border border-green-500/30 text-green-300 px-3 py-1 rounded-lg hover:bg-green-600/30 transition-colors">
                             Get PDF
                           </button>
-                          <button onClick={() => handleMarkSent(item)} className="text-xs bg-indigo-600/25 border border-indigo-500/30 text-indigo-300 px-3 py-1 rounded-lg hover:bg-indigo-600/40 transition-colors">
+                          <button onClick={() => handleMarkSent(item)} className="text-xs bg-gray-700/50 border border-gray-700/60 text-gray-300 px-3 py-1 rounded-lg hover:bg-gray-700/60 transition-colors">
                             Mark sent
                           </button>
                         </>
@@ -246,19 +246,19 @@ export function AIDashboardBriefing({ events = [], documents = [] }) {
                     )}
 
                     {item.item_type === "gig_missing_location" && (
-                      <button onClick={() => handleAction(item)} className="text-xs bg-indigo-600/25 border border-indigo-500/30 text-indigo-300 px-3 py-1 rounded-lg hover:bg-indigo-600/40 transition-colors">
+                      <button onClick={() => handleAction(item)} className="text-xs bg-gray-700/50 border border-gray-700/60 text-gray-300 px-3 py-1 rounded-lg hover:bg-gray-700/60 transition-colors">
                         Add location
                       </button>
                     )}
 
                     {item.item_type === "gig_missing_fee" && (
-                      <button onClick={() => handleAction(item)} className="text-xs bg-indigo-600/25 border border-indigo-500/30 text-indigo-300 px-3 py-1 rounded-lg hover:bg-indigo-600/40 transition-colors">
+                      <button onClick={() => handleAction(item)} className="text-xs bg-gray-700/50 border border-gray-700/60 text-gray-300 px-3 py-1 rounded-lg hover:bg-gray-700/60 transition-colors">
                         Add fee
                       </button>
                     )}
 
                     {item.item_type === "invoice_draft_stale" && (
-                      <button onClick={() => handleAction(item)} className="text-xs bg-indigo-600/25 border border-indigo-500/30 text-indigo-300 px-3 py-1 rounded-lg hover:bg-indigo-600/40 transition-colors">
+                      <button onClick={() => handleAction(item)} className="text-xs bg-gray-700/50 border border-gray-700/60 text-gray-300 px-3 py-1 rounded-lg hover:bg-gray-700/60 transition-colors">
                         Review draft
                       </button>
                     )}

@@ -218,7 +218,7 @@ export default function EventInfoSection({ event, onChange, clients }) {
               {FREQ_OPTIONS.map(f => (
                 <button key={f} onClick={() => updateRule("frequency", f)}
                   className={`py-1.5 rounded-lg text-xs font-medium capitalize transition-colors
-                    ${rule.frequency === f ? "bg-ink text-ink-fg" : "bg-gray-700 text-gray-400 hover:bg-gray-600"}`}
+                    ${rule.frequency === f ? "bg-gray-700 text-white" : "bg-gray-700/40 text-gray-400 hover:bg-gray-700"}`}
                 >
                   {f}
                 </button>
@@ -244,7 +244,7 @@ export default function EventInfoSection({ event, onChange, clients }) {
                 {DOW_LABELS.map((label, i) => (
                   <button key={i} onClick={() => toggleDay(DOW_MAP[i])}
                     className={`flex-1 py-1.5 rounded text-xs font-medium transition-colors
-                      ${(rule.days_of_week || []).includes(DOW_MAP[i]) ? "bg-ink text-ink-fg" : "bg-gray-700 text-gray-400 hover:bg-gray-600"}`}
+                      ${(rule.days_of_week || []).includes(DOW_MAP[i]) ? "bg-gray-700 text-white" : "bg-gray-700/40 text-gray-400 hover:bg-gray-700"}`}
                   >
                     {label}
                   </button>
@@ -255,10 +255,10 @@ export default function EventInfoSection({ event, onChange, clients }) {
             {/* End type */}
             <div className="grid grid-cols-2 gap-2">
               <button onClick={() => updateRule("end_type", "count")}
-                className={`py-1.5 rounded-lg text-xs font-medium transition-colors ${rule.end_type === "count" ? "bg-ink text-ink-fg" : "bg-gray-700 text-gray-400 hover:bg-gray-600"}`}
+                className={`py-1.5 rounded-lg text-xs font-medium transition-colors ${rule.end_type === "count" ? "bg-gray-700 text-white" : "bg-gray-700/40 text-gray-400 hover:bg-gray-700"}`}
               >After N times</button>
               <button onClick={() => updateRule("end_type", "until")}
-                className={`py-1.5 rounded-lg text-xs font-medium transition-colors ${rule.end_type === "until" ? "bg-ink text-ink-fg" : "bg-gray-700 text-gray-400 hover:bg-gray-600"}`}
+                className={`py-1.5 rounded-lg text-xs font-medium transition-colors ${rule.end_type === "until" ? "bg-gray-700 text-white" : "bg-gray-700/40 text-gray-400 hover:bg-gray-700"}`}
               >Until date</button>
             </div>
             {rule.end_type === "count" ? (

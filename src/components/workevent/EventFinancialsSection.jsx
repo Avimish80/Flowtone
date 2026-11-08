@@ -8,7 +8,7 @@ const docStatusColors = {
   sent: "bg-blue-500/20 text-blue-400 border-blue-500/30",
   accepted: "bg-green-500/20 text-green-400 border-green-500/30",
   rejected: "bg-red-500/20 text-red-400 border-red-500/30",
-  converted: "bg-gray-700/50 text-ink border-gray-700/60",
+  converted: "bg-gray-700/50 text-gray-300 border-gray-700/60",
   paid: "bg-green-500/20 text-green-400 border-green-500/30",
   cancelled: "bg-gray-600/20 text-gray-500 border-gray-600/30",
 };

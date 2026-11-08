@@ -16,7 +16,7 @@ const STATUS_LABELS = {
 };
 
 const STATUS_BAR = {
-  new: "bg-ink text-ink-fg",
+  new: "bg-gray-300",
   contacted: "bg-yellow-500",
   quoted: "bg-blue-500",
   accepted: "bg-green-500",

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { Loader2, Mail, CreditCard, Music2, LogOut, ShieldAlert, CheckCircle2, KeyRound } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { mailpitUrl } from "@/lib/supabaseClient";
@@ -9,7 +9,7 @@ import { mailpitUrl } from "@/lib/supabaseClient";
 // applies the saved theme after this mounts, hence the observer) and hand the
 // user's own choice back when they leave.
 function useHoldDarkMode() {
-  useEffect(() => {
+  useLayoutEffect(() => {
     const root = document.documentElement;
     const hold = () => { if (!root.classList.contains("dark")) root.classList.add("dark"); };
     hold();

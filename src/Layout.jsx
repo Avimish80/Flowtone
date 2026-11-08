@@ -276,12 +276,12 @@ export default function Layout({ children, currentPageName }) {
       {/* Top bar — pt-safe pushes content below iPhone notch/Dynamic Island */}
       <header className="flex items-center justify-between px-4 py-3 border-b border-gray-800 bg-gray-950 sticky top-0 z-30" style={{ paddingTop: "max(12px, env(safe-area-inset-top))" }}>
         <div className="flex items-center gap-2.5">
-          <Music2 className="w-5 h-5 text-indigo-400" />
+          <Music2 className="w-5 h-5 text-gray-400" />
           <span className="font-bold text-white tracking-tight">Flowtone</span>
           {sectionLabel && (
             <>
               <span className="text-gray-600 text-sm">/</span>
-              <span className="text-xs font-medium text-indigo-300 bg-indigo-500/15 px-2 py-0.5 rounded-md flex items-center gap-1">
+              <span className="text-xs font-medium text-gray-400 flex items-center gap-1">
                 {SectionIcon && <SectionIcon className="w-3 h-3" />}
                 {sectionLabel}
               </span>
@@ -297,14 +297,14 @@ export default function Layout({ children, currentPageName }) {
           >
             <Bell className="w-4 h-4" />
             {unreadCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 w-4 h-4 flex items-center justify-center rounded-full bg-indigo-600 text-[9px] font-bold text-white leading-none">
+              <span className="absolute -top-0.5 -right-0.5 w-4 h-4 flex items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white leading-none">
                 {unreadCount > 9 ? "9+" : unreadCount}
               </span>
             )}
           </button>
           <button
             onClick={toggleHideFees}
-            className={`p-1.5 rounded-lg transition-colors ${hideFees ? "text-indigo-400 hover:text-indigo-300 hover:bg-gray-800" : "text-gray-400 hover:text-white hover:bg-gray-800"}`}
+            className={`p-1.5 rounded-lg transition-colors ${hideFees ? "text-white hover:text-gray-200 hover:bg-gray-800" : "text-gray-400 hover:text-white hover:bg-gray-800"}`}
             title={hideFees ? "Show fees" : "Hide fees (privacy mode)"}
             aria-pressed={hideFees}
           >
@@ -351,7 +351,7 @@ export default function Layout({ children, currentPageName }) {
                   onClick={() => setShowMore(false)}
                   className={`flex flex-col items-center gap-1.5 py-3 rounded-xl transition-colors ${
                     activeGroup === page
-                      ? "bg-indigo-600/20 text-indigo-400"
+                      ? "bg-gray-700 text-white"
                       : "text-gray-400 hover:text-white hover:bg-gray-800"
                   }`}
                 >
@@ -403,7 +403,7 @@ export default function Layout({ children, currentPageName }) {
               to={createPageUrl(page)}
               data-tour={`nav-${label.toLowerCase()}`}
               className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg transition-colors ${
-                active ? "text-indigo-400" : "text-gray-500 hover:text-gray-300"
+                active ? "text-ink" : "text-gray-500 hover:text-gray-300"
               }`}
             >
               <Icon className="w-5 h-5" />
@@ -415,7 +415,7 @@ export default function Layout({ children, currentPageName }) {
           onClick={() => setShowMore(v => !v)}
           data-tour="nav-more"
           className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg transition-colors ${
-            isMoreActive || showMore ? "text-indigo-400" : "text-gray-500 hover:text-gray-300"
+            isMoreActive || showMore ? "text-ink" : "text-gray-500 hover:text-gray-300"
           }`}
         >
           <MoreHorizontal className="w-5 h-5" />

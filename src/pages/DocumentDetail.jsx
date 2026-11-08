@@ -1061,7 +1061,7 @@ export default function DocumentDetail() {
                   }
                 }}
                 disabled={!emailTo?.trim() || (!gmailConnected && preparingShare)}
-                className="flex-1 bg-ink hover:bg-ink/90 disabled:opacity-40 text-ink-fg rounded-lg py-2 text-sm font-medium flex items-center justify-center gap-2 transition-colors"
+                className="flex-1 bg-gray-700 hover:bg-gray-600 disabled:opacity-40 text-white rounded-lg py-2 text-sm font-medium flex items-center justify-center gap-2 transition-colors"
               >
                 {!gmailConnected && preparingShare
                   ? <><Loader2 className="w-4 h-4 animate-spin" /> Preparing PDF…</>

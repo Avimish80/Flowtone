@@ -7,11 +7,6 @@ import { usePageState } from "@/hooks/usePageState";
 import { useScrollRestore } from "@/hooks/useScrollRestore";
 import SortDropdown from "@/components/SortDropdown";
 
-const typeColors = {
-  venue: "text-gray-400", agent: "text-gray-400",
-  student: "text-gray-400", band: "text-gray-400", other: "text-gray-400"
-};
-
 const SORT_OPTIONS = [
   { key: "name", label: "Name", type: "text" },
   { key: "client_type", label: "Type", type: "text" },
@@ -117,7 +112,7 @@ export default function Clients() {
                     <p className="font-semibold text-white truncate">{client.name}</p>
                     {(client.late_payment_flag || client.has_late_payment_history) && <AlertCircle className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />}
                   </div>
-                  <p className={`text-xs capitalize ${typeColors[client.client_type] || "text-gray-400"}`}>
+                  <p className="text-xs capitalize text-gray-400">
                     {client.client_type || "other"}
                     {client.emails?.[0] ? ` \u00b7 ${client.emails[0]}` : ""}
                   </p>

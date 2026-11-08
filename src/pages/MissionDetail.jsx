@@ -172,7 +172,7 @@ export default function MissionDetail() {
     return (
       <div className="p-4 max-w-xl mx-auto text-center py-16">
         <p className="text-sm text-gray-500 mb-4">This task no longer exists.</p>
-        <button onClick={goBack} className="text-indigo-400 hover:text-indigo-300 text-sm">Back to tasks</button>
+        <button onClick={goBack} className="text-ink hover:text-ink/80 text-sm">Back to tasks</button>
       </div>
     );
   }
@@ -197,7 +197,7 @@ export default function MissionDetail() {
       {/* Hero — the issue */}
       <div className={`rounded-2xl border p-5 ${task.priority >= 2 ? "border-red-700/40 bg-red-950/20" : "border-gray-700/50 bg-gray-800/30"}`}>
         <div className="flex items-start gap-3">
-          <Icon className={`w-5 h-5 mt-0.5 flex-shrink-0 ${task.priority >= 2 ? "text-red-400" : "text-indigo-400"}`} />
+          <Icon className={`w-5 h-5 mt-0.5 flex-shrink-0 ${task.priority >= 2 ? "text-red-400" : "text-gray-400"}`} />
           <div className="flex-1 min-w-0">
             <h1 className="text-base font-semibold text-white leading-snug">{task.title}</h1>
             <div className="flex flex-wrap gap-1.5 mt-2">
@@ -214,7 +214,7 @@ export default function MissionDetail() {
         {task.action_target && !isClosed && (
           <button
             onClick={handleCta}
-            className="mt-4 w-full bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl py-2.5 text-sm font-semibold transition-colors"
+            className="mt-4 w-full bg-ink hover:bg-ink/90 text-ink-fg rounded-xl py-2.5 text-sm font-semibold transition-colors"
           >
             {ctaLabel}
           </button>
@@ -241,9 +241,9 @@ export default function MissionDetail() {
       {(reply || task.user_directive) && (
         <div className="mt-3 space-y-2">
           {reply && (
-            <div className="flex items-start gap-2 rounded-xl border border-indigo-700/30 bg-indigo-950/30 px-3 py-2.5">
-              <Sparkles className="w-3.5 h-3.5 text-indigo-400 mt-0.5 flex-shrink-0" />
-              <p className="text-sm text-indigo-100/90 leading-snug">{reply}</p>
+            <div className="flex items-start gap-2 rounded-xl border border-gray-700/60 bg-gray-800/40 px-3 py-2.5">
+              <Sparkles className="w-3.5 h-3.5 text-gray-400 mt-0.5 flex-shrink-0" />
+              <p className="text-sm text-gray-300 leading-snug">{reply}</p>
             </div>
           )}
           {task.user_directive && (
@@ -263,7 +263,7 @@ export default function MissionDetail() {
                "Got it — I'll bring this back when the time comes."}
             </p>
           </div>
-          <button onClick={handleReopen} className="mt-2 text-xs text-indigo-400 hover:text-indigo-300 transition-colors">
+          <button onClick={handleReopen} className="mt-2 text-xs text-ink hover:text-ink/80 transition-colors">
             Reopen this task
           </button>
         </div>
@@ -272,7 +272,7 @@ export default function MissionDetail() {
       {/* Talk to the assistant about this task */}
       {!isClosed && (
         <div className="mt-4">
-          <div className="flex items-center gap-2 rounded-xl border border-gray-700/50 bg-gray-900/60 px-2 py-1.5 focus-within:border-indigo-500/50 transition-colors">
+          <div className="flex items-center gap-2 rounded-xl border border-gray-700/50 bg-gray-900/60 px-2 py-1.5 focus-within:border-gray-400 transition-colors">
             <input
               value={message}
               onChange={(e) => setMessage(e.target.value)}
@@ -285,7 +285,7 @@ export default function MissionDetail() {
             <button
               onClick={handleSend}
               disabled={sending || !message.trim()}
-              className="flex items-center justify-center w-8 h-8 rounded-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white transition-colors flex-shrink-0"
+              className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-700 hover:bg-gray-600 disabled:opacity-40 text-white transition-colors flex-shrink-0"
               aria-label="Send"
             >
               {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CornerDownLeft className="w-4 h-4" />}

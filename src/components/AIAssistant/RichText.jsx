@@ -37,7 +37,7 @@ function Row({ text, index }) {
 
   return (
     <li className="flex items-baseline gap-2">
-      <span className="flex-shrink-0 w-1 h-1 rounded-full bg-indigo-400/70 translate-y-[-2px]" />
+      <span className="flex-shrink-0 w-1 h-1 rounded-full bg-gray-500 translate-y-[-2px]" />
       <span className="min-w-0">
         <span className="text-white">{inline(lead, `r${index}l`)}</span>
         {rest && (

@@ -241,7 +241,7 @@ export default function SheetImport() {
         <Loader2 className="w-6 h-6 text-gray-400 animate-spin mx-auto" />
         <p className="text-sm text-white">{busy || "Saving changes…"} {n ? `${d} of ${n}` : ""}</p>
         <div className="h-1.5 rounded-full bg-gray-800 overflow-hidden">
-          <div className="h-full bg-ink transition-all text-ink-fg" style={{ width: n ? `${(d / n) * 100}%` : "0%" }} />
+          <div className="h-full bg-ink transition-all" style={{ width: n ? `${(d / n) * 100}%` : "0%" }} />
         </div>
         <p className="text-[11px] text-gray-600">Keep the app open until this finishes.</p>
       </div>

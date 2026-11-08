@@ -228,7 +228,7 @@ export default function Packages() {
                     <div className="flex items-start justify-between gap-3">
                       <p className="text-base font-semibold text-white">{pkg.name}</p>
                       {pkg.price != null && (
-                        <p className="text-base font-bold text-ink whitespace-nowrap">
+                        <p className="text-base font-bold text-white whitespace-nowrap">
                           {currencySymbol(pkg.currency)}{Number(pkg.price).toLocaleString()}
                         </p>
                       )}

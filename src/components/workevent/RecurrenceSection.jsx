@@ -87,7 +87,7 @@ export default function RecurrenceSection({ event, onChange }) {
                   onClick={() => updateRule("frequency", f.value)}
                   className={`py-1.5 rounded-lg text-xs font-medium transition-colors ${
                     rule.frequency === f.value
-                      ? "bg-ink text-ink-fg"
+                      ? "bg-gray-700 text-white"
                       : "bg-gray-800 text-gray-400 hover:bg-gray-700"
                   }`}
                 >
@@ -130,7 +130,7 @@ export default function RecurrenceSection({ event, onChange }) {
                     onClick={() => toggleDay(idx)}
                     className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                       (rule.days_of_week || []).includes(idx)
-                        ? "bg-ink text-ink-fg"
+                        ? "bg-gray-700 text-white"
                         : "bg-gray-800 text-gray-400 hover:bg-gray-700"
                     }`}
                   >
@@ -147,19 +147,19 @@ export default function RecurrenceSection({ event, onChange }) {
             <div className="grid grid-cols-3 gap-2 mb-2">
               <button
                 onClick={() => updateRule("end_type", "never")}
-                className={`py-2 rounded-lg text-sm font-medium transition-colors ${rule.end_type === "never" ? "bg-ink text-ink-fg" : "bg-gray-800 text-gray-400 hover:bg-gray-700"}`}
+                className={`py-2 rounded-lg text-sm font-medium transition-colors ${rule.end_type === "never" ? "bg-gray-700 text-white" : "bg-gray-800 text-gray-400 hover:bg-gray-700"}`}
               >
                 No end
               </button>
               <button
                 onClick={() => updateRule("end_type", "count")}
-                className={`py-2 rounded-lg text-sm font-medium transition-colors ${rule.end_type === "count" ? "bg-ink text-ink-fg" : "bg-gray-800 text-gray-400 hover:bg-gray-700"}`}
+                className={`py-2 rounded-lg text-sm font-medium transition-colors ${rule.end_type === "count" ? "bg-gray-700 text-white" : "bg-gray-800 text-gray-400 hover:bg-gray-700"}`}
               >
                 After N times
               </button>
               <button
                 onClick={() => updateRule("end_type", "until")}
-                className={`py-2 rounded-lg text-sm font-medium transition-colors ${rule.end_type === "until" ? "bg-ink text-ink-fg" : "bg-gray-800 text-gray-400 hover:bg-gray-700"}`}
+                className={`py-2 rounded-lg text-sm font-medium transition-colors ${rule.end_type === "until" ? "bg-gray-700 text-white" : "bg-gray-800 text-gray-400 hover:bg-gray-700"}`}
               >
                 Until date
               </button>

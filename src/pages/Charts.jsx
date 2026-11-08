@@ -8,9 +8,9 @@ import {
 } from "lucide-react";
 
 const TYPE_CONFIG = {
-  chart:  { label: "Chart",  icon: Music,     color: "bg-gray-700/50 text-ink border-gray-700/60" },
-  lyrics: { label: "Lyrics", icon: Mic2,      color: "bg-pink-500/20 text-pink-400 border-pink-500/30" },
-  notes:  { label: "Notes",  icon: StickyNote, color: "bg-amber-500/20 text-amber-400 border-amber-500/30" },
+  chart:  { label: "Chart",  icon: Music,     color: "bg-gray-700/50 text-gray-300 border-gray-700/60" },
+  lyrics: { label: "Lyrics", icon: Mic2,      color: "bg-gray-700/50 text-gray-300 border-gray-700/60" },
+  notes:  { label: "Notes",  icon: StickyNote, color: "bg-gray-700/50 text-gray-300 border-gray-700/60" },
 };
 
 const MUSIC_KEYS = [
@@ -95,7 +95,7 @@ export default function Charts() {
             onClick={() => setFilter(f.key)}
             className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border ${
               filter === f.key
-                ? "bg-ink border-ink/60 text-ink-fg"
+                ? "bg-gray-700 border-gray-600 text-white"
                 : "bg-gray-800 border-gray-700 text-gray-400 hover:text-white"
             }`}
           >

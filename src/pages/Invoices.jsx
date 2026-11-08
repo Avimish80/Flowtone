@@ -207,12 +207,12 @@ export default function Invoices() {
               <div className="fixed inset-0 z-10" onClick={() => setShowYearDropdown(false)} />
               <div className="absolute right-0 top-full mt-1 z-20 bg-gray-800 border border-gray-700 rounded-lg shadow-xl py-1 min-w-[8rem] max-h-60 overflow-y-auto">
                 <button onClick={() => { setFilterYear("all"); setShowYearDropdown(false); }}
-                  className={`w-full text-left px-3 py-2 text-sm transition-colors ${filterYear === "all" ? "bg-ink text-ink-fg" : "text-gray-300 hover:bg-gray-700"}`}>
+                  className={`w-full text-left px-3 py-2 text-sm transition-colors ${filterYear === "all" ? "bg-gray-700 text-white" : "text-gray-300 hover:bg-gray-700"}`}>
                   All Years
                 </button>
                 {availableYears.map(yr => (
                   <button key={yr} onClick={() => { setFilterYear(yr); setShowYearDropdown(false); }}
-                    className={`w-full text-left px-3 py-2 text-sm transition-colors ${filterYear === yr ? "bg-ink text-ink-fg" : "text-gray-300 hover:bg-gray-700"}`}>
+                    className={`w-full text-left px-3 py-2 text-sm transition-colors ${filterYear === yr ? "bg-gray-700 text-white" : "text-gray-300 hover:bg-gray-700"}`}>
                     {yr}
                   </button>
                 ))}
