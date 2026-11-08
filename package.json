@@ -9,10 +9,18 @@
     "lint": "eslint . --quiet",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc -p ./jsconfig.json",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "local:env": "node scripts/write-local-env.mjs",
+    "dev:local": "vite --host --mode localdb",
+    "build:ios": "vite build --mode localdb && npx cap sync ios"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.57.0",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/core": "^8.5.3",
+    "@capacitor/ios": "^8.5.3",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.4",
+    "@ebarooni/capacitor-calendar": "^8.10.0",
     "@hello-pangea/dnd": "^17.0.0",
     "@hookform/resolvers": "^4.1.2",
     "@radix-ui/react-accordion": "^1.2.3",
@@ -42,6 +50,7 @@
     "@radix-ui/react-toggle": "^1.1.2",
     "@radix-ui/react-toggle-group": "^1.1.2",
     "@radix-ui/react-tooltip": "^1.1.8",
+    "@supabase/supabase-js": "^2.57.0",
     "@tanstack/react-query": "^5.84.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -65,6 +74,7 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.5.3",
     "@eslint/js": "^9.19.0",
     "@types/node": "^22.13.5",
     "@types/react": "^18.2.66",

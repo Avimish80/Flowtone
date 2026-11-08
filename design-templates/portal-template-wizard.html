@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Portal Template - Step-by-Step Wizard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-base: #030712;
+      --bg-card: rgba(17, 24, 39, 0.6);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --border-active: #8b5cf6;
+      --text-main: #f9fafb;
+      --text-muted: #9ca3af;
+      --primary: #8b5cf6;
+      --radius-lg: 1rem;
+      --radius-md: 0.5rem;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: var(--bg-base);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .wizard-container { max-w: 680px; margin: 0 auto; width: 100%; padding: 2rem 1rem; }
+
+    /* Header Step tracker */
+    .step-tracker {
+      display: flex; justify-content: space-between; align-items: center; margin-bottom: 3rem;
+      position: relative;
+    }
+    .step-tracker::before {
+      content: ''; position: absolute; top: 15px; left: 0; right: 0; height: 2px;
+      background: var(--border-color); z-index: 1;
+    }
+    .tracker-bar {
+      position: absolute; top: 15px; left: 0; height: 2px;
+      background: var(--primary); z-index: 2; transition: width 0.3s; width: 0%;
+    }
+    .step-dot {
+      width: 32px; height: 32px; border-radius: 50%; background: #1f2937;
+      border: 2px solid var(--border-color); display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 0.85rem; z-index: 3; position: relative; transition: all 0.3s;
+    }
+    .step-dot.active { border-color: var(--primary); background: var(--primary); color: white; }
+    .step-dot.completed { border-color: var(--primary); background: #111827; color: var(--primary); }
+
+    /* Card Panels */
+    .wizard-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 2.5rem;
+      min-height: 340px;
+      display: none;
+    }
+    .wizard-card.active { display: block; }
+
+    .card-title { font-size: 1.5rem; font-weight: 700; margin-bottom: 1.5rem; }
+
+    /* Packages / Select lists */
+    .pkg-option {
+      background: rgba(0,0,0,0.3); border: 1px solid var(--border-color);
+      border-radius: var(--radius-md); padding: 1.25rem; cursor: pointer;
+      display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;
+    }
+    .pkg-option.selected { border-color: var(--primary); background: rgba(139,92,246,0.05); }
+
+    /* Contract block */
+    .contract-doc {
+      background: rgba(0,0,0,0.3); border: 1px solid var(--border-color);
+      border-radius: var(--radius-md); padding: 1rem; height: 160px; overflow-y: auto;
+      font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1.5rem;
+    }
+    .input-sig {
+      width: 100%; padding: 0.85rem; background: rgba(0,0,0,0.4); border: 1px solid var(--border-color);
+      border-radius: var(--radius-md); color: white; font-family: inherit;
+    }
+    .input-sig:focus { outline: none; border-color: var(--primary); }
+
+    /* Footer Buttons bar */
+    .wizard-footer {
+      background: rgba(10, 10, 15, 0.4); border-top: 1px solid var(--border-color);
+      padding: 1.25rem 2rem;
+    }
+    .footer-content {
+      max-w: 680px; margin: 0 auto; display: flex; justify-content: space-between;
+    }
+    .btn-nav {
+      background: #1f2937; color: white; border: 1px solid var(--border-color);
+      padding: 0.75rem 1.5rem; border-radius: var(--radius-md); font-weight: 600;
+      font-family: inherit; cursor: pointer; transition: all 0.2s;
+    }
+    .btn-nav.primary-btn { background: var(--primary); border-color: var(--primary); }
+    .btn-nav:disabled { opacity: 0.4; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+
+  <div class="wizard-container">
+    
+    <div class="step-tracker">
+      <div class="tracker-bar" id="tracker-progress"></div>
+      <div class="step-dot active" id="dot-1">1</div>
+      <div class="step-dot" id="dot-2">2</div>
+      <div class="step-dot" id="dot-3">3</div>
+    </div>
+
+    <!-- Step 1: Package -->
+    <div class="wizard-card active" id="step-card-1">
+      <h2 class="card-title">Select Setup</h2>
+      <div class="pkg-option selected" onclick="selectPkg('ceremony', 500)">
+        <div>
+          <p style="font-weight:700;">Ceremony Backdrop</p>
+          <p style="font-size:0.75rem; color:var(--text-muted); margin-top:0.25rem;">Wedding procession, registry signature, celebratory exits.</p>
+        </div>
+        <span style="font-weight:700; font-size:1.1rem;">£500</span>
+      </div>
+      <div class="pkg-option" onclick="selectPkg('reception', 800)">
+        <div>
+          <p style="font-weight:700;">Ceremony & Drinks</p>
+          <p style="font-size:0.75rem; color:var(--text-muted); margin-top:0.25rem;">Ceremony setup plus 1.5 hours drinks reception backdrop.</p>
+        </div>
+        <span style="font-weight:700; font-size:1.1rem;">£800</span>
+      </div>
+    </div>
+
+    <!-- Step 2: Agreement -->
+    <div class="wizard-card" id="step-card-2">
+      <h2 class="card-title">Performance Agreement</h2>
+      <div class="contract-doc">
+        <p><strong>1. Space:</strong> Setup environment must be clean, flat, and dry. Sheltered areas are mandatory for outdoor setups.</p>
+        <p><strong>2. Deposit:</strong> Date is secured only after signature and confirmation payment of deposit retainer.</p>
+      </div>
+      <input type="text" class="input-sig" id="sig-field" placeholder="Type Full Name to Sign Contract" oninput="updateSig(this.value)">
+    </div>
+
+    <!-- Step 3: Payment -->
+    <div class="wizard-card" id="step-card-3">
+      <h2 class="card-title">Secure Date Retainer</h2>
+      <div style="background:rgba(0,0,0,0.2); border:1px solid var(--border-color); border-radius:var(--radius-md); padding:1.5rem; margin-bottom:1.5rem;">
+        <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:var(--text-muted); margin-bottom:0.5rem;">
+          <span>Selected Package</span>
+          <span id="summary-pkg-name" style="color:white; font-weight:600;">Ceremony Backdrop</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:var(--text-muted); margin-bottom:0.5rem;">
+          <span>Total Cost</span>
+          <span id="summary-pkg-total" style="color:white; font-weight:600;">£500.00</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; border-top:1px dashed var(--border-color); padding-top:0.75rem; font-weight:700; font-size:1.1rem; margin-top:0.75rem;">
+          <span>Deposit Retainer (50%)</span>
+          <span id="summary-pkg-dep" style="color:var(--primary);">£250.00</span>
+        </div>
+      </div>
+      <p style="font-size:0.8rem; color:var(--text-muted); text-align:center;">Submit deposit simulator payment below to complete booking.</p>
+    </div>
+
+  </div>
+
+  <!-- Wizard Footer -->
+  <div class="wizard-footer">
+    <div class="footer-content">
+      <button class="btn-nav" id="back-btn" disabled onclick="navigateSteps(-1)">Back</button>
+      <button class="btn-nav primary-btn" id="next-btn" onclick="navigateSteps(1)">Next Step</button>
+    </div>
+  </div>
+
+  <script>
+    const state = { step: 1, base: 500, name: '', signed: false, paid: false };
+
+    function selectPkg(id, val) {
+      document.querySelectorAll('.pkg-option').forEach(o => o.classList.remove('selected'));
+      event.currentTarget.classList.add('selected');
+      state.base = val;
+      if (id === 'ceremony') {
+        document.getElementById('summary-pkg-name').innerText = 'Ceremony Backdrop';
+      } else {
+        document.getElementById('summary-pkg-name').innerText = 'Ceremony & Drinks';
+      }
+      document.getElementById('summary-pkg-total').innerText = '£' + val + '.00';
+      document.getElementById('summary-pkg-dep').innerText = '£' + (val/2) + '.00';
+    }
+
+    function updateSig(val) {
+      state.name = val;
+      document.getElementById('next-btn').disabled = !val.trim();
+    }
+
+    function navigateSteps(dir) {
+      document.getElementById('step-card-' + state.step).classList.remove('active');
+      document.getElementById('dot-' + state.step).classList.remove('active');
+      if (dir === 1 && state.step < 3) {
+        document.getElementById('dot-' + state.step).classList.add('completed');
+      }
+      
+      state.step += dir;
+
+      document.getElementById('step-card-' + state.step).classList.add('active');
+      document.getElementById('dot-' + state.step).classList.add('active');
+      document.getElementById('dot-' + state.step).classList.remove('completed');
+
+      // Update progress bar
+      document.getElementById('tracker-progress').style.width = ((state.step - 1) / 2 * 100) + '%';
+
+      // Footer controls
+      document.getElementById('back-btn').disabled = (state.step === 1);
+      
+      if (state.step === 1) {
+        document.getElementById('next-btn').innerText = 'Next Step';
+        document.getElementById('next-btn').disabled = false;
+      } else if (state.step === 2) {
+        document.getElementById('next-btn').innerText = 'Sign & Accept';
+        document.getElementById('next-btn').disabled = !state.name.trim();
+      } else if (state.step === 3) {
+        document.getElementById('next-btn').innerText = 'Pay Deposit Simulator';
+        document.getElementById('next-btn').disabled = state.paid;
+      }
+      
+      if (state.step > 3 || (dir === 1 && state.step === 3 && event.currentTarget.innerText === 'Pay Deposit Simulator')) {
+        // Complete payment simulator
+        state.paid = true;
+        document.getElementById('next-btn').innerText = 'Booking Complete';
+        document.getElementById('next-btn').disabled = true;
+        document.getElementById('back-btn').disabled = true;
+      }
+    }
+  </script>
+</body>
+</html>

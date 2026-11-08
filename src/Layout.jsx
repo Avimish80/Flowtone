@@ -14,6 +14,7 @@ import CoachMarks from "@/components/tour/CoachMarks";
 import { useAIAssistant } from "@/components/AIAssistant/useAIAssistant";
 import { isPushActive, schedulePushNotifications, reRegisterSubscription } from "@/lib/pushManager";
 import { maybeSyncOnOpen } from "@/lib/calendarClient";
+import { syncLinkedCalendars } from "@/lib/deviceCalendarSync";
 import { appClient } from "@/api/appClient";
 import { refreshAppBadge, getUnreadCount } from "@/lib/appBadge";
 import NotificationsPanel from "@/components/notifications/NotificationsPanel";
@@ -50,6 +51,8 @@ const NAV_GROUP = {
   Estimates: "Finance",
   DocumentDetail: "Finance",
   InvoiceDetail: "Finance",
+  FeeRules: "Finance",
+  FeeCatchUp: "Finance",
   EstimateDetail: "Finance",
   Charts: "Charts",
   ChartDetail: "Charts",
@@ -76,6 +79,8 @@ const SECTION_LABELS = {
   Finance: "Finance",
   Invoices: "Finance",
   Estimates: "Finance",
+  FeeRules: "My rates",
+  FeeCatchUp: "Fees",
   Charts: "Library",
   ChartDetail: "Library",
   Practice: "Practice",
@@ -100,6 +105,8 @@ const SECTION_ICONS = {
   ClientDetail: Users,
   Finance: Receipt,
   Invoices: Receipt,
+  FeeRules: Receipt,
+  FeeCatchUp: Receipt,
   Charts: Music,
   ChartDetail: Music,
   Practice: Dumbbell,
@@ -153,6 +160,23 @@ export default function Layout({ children, currentPageName }) {
     maybeSyncOnOpen();
     const onVisible = () => {
       if (document.visibilityState === "visible") maybeSyncOnOpen();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, []);
+
+  // iOS app: pull new/changed events from linked iPhone calendars on open and
+  // on resume. No-op on the web or when nothing is linked; throttled to 2 min.
+  useEffect(() => {
+    let lastRun = 0;
+    const run = () => {
+      if (Date.now() - lastRun < 2 * 60 * 1000) return;
+      lastRun = Date.now();
+      syncLinkedCalendars().catch(() => {});
+    };
+    run();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") run();
     };
     document.addEventListener("visibilitychange", onVisible);
     return () => document.removeEventListener("visibilitychange", onVisible);

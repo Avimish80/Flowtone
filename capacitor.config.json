@@ -1,0 +1,16 @@
+{
+  "appId": "com.avimishali.flowtone",
+  "appName": "Flowtone",
+  "webDir": "dist",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#030712"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchAutoHide": true,
+      "backgroundColor": "#030712",
+      "showSpinner": false
+    }
+  }
+}

@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lumière Photography - Elegant Portrait & Event Storyteller</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,600;0,700;1,400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-base: #fbfbf9;
+      --bg-card: #ffffff;
+      --border-color: #e4e4e0;
+      --border-active: #c5a880;
+      --text-main: #1c1c1a;
+      --text-muted: #575753;
+      --primary: #1c1c1a;
+      --primary-hover: #3d3d39;
+      --accent: #c5a880;
+      --radius-lg: 0.5rem;
+      --radius-md: 0.25rem;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--bg-base);
+      color: var(--text-main);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    .landing-container { max-w: 840px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+
+    .nav-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 0;
+      border-bottom: 1px solid var(--border-color);
+      margin-bottom: 3rem;
+    }
+    .logo { font-family: 'Playfair Display', serif; font-weight: 700; font-size: 1.5rem; color: var(--primary); letter-spacing: -0.01em; }
+    .nav-links a { color: var(--text-muted); text-decoration: none; font-size: 0.85rem; margin-left: 1.5rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .nav-links a:hover { color: var(--primary); }
+
+    .hero {
+      text-align: center;
+      margin-bottom: 4rem;
+    }
+    .hero-h1 { font-family: 'Playfair Display', serif; font-size: 2.75rem; font-weight: 700; margin-bottom: 0.75rem; line-height: 1.15; }
+    .hero-sub { color: var(--accent); font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 2rem; display: block; }
+    .hero-desc { color: var(--text-muted); font-size: 1rem; max-w: 640px; margin: 0 auto 2.5rem; }
+
+    .hero-banner {
+      width: 100%;
+      height: 380px;
+      background-image: url('https://images.unsplash.com/photo-1542038784456-1ea8e935640e?auto=format&fit=crop&w=1200&q=80');
+      background-size: cover;
+      background-position: center;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      margin-bottom: 4rem;
+    }
+
+    .section-title { font-family: 'Playfair Display', serif; font-size: 1.75rem; font-weight: 700; margin: 4rem 0 1.5rem; text-align: center; }
+    .section-subtitle { text-align: center; font-size: 0.9rem; color: var(--text-muted); margin-top: -1rem; margin-bottom: 3rem; }
+
+    .gallery-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 4rem; }
+    .gallery-item {
+      height: 260px; border-radius: var(--radius-lg); overflow: hidden; border: 1px solid var(--border-color);
+    }
+    .gallery-item img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s; }
+    .gallery-item:hover img { transform: scale(1.05); }
+
+    .packages { display: flex; flex-direction: column; gap: 2rem; }
+    .pkg-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 2rem;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 2rem;
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+    @media (min-width: 640px) { .pkg-card { grid-template-columns: 200px 1fr; } }
+    .pkg-card:hover { border-color: var(--border-active); }
+    .pkg-img-box {
+      height: 150px; border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--border-color);
+    }
+    .pkg-img-box img { width: 100%; height: 100%; object-fit: cover; }
+    .pkg-body { display: flex; flex-direction: column; justify-content: space-between; }
+    .pkg-title { font-family: 'Playfair Display', serif; font-size: 1.35rem; font-weight: 700; display: flex; justify-content: space-between; }
+    .pkg-price { color: var(--accent); }
+    .pkg-desc { font-size: 0.875rem; color: var(--text-muted); margin-top: 0.5rem; line-height: 1.6; }
+    .pkg-footer { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-color); padding-top: 1rem; margin-top: 1rem; }
+
+    .form-group { display: flex; flex-direction: column; margin-bottom: 1.25rem; }
+    .form-input {
+      background: white; border: 1px solid var(--border-color);
+      border-radius: var(--radius-md); padding: 0.85rem 1rem; color: var(--text-main); font-family: inherit; font-size: 0.875rem;
+    }
+    .form-input:focus { outline: none; border-color: var(--border-active); }
+    .btn-submit {
+      width: 100%; background: var(--primary); color: white; border: none; padding: 1rem;
+      border-radius: var(--radius-md); font-weight: 600; font-family: inherit; cursor: pointer; text-transform: uppercase;
+      font-size: 0.8rem; letter-spacing: 0.05em; margin-top: 1.5rem;
+    }
+    .success-pane { text-align: center; padding: 3rem 1.5rem; display: none; }
+  </style>
+</head>
+<body>
+  <div class="landing-container">
+    <nav class="nav-bar">
+      <span class="logo">LUMIÈRE</span>
+      <div class="nav-links">
+        <a href="#about">About</a>
+        <a href="#packages">Collections</a>
+        <a href="#book">Book</a>
+      </div>
+    </nav>
+
+    <header class="hero" id="about">
+      <h1 class="hero-h1">Capturing the beauty of genuine moments.</h1>
+      <span class="hero-sub">Fine Art Wedding & Portrait Photography</span>
+      <p class="hero-desc">Lumière is a boutique photography studio based in London, specializing in natural-light editorial portraiture and cinematic wedding storytelling.</p>
+      <div class="hero-banner"></div>
+    </header>
+
+    <section class="gallery-grid">
+      <div class="gallery-item"><img src="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=400&q=80" alt="Wedding couple walking"></div>
+      <div class="gallery-item"><img src="https://images.unsplash.com/photo-1518895949257-7621c3c786d7?auto=format&fit=crop&w=400&q=80" alt="Bridal portrait details"></div>
+    </section>
+
+    <section id="packages">
+      <h2 class="section-title">The Collections</h2>
+      <p class="section-subtitle">Fine-art packages built to tell your unique visual story.</p>
+      
+      <div class="packages">
+        <div class="pkg-card" onclick="selectPkg('editorial')">
+          <div class="pkg-img-box"><img src="https://images.unsplash.com/photo-1542038784456-1ea8e935640e?auto=format&fit=crop&w=300&q=80" alt="Editorial Shoot"></div>
+          <div class="pkg-body">
+            <div class="pkg-title"><span>Editorial Package</span><span class="pkg-price">£850</span></div>
+            <p class="pkg-desc">3 hours of location shooting, comprehensive creative direction, private online gallery with 40 print-ready high-resolution edited images.</p>
+            <div class="pkg-footer"><span class="tag-badge">3 Hours Session</span><span style="color:var(--accent)">Select & Enquiry &rarr;</span></div>
+          </div>
+        </div>
+
+        <div class="pkg-card" onclick="selectPkg('story')">
+          <div class="pkg-img-box"><img src="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=300&q=80" alt="Wedding Stories"></div>
+          <div class="pkg-body">
+            <div class="pkg-title"><span>Storybook Collection</span><span class="pkg-price">£1,400</span></div>
+            <p class="pkg-desc">Full day coverage (up to 8 hours), online sharing gallery, 80+ fine-art edited digital negatives, and a hand-crafted presentation storage box.</p>
+            <div class="pkg-footer"><span class="tag-badge">Full Day Booking</span><span style="color:var(--accent)">Select & Enquiry &rarr;</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="book" style="margin-top: 4rem;">
+      <h2 class="section-title">Enquire & Plan</h2>
+      <div class="glass-card" id="form-container">
+        <form onsubmit="sendForm(event)">
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="input-label">Name</label>
+              <input type="text" class="form-input" placeholder="Charlotte Jones" required>
+            </div>
+            <div class="form-group">
+              <label class="input-label">Email</label>
+              <input type="email" class="form-input" placeholder="charlotte@example.com" required>
+            </div>
+            <div class="form-group">
+              <label class="input-label">Session Date</label>
+              <input type="date" id="evt-date" class="form-input" required>
+            </div>
+            <div class="form-group">
+              <label class="input-label">Collection</label>
+              <select class="form-input" id="pkg-select">
+                <option value="editorial">Editorial Package</option>
+                <option value="story">Storybook Collection</option>
+              </select>
+            </div>
+          </div>
+          <button type="submit" class="btn-submit">Submit Enquiry</button>
+        </form>
+      </div>
+
+      <div class="glass-card success-pane" id="success-container">
+        <h2 style="font-family:'Playfair Display', serif; font-size: 1.75rem; margin-bottom: 0.5rem;">Thank You</h2>
+        <p style="color: var(--text-muted)">We will check availability for <strong id="success-date" style="color:var(--text-main)"></strong> and send a private booking proposal portal link to your email.</p>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    function selectPkg(val) {
+      document.getElementById('pkg-select').value = val;
+      document.getElementById('book').scrollIntoView({ behavior: 'smooth' });
+    }
+    function sendForm(e) {
+      e.preventDefault();
+      document.getElementById('success-date').innerText = document.getElementById('evt-date').value;
+      document.getElementById('form-container').style.display = 'none';
+      document.getElementById('success-container').style.display = 'block';
+    }
+  </script>
+</body>
+</html>

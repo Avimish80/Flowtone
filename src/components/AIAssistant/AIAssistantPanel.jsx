@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { X, Trash2, Send, Sparkles, ExternalLink, Mic, AlertCircle, MapPin, BookUser } from "lucide-react";
 import { useSpeechInput } from "@/hooks/useSpeechInput";
 import { createPageUrl } from "@/utils";
+import RichText, { hasList } from "./RichText";
 
 // ─── Message bubble ──────────────────────────────────────────────────────────
 
@@ -16,14 +17,19 @@ function UserBubble({ message }) {
 }
 
 function AssistantBubble({ message }) {
+  // A list answer needs room to keep each record on its own line.
+  const wide = hasList(message.content);
+
   return (
     <div className="flex items-start gap-2.5 mb-3">
       {/* Avatar */}
       <div className="flex-shrink-0 w-7 h-7 rounded-full bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center">
         <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
       </div>
-      <div className="max-w-[80%] bg-gray-800 text-gray-100 px-4 py-2.5 rounded-2xl rounded-tl-sm text-sm leading-relaxed shadow">
-        {message.content}
+      <div
+        className={`${wide ? "max-w-[92%]" : "max-w-[80%]"} bg-gray-800 text-gray-100 px-4 py-2.5 rounded-2xl rounded-tl-sm text-sm leading-relaxed shadow`}
+      >
+        <RichText text={message.content} />
       </div>
     </div>
   );

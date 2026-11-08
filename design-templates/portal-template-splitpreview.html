@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Portal Template - Split Preview</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-base: #09090b;
+      --bg-card: rgba(24, 24, 27, 0.6);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --border-active: #ffffff;
+      --text-main: #f4f4f5;
+      --text-muted: #a1a1aa;
+      --primary: #ffffff;
+      --radius-lg: 0.5rem;
+      --radius-md: 0.25rem;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: var(--bg-base);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    @media (min-width: 1024px) {
+      body { flex-direction: row; overflow: hidden; height: 100vh; }
+    }
+
+    /* Left Panel: Configuration Canvas */
+    .config-panel {
+      width: 100%;
+      padding: 2rem 1.5rem;
+      overflow-y: auto;
+    }
+    @media (min-width: 1024px) {
+      .config-panel { width: 50%; height: 100vh; border-right: 1px solid var(--border-color); padding: 4rem 3rem; }
+    }
+
+    /* Right Panel: Invoice Preview Sheet */
+    .preview-panel {
+      width: 100%;
+      background: #000000;
+      padding: 2rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow-y: auto;
+    }
+    @media (min-width: 1024px) {
+      .preview-panel { width: 50%; height: 100vh; padding: 4rem; }
+    }
+
+    .invoice-sheet {
+      background: #ffffff;
+      color: #18181b;
+      width: 100%;
+      max-width: 500px;
+      border-radius: var(--radius-lg);
+      padding: 2.5rem;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 520px;
+    }
+
+    /* Styles inside configuration */
+    .section-title { font-size: 1.25rem; font-weight: 700; margin-bottom: 1rem; }
+    .form-group { display: flex; flex-direction: column; margin-bottom: 1.25rem; }
+    .form-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 0.5rem; font-weight: 600; }
+    
+    .selector-row {
+      display: grid; grid-template-columns: 1fr; gap: 0.75rem; margin-bottom: 1.5rem;
+    }
+    @media (min-width: 640px) { .selector-row { grid-template-columns: 1fr 1fr; } }
+    .select-card {
+      background: var(--bg-card); border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg); padding: 1.25rem; cursor: pointer; transition: border-color 0.2s;
+    }
+    .select-card.active { border-color: var(--border-active); }
+
+    .checkbox-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.85rem 1rem; background: var(--bg-card); border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg); margin-bottom: 0.75rem; cursor: pointer;
+    }
+    .checkbox-row.active { border-color: var(--border-active); }
+    .box-indicator { width: 16px; height: 16px; border: 2px solid var(--border-color); border-radius: 3px; }
+    .checkbox-row.active .box-indicator { background: white; border-color: white; }
+
+    .btn-action {
+      width: 100%; background: white; color: black; border: 1px solid white; padding: 1rem;
+      border-radius: var(--radius-lg); font-weight: 700; cursor: pointer; text-transform: uppercase;
+      font-size: 0.8rem; letter-spacing: 0.05em; margin-top: 1rem;
+    }
+
+    /* Styles inside sheet */
+    .sheet-hdr { border-bottom: 2px solid #e4e4e7; padding-bottom: 1rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: flex-start; }
+    .sheet-title { font-size: 1.5rem; font-weight: 700; text-transform: uppercase; letter-spacing: -0.01em; }
+    .sheet-detail { font-size: 0.75rem; color: #71717a; text-align: right; }
+    .sheet-item { display: flex; justify-content: space-between; font-size: 0.85rem; padding: 0.5rem 0; }
+    .sheet-total-row { border-top: 2px solid #e4e4e7; padding-top: 0.75rem; margin-top: 1rem; font-weight: 700; font-size: 1.1rem; display: flex; justify-content: space-between; }
+  </style>
+</head>
+<body>
+
+  <!-- Left: Settings panel -->
+  <div class="config-panel">
+    <header style="margin-bottom: 2.5rem;">
+      <h1 style="font-size: 1.85rem; font-weight: 700; letter-spacing: -0.01em;">Setup & Booking</h1>
+      <p style="color: var(--text-muted); font-size: 0.9rem;">Review selection and watch the invoice sheet update on the right.</p>
+    </header>
+
+    <section style="margin-bottom: 2rem;">
+      <h3 class="section-title">1. Base Repertoire</h3>
+      <div class="selector-row">
+        <div class="select-card active" id="c-card" onclick="selectPkg('ceremony', 500)">
+          <div style="font-weight:700;">Ceremony Cover</div>
+          <p style="font-size:0.75rem; color:var(--text-muted); margin-top:0.25rem;">Procession & Exit tracks.</p>
+          <div style="font-weight:700; margin-top:0.75rem;">£500</div>
+        </div>
+        <div class="select-card" id="r-card" onclick="selectPkg('reception', 800)">
+          <div style="font-weight:700;">Ceremony & Drinks</div>
+          <p style="font-size:0.75rem; color:var(--text-muted); margin-top:0.25rem;">Ceremony plus lobby reception.</p>
+          <div style="font-weight:700; margin-top:0.75rem;">£800</div>
+        </div>
+      </div>
+    </section>
+
+    <section style="margin-bottom: 2.5rem;">
+      <h3 class="section-title">2. Add-ons</h3>
+      <div class="checkbox-row" id="addon-row" onclick="toggleAddon(100)">
+        <div style="display:flex; align-items:center; gap:0.75rem;">
+          <div class="box-indicator"></div>
+          <div>
+            <div style="font-weight:700; font-size:0.9rem;">Special Song Arrangement</div>
+            <p style="font-size:0.75rem; color:var(--text-muted);">Custom arrangement prepared live</p>
+          </div>
+        </div>
+        <span style="font-weight:700; font-size:0.9rem;">+£100</span>
+      </div>
+    </section>
+
+    <section style="margin-bottom: 2rem;">
+      <h3 class="section-title">3. Contract Signing</h3>
+      <div class="form-group">
+        <label class="form-label">Type Full Name to Sign</label>
+        <input type="text" class="form-input" placeholder="Sarah Jenkins" style="background:rgba(0,0,0,0.4);" oninput="updateSig(this.value)">
+      </div>
+      <button class="btn-action" id="action-btn" disabled onclick="acceptFlow()">Accept & Sign Proposal</button>
+    </section>
+  </div>
+
+  <!-- Right: Live Sheet preview panel -->
+  <div class="preview-panel">
+    <div class="invoice-sheet">
+      <div>
+        <div class="sheet-hdr">
+          <div>
+            <h4 class="sheet-title">Proposal</h4>
+            <p style="font-size: 0.75rem; color: #71717a; margin-top:0.25rem;">Ref: PR-0952</p>
+          </div>
+          <div class="sheet-detail">
+            <p style="font-weight: 700; color: #18181b;">Date: 15 Dec 2026</p>
+            <p>Venue: Somerset House</p>
+          </div>
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+          <p style="font-size:0.75rem; text-transform:uppercase; color:#71717a; font-weight:700; margin-bottom:0.5rem;">Line items</p>
+          <div class="sheet-item" id="sheet-base-row">
+            <span>Ceremony Base Backdrop</span>
+            <strong style="color:#18181b;">£500.00</strong>
+          </div>
+          <div class="sheet-item" id="sheet-addon-row" style="display:none;">
+            <span>+ Special Song Custom Arrangement</span>
+            <strong style="color:#18181b;">£100.00</strong>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="sheet-total-row">
+          <span>Total Cost</span>
+          <span id="sheet-total-val">£500.00</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:#71717a; margin-top:0.75rem; border-top:1px solid #e4e4e7; padding-top:0.75rem;">
+          <span>50% Booking Retainer</span>
+          <strong style="color:#18181b;" id="sheet-dep-val">£250.00</strong>
+        </div>
+        <div id="sig-display" style="display:none; font-style:italic; font-size:1.1rem; color:#000; text-align:right; margin-top:1.5rem; border-top: 1px dashed #c4c4c7; padding-top: 0.5rem;">
+          Signed: <span id="sig-val"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const state = { base: 500, addon: 0, name: '', signed: false };
+
+    function selectPkg(id, val) {
+      if (state.signed) return;
+      state.base = val;
+      if (id === 'ceremony') {
+        document.getElementById('c-card').classList.add('active');
+        document.getElementById('r-card').classList.remove('active');
+        document.getElementById('sheet-base-row').innerHTML = `<span>Ceremony Base Backdrop</span><strong style="color:#18181b;">£500.00</strong>`;
+      } else {
+        document.getElementById('r-card').classList.add('active');
+        document.getElementById('c-card').classList.remove('active');
+        document.getElementById('sheet-base-row').innerHTML = `<span>Ceremony & Drinks Backdrop</span><strong style="color:#18181b;">£800.00</strong>`;
+      }
+      calc();
+    }
+
+    function toggleAddon(val) {
+      if (state.signed) return;
+      const el = document.getElementById('addon-row');
+      el.classList.toggle('active');
+      if (state.addon) {
+        state.addon = 0;
+        document.getElementById('sheet-addon-row').style.display = 'none';
+      } else {
+        state.addon = val;
+        document.getElementById('sheet-addon-row').style.display = 'flex';
+      }
+      calc();
+    }
+
+    function calc() {
+      const tot = state.base + state.addon;
+      document.getElementById('sheet-total-val').innerText = '£' + tot + '.00';
+      document.getElementById('sheet-dep-val').innerText = '£' + (tot/2) + '.00';
+    }
+
+    function updateSig(val) {
+      state.name = val;
+      document.getElementById('action-btn').disabled = !val.trim();
+    }
+
+    function acceptFlow() {
+      state.signed = true;
+      document.getElementById('sig-display').style.display = 'block';
+      document.getElementById('sig-val').innerText = state.name;
+      document.getElementById('action-btn').innerText = 'Signed & Confirmed';
+      document.getElementById('action-btn').disabled = true;
+    }
+  </script>
+</body>
+</html>

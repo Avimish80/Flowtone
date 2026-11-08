@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Landing Template - Minimalist Editorial</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Plus+Jakarta+Sans:wght@300;400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-base: #09090b;
+      --bg-card: #09090b;
+      --border-color: #27272a;
+      --border-active: #ffffff;
+      --text-main: #f4f4f5;
+      --text-muted: #a1a1aa;
+      --primary: #ffffff;
+      --radius-lg: 0px; /* Sharp corners for editorial layout */
+      --radius-md: 0px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: var(--bg-base);
+      color: var(--text-main);
+      min-height: 100vh;
+      line-height: 1.7;
+    }
+
+    .minimal-container {
+      max-w: 720px;
+      margin: 0 auto;
+      padding: 4rem 1.5rem 6rem;
+    }
+
+    header { margin-bottom: 5rem; }
+    .title-large {
+      font-family: 'Playfair Display', serif;
+      font-size: 3rem;
+      font-weight: 400;
+      line-height: 1.15;
+      letter-spacing: -0.02em;
+      margin-bottom: 1.5rem;
+    }
+    .subtitle {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 0.5rem;
+      display: inline-block;
+    }
+
+    .bio-block {
+      font-size: 1.05rem;
+      color: var(--text-muted);
+      margin-bottom: 4rem;
+    }
+    .bio-highlight {
+      font-family: 'Playfair Display', serif;
+      font-style: italic;
+      color: white;
+      font-size: 1.25rem;
+    }
+
+    .section-header {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.75rem;
+      font-weight: 400;
+      margin-bottom: 2rem;
+      border-top: 1px solid var(--border-color);
+      padding-top: 1.5rem;
+    }
+
+    /* Stacked Packages (No Cards / Grid) */
+    .packages-stack { display: flex; flex-direction: column; }
+    .pkg-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding: 1.5rem 0;
+      border-bottom: 1px solid var(--border-color);
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .pkg-row:hover { opacity: 0.7; }
+    .pkg-title { font-family: 'Playfair Display', serif; font-size: 1.25rem; color: white; }
+    .pkg-desc { font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem; max-w: 480px; }
+    .pkg-price { font-size: 1.1rem; font-weight: 600; text-align: right; }
+
+    /* Form styling */
+    .form-container { margin-top: 2rem; }
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 1.5rem;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 0.5rem;
+    }
+    .form-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 0.25rem; font-weight: 600; }
+    .form-input {
+      background: transparent; border: none;
+      padding: 0.5rem 0; color: white; font-family: inherit; font-size: 0.95rem;
+    }
+    .form-input:focus { outline: none; }
+    
+    .btn-submit {
+      width: 100%; background: white; color: black; border: 1px solid white; padding: 1rem;
+      font-weight: 700; font-family: inherit; cursor: pointer; text-transform: uppercase;
+      font-size: 0.8rem; letter-spacing: 0.1em; margin-top: 1rem; transition: all 0.2s;
+    }
+    .btn-submit:hover { background: transparent; color: white; }
+
+    .success-pane { text-align: center; padding: 3rem 0; display: none; }
+  </style>
+</head>
+<body>
+
+  <div class="minimal-container">
+    
+    <header>
+      <span class="subtitle">Acoustic Backdrop Design</span>
+      <h1 class="title-large">A Quiet State of Sound</h1>
+    </header>
+
+    <div class="bio-block">
+      <p>Creating subtle, polished, and ambient live performance layers for receptions, corporate lounges, and intimate dinners.</p>
+      <p class="bio-highlight" style="margin-top: 1.5rem;">"We don't play to drown out conversation. We play to invite it."</p>
+    </div>
+
+    <section style="margin-bottom: 4rem;">
+      <h2 class="section-header">Selections</h2>
+      <div class="packages-stack">
+        <div class="pkg-row" onclick="selectPkg('ceremony')">
+          <div>
+            <h3 class="pkg-title">Ceremony Backdrop</h3>
+            <p class="pkg-desc">Arrival covers, bridal procession, register signature background, and recessional exits.</p>
+          </div>
+          <span class="pkg-price">£500</span>
+        </div>
+        <div class="pkg-row" onclick="selectPkg('reception')">
+          <div>
+            <h3 class="pkg-title">Ceremony & Drinks</h3>
+            <p class="pkg-desc">Ceremony layout plus an additional 90-minute set of cocktail hour jazz and pop covers.</p>
+          </div>
+          <span class="pkg-price">£800</span>
+        </div>
+      </div>
+    </section>
+
+    <section id="contact">
+      <h2 class="section-header">Availability</h2>
+      <div class="form-container" id="form-container">
+        <form onsubmit="sendForm(event)">
+          <div class="form-group">
+            <label class="form-label">Full Name</label>
+            <input type="text" class="form-input" placeholder="Sarah Jenkins" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email Address</label>
+            <input type="email" class="form-input" placeholder="sarah@example.com" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Celebration Date</label>
+            <input type="date" id="evt-date" class="form-input" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Selected Backdrop</label>
+            <select class="form-input" id="pkg-select" style="background:#09090b;">
+              <option value="ceremony">Ceremony Backdrop</option>
+              <option value="reception">Ceremony & Drinks</option>
+            </select>
+          </div>
+          <button type="submit" class="btn-submit">Request Quote</button>
+        </form>
+      </div>
+
+      <div class="success-pane" id="success-container">
+        <h3 style="font-family:'Playfair Display', serif; font-size: 1.5rem; margin-bottom: 0.5rem; font-weight:400;">Request Logged</h3>
+        <p style="color: var(--text-muted); font-size:0.9rem;">We will check calendar slots for <strong id="success-date" style="color:white"></strong> and send a private booking proposal portal link.</p>
+      </div>
+    </section>
+
+  </div>
+
+  <script>
+    function selectPkg(val) {
+      document.getElementById('pkg-select').value = val;
+      document.getElementById('contact').scrollIntoView({ behavior: 'smooth' });
+    }
+    function sendForm(e) {
+      e.preventDefault();
+      document.getElementById('success-date').innerText = document.getElementById('evt-date').value;
+      document.getElementById('form-container').style.display = 'none';
+      document.getElementById('success-container').style.display = 'block';
+    }
+  </script>
+</body>
+</html>

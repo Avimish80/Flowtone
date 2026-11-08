@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Landing Template - Split Screen Canvas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-base: #030712;
+      --bg-card: rgba(17, 24, 39, 0.6);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --border-active: #6366f1;
+      --text-main: #f9fafb;
+      --text-muted: #9ca3af;
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --radius-lg: 1.25rem;
+      --radius-md: 0.75rem;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: var(--bg-base);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    @media (min-width: 768px) {
+      body { flex-direction: row; overflow: hidden; height: 100vh; }
+    }
+
+    /* Left Side: Fixed Cover Media Canvas */
+    .media-canvas {
+      width: 100%;
+      background-image: linear-gradient(to bottom, rgba(3, 7, 18, 0.2) 0%, rgba(3, 7, 18, 0.95) 100%), url('https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=1200&q=80');
+      background-size: cover;
+      background-position: center;
+      padding: 3rem 2rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      position: relative;
+    }
+    @media (min-width: 768px) {
+      .media-canvas { width: 45%; height: 100vh; position: fixed; left: 0; top: 0; }
+    }
+
+    .media-tagline {
+      font-size: 2.25rem;
+      font-weight: 700;
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.5rem;
+    }
+    .media-sub {
+      color: var(--primary);
+      text-transform: uppercase;
+      font-weight: 700;
+      font-size: 0.85rem;
+      letter-spacing: 0.15em;
+      margin-bottom: 1.5rem;
+    }
+
+    /* Right Side: Scrollable Details Canvas */
+    .details-canvas {
+      width: 100%;
+      padding: 2rem 1.5rem 4rem;
+      overflow-y: auto;
+    }
+    @media (min-width: 768px) {
+      .details-canvas { width: 55%; margin-left: 45%; height: 100vh; padding: 4rem 3rem; }
+    }
+
+    .section { margin-bottom: 3.5rem; }
+    .section-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 1.5rem;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 0.5rem;
+    }
+
+    .bio-text { color: var(--text-muted); font-size: 1rem; line-height: 1.7; margin-bottom: 1.5rem; }
+
+    /* Audio tracks */
+    .track-list { display: flex; flex-direction: column; gap: 0.75rem; }
+    .track-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .track-info { display: flex; align-items: center; gap: 1rem; }
+    .play-btn {
+      width: 36px; height: 36px; border-radius: 50%; background: var(--primary);
+      border: none; color: white; display: flex; align-items: center; justify-content: center; cursor: pointer;
+    }
+
+    /* Packages */
+    .packages-grid { display: flex; flex-direction: column; gap: 1.25rem; }
+    .pkg-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .pkg-card:hover { border-color: var(--primary); transform: translateY(-2px); }
+    .pkg-title-row { display: flex; justify-content: space-between; align-items: center; font-weight: 700; font-size: 1.15rem; }
+    .pkg-price { color: var(--primary); }
+    .pkg-desc { font-size: 0.875rem; color: var(--text-muted); margin-top: 0.5rem; }
+
+    /* Form styling */
+    .form-card {
+      background: var(--bg-card); border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg); padding: 2rem;
+    }
+    .form-group { display: flex; flex-direction: column; margin-bottom: 1.25rem; }
+    .form-label { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 0.5rem; font-weight: 600; }
+    .form-input {
+      background: rgba(0, 0, 0, 0.4); border: 1px solid var(--border-color);
+      border-radius: var(--radius-md); padding: 0.85rem 1rem; color: white; font-family: inherit; font-size: 0.875rem;
+    }
+    .form-input:focus { outline: none; border-color: var(--primary); }
+    .btn-submit {
+      width: 100%; background: var(--primary); color: white; border: none; padding: 1rem;
+      border-radius: var(--radius-md); font-weight: 700; font-family: inherit; cursor: pointer; transition: background 0.2s;
+    }
+    .btn-submit:hover { background: var(--primary-hover); }
+
+    .success-pane { text-align: center; padding: 2rem 0; display: none; }
+  </style>
+</head>
+<body>
+
+  <!-- Left fixed cover canvas -->
+  <div class="media-canvas">
+    <span class="media-sub">Solo Performance Artist</span>
+    <h1 class="media-tagline">Elegant Sound & Ambience</h1>
+    <p style="color: var(--text-muted); font-size: 0.95rem;">Curate a beautiful visual and auditory background for your celebration.</p>
+  </div>
+
+  <!-- Right scrollable canvas -->
+  <div class="details-canvas">
+    
+    <section class="section" id="about">
+      <h2 class="section-title">The Artist</h2>
+      <p class="bio-text">A professional performance designer specializing in custom music backdrops. Combining contemporary covers with classic themes, tailored to fit the acoustic environment of the venue.</p>
+      
+      <div class="track-list">
+        <div class="track-card">
+          <div class="track-info">
+            <button class="play-btn">&#9658;</button>
+            <div>
+              <p style="font-weight:600; font-size:0.9rem;">Pop Cover Arrangement</p>
+              <p style="font-size:0.75rem; color:var(--text-muted);">Acoustic Live Session</p>
+            </div>
+          </div>
+          <span style="font-size:0.75rem; color:var(--text-muted);">2:45</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="packages">
+      <h2 class="section-title">Performance Layouts</h2>
+      <div class="packages-grid">
+        <div class="pkg-card" onclick="selectPkg('ceremony')">
+          <div class="pkg-title-row">
+            <span>Ceremony Backdrop</span>
+            <span class="pkg-price">£500</span>
+          </div>
+          <p class="pkg-desc">Arrival music, main entrance procession, signing of register, and celebratory exit tracks.</p>
+        </div>
+        <div class="pkg-card" onclick="selectPkg('reception')">
+          <div class="pkg-title-row">
+            <span>Ceremony & Drinks</span>
+            <span class="pkg-price">£800</span>
+          </div>
+          <p class="pkg-desc">Ceremony covers plus 1.5 hours of cocktail hour performance in the garden or lobby area.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="contact">
+      <h2 class="section-title">Check Availability</h2>
+      <div class="form-card" id="form-container">
+        <form onsubmit="sendForm(event)">
+          <div class="form-group">
+            <label class="form-label">Full Name</label>
+            <input type="text" class="form-input" placeholder="Sarah Jenkins" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input type="email" class="form-input" placeholder="sarah@example.com" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Date of Event</label>
+            <input type="date" id="evt-date" class="form-input" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Selected Option</label>
+            <select class="form-input" id="pkg-select">
+              <option value="ceremony">Ceremony Backdrop</option>
+              <option value="reception">Ceremony & Drinks</option>
+            </select>
+          </div>
+          <button type="submit" class="btn-submit">Submit Enquiry</button>
+        </form>
+      </div>
+
+      <div class="success-pane" id="success-container">
+        <h3 style="font-size: 1.5rem; margin-bottom: 0.5rem;">Enquiry Submitted</h3>
+        <p style="color: var(--text-muted)">Availability is being checked for <strong id="success-date" style="color:white"></strong>. A customized quote link will be sent to your email.</p>
+      </div>
+    </section>
+
+  </div>
+
+  <script>
+    function selectPkg(val) {
+      document.getElementById('pkg-select').value = val;
+      document.getElementById('contact').scrollIntoView({ behavior: 'smooth' });
+    }
+    function sendForm(e) {
+      e.preventDefault();
+      document.getElementById('success-date').innerText = document.getElementById('evt-date').value;
+      document.getElementById('form-container').style.display = 'none';
+      document.getElementById('success-container').style.display = 'block';
+    }
+  </script>
+</body>
+</html>

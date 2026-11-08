@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flowtone Jazz Quartet - Live Music Bookings</title>
+  <!-- Google Fonts: Outfit (modern sans) & Playfair Display (editorial serif) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-base: #020617; /* slate-950 */
+      --bg-card: rgba(15, 23, 42, 0.45); /* slate-900 transparent */
+      --bg-card-hover: rgba(30, 41, 59, 0.6);
+      --border-color: rgba(148, 163, 184, 0.15); /* slate-400 transparent */
+      --border-active: #818cf8; /* indigo-400 */
+      --text-main: #f8fafc; /* slate-50 */
+      --text-muted: #94a3b8; /* slate-400 */
+      --text-subtle: #64748b; /* slate-500 */
+      --primary: #4f46e5; /* indigo-600 */
+      --primary-hover: #6366f1; /* indigo-500 */
+      --accent: #c7d2fe; /* indigo-200 */
+      --radius-lg: 1.5rem; /* 24px for artistic feel */
+      --radius-md: 1rem; /* 16px */
+      --radius-sm: 0.5rem; /* 8px */
+      --font-serif: 'Playfair Display', Georgia, serif;
+      --font-sans: 'Outfit', sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg-base);
+      color: var(--text-main);
+      min-height: 100vh;
+      line-height: 1.6;
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.12) 0, transparent 60%),
+        radial-gradient(at 100% 100%, rgba(168, 85, 247, 0.08) 0, transparent 60%);
+      background-attachment: fixed;
+    }
+
+    /* Main Container */
+    .landing-container {
+      max-w: 840px;
+      margin: 0 auto;
+      padding: 0 1rem 4rem;
+    }
+
+    /* Cover photo & Hero */
+    .hero-wrapper {
+      position: relative;
+      margin-top: 1.5rem;
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      border: 1px solid var(--border-color);
+      box-shadow: 0 20px 40px -15px rgba(0,0,0,0.7);
+    }
+
+    .hero-cover {
+      width: 100%;
+      height: 320px;
+      background-image: url('https://images.unsplash.com/photo-1511192336575-5a79af67a629?auto=format&fit=crop&w=1600&q=80');
+      background-size: cover;
+      background-position: center;
+      position: relative;
+    }
+
+    /* Dim cover overlay */
+    .hero-cover::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to bottom, rgba(2, 6, 23, 0.1) 0%, rgba(2, 6, 23, 0.8) 100%);
+    }
+
+    .hero-content {
+      position: relative;
+      margin-top: -120px;
+      padding: 2.5rem 2rem;
+      text-align: center;
+    }
+
+    .musician-avatar {
+      width: 120px;
+      height: 120px;
+      background: linear-gradient(135deg, #6366f1, #a855f7);
+      border-radius: 50%;
+      border: 4px solid var(--bg-base);
+      box-shadow: 0 12px 28px rgba(0,0,0,0.5);
+      margin: 0 auto 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.75rem;
+      font-family: var(--font-serif);
+      font-weight: 700;
+      color: white;
+    }
+
+    .musician-name {
+      font-family: var(--font-serif);
+      font-size: 2.75rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      margin-bottom: 0.5rem;
+      color: white;
+      text-shadow: 0 2px 10px rgba(0,0,0,0.4);
+    }
+
+    .musician-title {
+      font-size: 0.875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: var(--accent);
+      margin-bottom: 1.5rem;
+    }
+
+    .musician-bio {
+      color: var(--text-muted);
+      font-size: 1.05rem;
+      max-w: 640px;
+      margin: 0 auto;
+      line-height: 1.7;
+    }
+
+    /* Section Typography */
+    .section-title {
+      font-family: var(--font-serif);
+      font-size: 1.75rem;
+      font-weight: 700;
+      margin: 4rem 0 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .section-title::after {
+      content: '';
+      flex-grow: 1;
+      height: 1px;
+      background: linear-gradient(to right, var(--border-color), transparent);
+    }
+
+    .section-subtitle {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      margin-top: -1rem;
+      margin-bottom: 2rem;
+      max-w: 550px;
+    }
+
+    /* Atmospheric Gallery Grid */
+    .vibes-gallery {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+      margin-bottom: 3rem;
+    }
+
+    @media (min-width: 640px) {
+      .vibes-gallery {
+        grid-template-columns: repeat(4, 1fr);
+      }
+    }
+
+    .gallery-item {
+      height: 140px;
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      border: 1px solid var(--border-color);
+      position: relative;
+      cursor: pointer;
+    }
+
+    .gallery-item img {
+      width: 100%;
+      height: 100%;
+      object-cover: cover;
+      object-fit: cover;
+      transition: transform 0.4s;
+    }
+
+    .gallery-item:hover img {
+      transform: scale(1.1);
+    }
+
+    .gallery-item::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to top, rgba(2, 6, 23, 0.4), transparent);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .gallery-item:hover::after {
+      opacity: 1;
+    }
+
+    /* Package booking cards (Visual overhaul) */
+    .packages-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      margin-bottom: 4rem;
+    }
+
+    .glass-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 1.75rem;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 10px 30px -10px rgba(0,0,0,0.3);
+    }
+
+    .package-card {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+      cursor: pointer;
+    }
+
+    @media (min-width: 640px) {
+      .package-card {
+        grid-template-columns: 200px 1fr;
+      }
+    }
+
+    .package-card:hover {
+      border-color: rgba(99, 102, 241, 0.4);
+      transform: translateY(-4px);
+      box-shadow: 0 20px 40px -10px rgba(99, 102, 241, 0.1);
+    }
+
+    .package-img-box {
+      width: 100%;
+      height: 150px;
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      border: 1px solid var(--border-color);
+      position: relative;
+    }
+
+    .package-img-box img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .package-body {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .package-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+
+    .package-name {
+      font-family: var(--font-serif);
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: white;
+    }
+
+    .package-price {
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .package-desc {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      margin-top: 0.5rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .package-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-top: 1px solid rgba(255,255,255,0.05);
+      padding-top: 0.75rem;
+    }
+
+    .tag-badge {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 0.25rem 0.6rem;
+      border-radius: 9999px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      color: var(--text-muted);
+    }
+
+    .tag-badge.featured {
+      background: rgba(99, 102, 241, 0.15);
+      border-color: rgba(99, 102, 241, 0.3);
+      color: #a5b4fc;
+    }
+
+    .select-cta-link {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      transition: transform 0.2s, color 0.2s;
+    }
+
+    .package-card:hover .select-cta-link {
+      color: white;
+      transform: translateX(3px);
+    }
+
+    /* Live Repertoire Section */
+    .repertoire-preview {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1rem;
+      margin-bottom: 4rem;
+    }
+
+    @media (min-width: 640px) {
+      .repertoire-preview {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    .audio-player-mock {
+      background: rgba(15, 23, 42, 0.3);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .audio-player-mock:hover {
+      background: rgba(15, 23, 42, 0.6);
+    }
+
+    .play-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      transition: transform 0.2s;
+    }
+
+    .audio-player-mock:hover .play-btn {
+      transform: scale(1.08);
+    }
+
+    .audio-info {
+      flex-grow: 1;
+    }
+
+    .audio-title {
+      font-size: 0.875rem;
+      font-weight: 600;
+    }
+
+    .audio-genre {
+      font-size: 0.75rem;
+      color: var(--text-subtle);
+    }
+
+    .soundwave-svg {
+      width: 60px;
+      height: 24px;
+      stroke: var(--text-subtle);
+      opacity: 0.5;
+    }
+
+    /* Testimonials Carousel / Grid */
+    .testimonials-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+      margin-bottom: 4rem;
+    }
+
+    @media (min-width: 640px) {
+      .testimonials-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    .testimonial-card {
+      font-style: italic;
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      position: relative;
+    }
+
+    .testimonial-card::before {
+      content: '“';
+      font-family: var(--font-serif);
+      font-size: 4rem;
+      color: rgba(99, 102, 241, 0.15);
+      position: absolute;
+      top: -15px;
+      left: 10px;
+    }
+
+    .testimonial-text {
+      position: relative;
+      z-index: 1;
+      margin-bottom: 1rem;
+    }
+
+    .testimonial-author {
+      font-family: var(--font-sans);
+      font-style: normal;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: white;
+    }
+
+    /* Enquiry Form Overhaul */
+    .form-title-bar {
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      padding-bottom: 1.25rem;
+      margin-bottom: 2rem;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1.25rem;
+    }
+
+    @media (min-width: 640px) {
+      .form-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+      .form-full {
+        grid-column: span 2;
+      }
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .input-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      margin-bottom: 0.5rem;
+    }
+
+    .form-input {
+      width: 100%;
+      background: rgba(2, 6, 23, 0.55);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 0.85rem 1.15rem;
+      color: white;
+      font-family: var(--font-sans);
+      font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: var(--border-active);
+      box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
+      background-color: rgba(2, 6, 23, 0.8);
+    }
+
+    textarea.form-input {
+      min-height: 120px;
+    }
+
+    .btn-submit {
+      width: 100%;
+      background-color: var(--primary);
+      color: white;
+      font-family: var(--font-sans);
+      font-size: 0.95rem;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      padding: 1rem;
+      border: none;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: background-color 0.2s;
+      margin-top: 1.5rem;
+      box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.3);
+    }
+
+    .btn-submit:hover {
+      background-color: var(--primary-hover);
+    }
+
+    /* Success Submission Layout */
+    .form-success-pane {
+      text-align: center;
+      padding: 3rem 1.5rem;
+      display: none;
+      animation: fadeIn 0.4s ease-out;
+    }
+
+    .success-icon {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background-color: rgba(52, 211, 153, 0.12);
+      border: 1px solid rgba(52, 211, 153, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 1.5rem;
+    }
+
+    .success-icon svg {
+      width: 28px;
+      height: 28px;
+      color: #34d399;
+    }
+
+    /* Floating Navigation (Artistic vibe) */
+    .nav-floating {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 1.5rem;
+      margin-top: 1rem;
+      background: rgba(15, 23, 42, 0.4);
+      border: 1px solid var(--border-color);
+      border-radius: 9999px;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      font-size: 0.875rem;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 1.25rem;
+    }
+
+    .nav-link {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-weight: 500;
+      transition: color 0.15s;
+    }
+
+    .nav-link:hover {
+      color: white;
+    }
+
+    .logo-text {
+      font-family: var(--font-serif);
+      font-weight: 700;
+      font-size: 1.15rem;
+      background: linear-gradient(135deg, #a5b4fc, #c084fc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="landing-container">
+    
+    <!-- Floating Header -->
+    <nav class="nav-floating">
+      <span class="logo-text">Flowtone</span>
+      <div class="nav-links">
+        <a href="#about" class="nav-link">About</a>
+        <a href="#packages" class="nav-link">Packages</a>
+        <a href="#repertoire" class="nav-link">Repertoire</a>
+        <a href="#enquiry" class="nav-link">Book</a>
+      </div>
+    </nav>
+
+    <!-- Visual Profile/Hero Setup -->
+    <header class="hero-wrapper" id="about">
+      <div class="hero-cover">
+        <div class="musician-avatar">F</div>
+      </div>
+      
+      <div class="hero-content">
+        <h1 class="musician-name">Flowtone Jazz Quartet</h1>
+        <p class="musician-title">Atmospheric Live Jazz & Soul &bull; London</p>
+        <p class="musician-bio">
+          Adding elegant warmth and vibrant energy to bespoke events. We play classic swing, vintage soul, and modern acoustic conversions customized to highlight your celebration’s unique timeline.
+        </p>
+      </div>
+    </header>
+
+    <!-- Visual Vibe Gallery -->
+    <section class="vibes-gallery">
+      <div class="gallery-item">
+        <img src="https://images.unsplash.com/photo-1525994886773-080587e161c2?auto=format&fit=crop&w=400&q=80" alt="Saxophone close-up">
+      </div>
+      <div class="gallery-item">
+        <img src="https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=400&q=80" alt="Live sound performance">
+      </div>
+      <div class="gallery-item">
+        <img src="https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=400&q=80" alt="Vocalist mic close-up">
+      </div>
+      <div class="gallery-item">
+        <img src="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=400&q=80" alt="Wedding ceremony setting">
+      </div>
+    </section>
+
+    <!-- Packages Section -->
+    <section id="packages">
+      <h2 class="section-title">Performance Packages</h2>
+      <p class="section-subtitle">Select a visual layout variant below to configure your preferred musical option for the booking enquiry.</p>
+
+      <div class="packages-stack">
+        <!-- Package Card 1 -->
+        <div class="glass-card package-card" onclick="selectPackageAndScroll('duo', 'Acoustic Lounge Duo')">
+          <div class="package-img-box">
+            <img src="https://images.unsplash.com/photo-1510915361894-db8b60106cb1?auto=format&fit=crop&w=600&q=80" alt="Acoustic Duo">
+          </div>
+          <div class="package-body">
+            <div class="package-header">
+              <span class="package-name">Acoustic Lounge Duo</span>
+              <span class="package-price">£950</span>
+            </div>
+            <p class="package-desc">
+              Guitar/Keys paired with intimate vocals. Plays warm acoustic covers of popular classics, soft soul, and bossa nova. Ideal for drinks receptions, outdoor cocktails, and relaxed celebrations.
+            </p>
+            <div class="package-meta">
+              <span class="tag-badge">Cocktails & Lounge</span>
+              <span class="select-cta-link">Select & Book &rarr;</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Package Card 2 -->
+        <div class="glass-card package-card" onclick="selectPackageAndScroll('trio', 'Classic Jazz Trio')">
+          <div class="package-img-box">
+            <img src="https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=600&q=80" alt="Jazz Trio">
+          </div>
+          <div class="package-body">
+            <div class="package-header">
+              <span class="package-name">Classic Jazz Trio</span>
+              <span class="package-price">£1,350</span>
+            </div>
+            <p class="package-desc">
+              Double Bass, Saxophone, and Keys. Pure instrumental sophistication. Rich background swing and jazz standards to elevate your dining room, cocktail hour, or reception setup.
+            </p>
+            <div class="package-meta">
+              <span class="tag-badge featured">Most Booked Option</span>
+              <span class="select-cta-link">Select & Book &rarr;</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Package Card 3 -->
+        <div class="glass-card package-card" onclick="selectPackageAndScroll('quartet', 'Swing Quartet & Singer')">
+          <div class="package-img-box">
+            <img src="https://images.unsplash.com/photo-1486591978090-58e619d37fe7?auto=format&fit=crop&w=600&q=80" alt="Jazz Quartet">
+          </div>
+          <div class="package-body">
+            <div class="package-header">
+              <span class="package-name">Swing Quartet & Singer</span>
+              <span class="package-price">£1,800</span>
+            </div>
+            <p class="package-desc">
+              Vocals, Sax, Keys, Bass, and Drums. Our premier high-energy performance setup. Designed to pack the dance floor with dynamic vocal swing classics, soul grooves, and danceable jazz.
+            </p>
+            <div class="package-meta">
+              <span class="tag-badge">Full Band Energy</span>
+              <span class="select-cta-link">Select & Book &rarr;</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Repertoire Audio Preview Mock -->
+    <section id="repertoire">
+      <h2 class="section-title">Listen To Our Sound</h2>
+      <p class="section-subtitle">A quick taste of our repertoire arrangements recorded live at the studio.</p>
+
+      <div class="repertoire-preview">
+        <!-- Track 1 -->
+        <div class="audio-player-mock">
+          <div class="play-btn">
+            <svg style="width: 16px; height: 16px;" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M8 5v14l11-7z"/>
+            </svg>
+          </div>
+          <div class="audio-info">
+            <div class="audio-title">Fly Me To The Moon</div>
+            <div class="audio-genre">Swing Standard &bull; Trio Instrumental</div>
+          </div>
+          <svg class="soundwave-svg" viewBox="0 0 100 40" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M10 20v-5m10 5v-10m10 10v-15m10 15v-5m10 5v-12m10 12v-6m10 6v-14m10 14v-8m10 8v-11" stroke-linecap="round"/>
+          </svg>
+        </div>
+
+        <!-- Track 2 -->
+        <div class="audio-player-mock">
+          <div class="play-btn">
+            <svg style="width: 16px; height: 16px;" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M8 5v14l11-7z"/>
+            </svg>
+          </div>
+          <div class="audio-info">
+            <div class="audio-title">Come Fly With Me</div>
+            <div class="audio-genre">Frank Sinatra &bull; Full Quartet Vocals</div>
+          </div>
+          <svg class="soundwave-svg" viewBox="0 0 100 40" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M10 20v-8m10 8v-12m10 12v-6m10 6v-15m10 15v-8m10 8v-13m10 13v-5m10 5v-11m10 11v-4" stroke-linecap="round"/>
+          </svg>
+        </div>
+      </div>
+    </section>
+
+    <!-- Testimonials Grid -->
+    <section>
+      <h2 class="section-title">What Clients Say</h2>
+      <div class="testimonials-grid">
+        <div class="glass-card testimonial-card">
+          <p class="testimonial-text">
+            "Flowtone played for our summer garden party and it was magical. The Trio set exactly the right tone — elegant, sophisticated, yet warm and inviting. Everybody commented on the sax player!"
+          </p>
+          <div class="testimonial-author">&mdash; Olivia & Arthur, Private Soiree</div>
+        </div>
+
+        <div class="glass-card testimonial-card">
+          <p class="testimonial-text">
+            "The Quartet was incredible. They had the entire room dancing, from our youngest cousins to grandparents. A flawless performance from booking to breakdown. Highly recommended!"
+          </p>
+          <div class="testimonial-author">&mdash; Marcus & Chloe, Somerset House Wedding</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Enquiry Form Section -->
+    <section id="enquiry">
+      <h2 class="section-title">Book Flowtone</h2>
+      <p class="section-subtitle">Tell us about your plans. We check our availability immediately and issue your personal reservation portal link.</p>
+
+      <div class="glass-card" id="form-container">
+        <div class="form-title-bar">
+          <h3 style="font-family: var(--font-serif); font-size: 1.5rem; font-weight: 700; color: white;">Event Enquiry Form</h3>
+          <p style="font-size: 0.875rem; color: var(--text-muted); margin-top: 0.25rem;">Enter your booking details below. Fields marked with * are required.</p>
+        </div>
+
+        <form id="booking-enquiry-form" onsubmit="handleFormSubmit(event)">
+          <div class="form-grid">
+            
+            <div class="form-group">
+              <label class="input-label" for="client-name">Your Name *</label>
+              <input type="text" id="client-name" class="form-input" placeholder="e.g. Sarah Jenkins" required>
+            </div>
+
+            <div class="form-group">
+              <label class="input-label" for="client-email">Email Address *</label>
+              <input type="email" id="client-email" class="form-input" placeholder="e.g. sarah@example.com" required>
+            </div>
+
+            <div class="form-group">
+              <label class="input-label" for="client-phone">Phone Number</label>
+              <input type="tel" id="client-phone" class="form-input" placeholder="e.g. +44 7700 900077">
+            </div>
+
+            <div class="form-group">
+              <label class="input-label" for="event-date">Date of Celebration *</label>
+              <input type="date" id="event-date" class="form-input" required>
+            </div>
+
+            <div class="form-group">
+              <label class="input-label" for="event-type">Type of Event</label>
+              <input type="text" id="event-type" class="form-input" placeholder="e.g. Wedding, Birthday Gala, Corporate Dinner">
+            </div>
+
+            <div class="form-group">
+              <label class="input-label" for="event-package">Desired Band Setup</label>
+              <select id="event-package" class="form-input" style="cursor: pointer;">
+                <option value="">-- Select option --</option>
+                <option value="duo">Acoustic Lounge Duo</option>
+                <option value="trio">Classic Jazz Trio</option>
+                <option value="quartet">Swing Quartet & Singer</option>
+              </select>
+            </div>
+
+            <div class="form-group form-full">
+              <label class="input-label" for="event-location">Venue & Location</label>
+              <input type="text" id="event-location" class="form-input" placeholder="e.g. Somerset House, London">
+            </div>
+
+            <div class="form-group form-full">
+              <label class="input-label" for="event-notes">Tell us about your celebration details</label>
+              <textarea id="event-notes" class="form-input" placeholder="e.g. Special song requests, performance timings, mood preferences..."></textarea>
+            </div>
+
+          </div>
+
+          <button type="submit" class="btn-submit">Send Enquiry to Avi</button>
+        </form>
+      </div>
+
+      <!-- Success Pane -->
+      <div class="glass-card form-success-pane" id="form-success-container">
+        <div class="success-icon">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+        <h3 style="font-family: var(--font-serif); font-size: 1.75rem; font-weight: 700; margin-bottom: 0.5rem; color: white;">Enquiry Sent!</h3>
+        <p style="color: var(--text-muted); font-size: 0.95rem; max-w-md mx-auto; margin-bottom: 1.5rem; line-height: 1.6;">
+          Your celebration details were sent successfully. We will verify availability for <strong id="success-date-render" style="color: white; font-weight: 600;">[Date]</strong> and send a secure interactive quote link to your email.
+        </p>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer style="margin-top: 5rem; text-align: center; font-size: 0.8rem; color: var(--text-subtle); border-top: 1px solid rgba(255,255,255,0.05); padding-top: 2rem;">
+      <p>Powered by Flowtone &copy; 2026. All rights reserved.</p>
+    </footer>
+
+  </div>
+
+  <script>
+    function selectPackageAndScroll(pkgId, pkgName) {
+      const selectEl = document.getElementById('event-package');
+      selectEl.value = pkgId;
+
+      document.getElementById('enquiry').scrollIntoView({ behavior: 'smooth' });
+
+      selectEl.style.borderColor = 'var(--border-active)';
+      setTimeout(() => {
+        selectEl.style.borderColor = 'var(--border-color)';
+      }, 1200);
+    }
+
+    function handleFormSubmit(e) {
+      e.preventDefault();
+
+      const rawDate = document.getElementById('event-date').value;
+      let renderedDate = rawDate;
+      try {
+        const d = new Date(rawDate);
+        if (!isNaN(d.getTime())) {
+          renderedDate = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+        }
+      } catch (err) {}
+
+      document.getElementById('success-date-render').innerText = renderedDate;
+
+      document.getElementById('form-container').style.display = 'none';
+      document.getElementById('form-success-container').style.display = 'block';
+
+      document.getElementById('enquiry').scrollIntoView({ behavior: 'smooth' });
+    }
+  </script>
+</body>
+</html>

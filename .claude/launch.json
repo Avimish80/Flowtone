@@ -4,20 +4,122 @@
     {
       "name": "dev",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["vite"],
+      "runtimeArgs": [
+        "vite"
+      ],
       "autoPort": true
     },
     {
       "name": "preview-local",
       "runtimeExecutable": "env",
-      "runtimeArgs": ["VITE_SUPABASE_URL=", "VITE_SUPABASE_ANON_KEY=", "npx", "vite", "--port", "3001", "--strictPort"],
+      "runtimeArgs": [
+        "VITE_SUPABASE_URL=",
+        "VITE_SUPABASE_ANON_KEY=",
+        "npx",
+        "vite",
+        "--port",
+        "3001",
+        "--strictPort"
+      ],
       "port": 3001
+    },
+    {
+      "name": "local-server",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "server",
+        "run",
+        "dev:local"
+      ],
+      "port": 3001
+    },
+    {
+      "name": "local-web",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "vite",
+        "--host",
+        "--mode",
+        "localdb",
+        "--port",
+        "3010",
+        "--strictPort"
+      ],
+      "port": 3010
     },
     {
       "name": "leads-public-test",
       "runtimeExecutable": "env",
-      "runtimeArgs": ["VITE_SUPABASE_URL=", "VITE_SUPABASE_ANON_KEY=", "VITE_API_URL=http://localhost:3002", "npx", "vite", "--port", "3005", "--strictPort"],
+      "runtimeArgs": [
+        "VITE_SUPABASE_URL=",
+        "VITE_SUPABASE_ANON_KEY=",
+        "VITE_API_URL=http://localhost:3002",
+        "npx",
+        "vite",
+        "--port",
+        "3005",
+        "--strictPort"
+      ],
       "port": 3005
+    },
+    {
+      "name": "local-web-loopback",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "VITE_SUPABASE_URL=http://127.0.0.1:54321",
+        "VITE_API_URL=http://127.0.0.1:3001",
+        "npx",
+        "vite",
+        "--mode",
+        "localdb",
+        "--port",
+        "3011",
+        "--strictPort"
+      ],
+      "port": 3011
+    },
+    {
+      "name": "preview-design",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "VITE_SUPABASE_URL=",
+        "VITE_SUPABASE_ANON_KEY=",
+        "npx",
+        "vite",
+        "--port",
+        "3021",
+        "--strictPort"
+      ],
+      "port": 3021
+    },
+    {
+      "name": "preview-ai-audit",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "VITE_SUPABASE_URL=",
+        "VITE_SUPABASE_ANON_KEY=",
+        "npx",
+        "vite",
+        "--port",
+        "3022",
+        "--strictPort"
+      ],
+      "port": 3022
+    },
+    {
+      "name": "preview-reminders-audit",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "VITE_SUPABASE_URL=",
+        "VITE_SUPABASE_ANON_KEY=",
+        "npx",
+        "vite",
+        "--port",
+        "3023",
+        "--strictPort"
+      ],
+      "port": 3023
     }
   ]
 }

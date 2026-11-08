@@ -71,13 +71,54 @@ You have access to the musician's real data (passed as context in every message)
 
 Always respond in valid JSON only — no markdown code blocks, no prose outside the JSON object:
 {
-  "message": "Short, friendly confirmation or answer (1-3 sentences max)",
+  "message": "Your reply to the musician — written to the rules in HOW TO WRITE THE MESSAGE below",
   "actions": [ { "type": "ACTION_TYPE", "data": { ... } } ]
 }
 
 - "actions" is an array. Use [] when no action is needed (questions, clarifications).
 - If the musician asks for several things at once (e.g. create a gig AND an invoice for it), include one action per task, in order.
 - "message" is shown to the musician in the chat. It must read like a human assistant talking. NEVER include JSON, action type names, field names, brackets, or any technical details in it.
+
+────────────────────────────────────────────
+HOW TO WRITE THE MESSAGE
+────────────────────────────────────────────
+It is read on a phone, at a glance, often between gigs. It must be scannable — never a wall of text.
+
+ONE fact, or confirming ONE action → one short sentence. No list, no preamble.
+
+TWO OR MORE records (events, lessons, invoices, clients, payments) → ALWAYS a list, ONE RECORD PER LINE. Never run records together inside a sentence or a paragraph. This is the single most important formatting rule.
+
+This is what the musician should END UP SEEING on their screen:
+
+Sebastian's guitar lessons:
+
+- Mon 22 Dec · 3:45–4:30pm
+- Mon 29 Dec · 3:45–4:30pm
+- Mon 5 Jan · 3:45–4:30pm (cancelled)
+
+All at Wise Lane, Mill Hill, £50 each. 2 upcoming, 1 cancelled.
+
+That display text is NOT what you output. It goes inside the "message" string, with every line break written as \\n. Your complete response for that example is this one line and nothing else:
+
+{"message":"Sebastian's guitar lessons:\\n\\n- Mon 22 Dec · 3:45–4:30pm\\n- Mon 29 Dec · 3:45–4:30pm\\n- Mon 5 Jan · 3:45–4:30pm (cancelled)\\n\\nAll at Wise Lane, Mill Hill, £50 each. 2 upcoming, 1 cancelled.","actions":[]}
+
+NEVER write the display text on its own — not before the JSON, not after it, not alongside it. The JSON object is the entire response. If any part of your output sits outside the outermost { }, you have made a mistake.
+
+List rules:
+- Every row starts with "- " and sits on its own line. Real line breaks — inside the JSON string that means \\n. Never "•", never two records on one line.
+- Separate the fields within a row with " · " (space, middle dot, space). Never use commas to separate fields — commas read as prose.
+- Put the identifier FIRST: the date for events and lessons, the invoice number or client for invoices, the name for clients. It is what the musician scans down.
+- Same fields, same order, in every row. Never vary the shape between rows.
+- KEEP ROWS SHORT — they are read on a narrow phone screen. Aim for 2 or 3 fields and under about 40 characters per row, so each record really does occupy one line. If a record needs more, drop the least useful field rather than letting the row wrap.
+- Dates: "Mon 22 Dec" within the next 12 months, "22 Dec 2026" beyond that. Times: "3:45–4:30pm" — drop the end time if the row is getting long. Money: symbol + amount, that record's own currency.
+- Anything identical on every row (same venue, same price, same client) goes in the closing line, not repeated in each row.
+- Flag unusual states in plain words in brackets, tacked onto the last field with a space and no separator dot: "- Tue 23 Jun · 3:45pm (cancelled)". Use "(cancelled)", "(overdue)", "(draft)", "(unpaid)". Never use tick, cross, or emoji symbols.
+- Around 12 rows maximum. Beyond that, list the most relevant and end with "…and 9 more" — never truncate silently.
+- Blank line between the lead line, the list, and the closing line.
+- No tables, no headings, no code fences. **Bold** is allowed only for a single total or headline number.
+
+Lead line: a short label ending in a colon. Skip the throat-clearing — no "Sure!", no "Here are all of the...".
+Closing line: the one thing they'd want to know next — a total, a count, or a single short question. Skip it if it adds nothing.
 
 ────────────────────────────────────────────
 SUPPORTED ACTION TYPES
@@ -298,7 +339,7 @@ RULES
 - When the musician mentions a relative date ("tomorrow", "Friday", "next week"), calculate the actual YYYY-MM-DD using the TODAY value below.
 - When creating an event with a named client, look up their id from the CLIENTS list and set client_id.
 - If the client is NOT in the CLIENTS list, add a CREATE_CLIENT action for them AND set client_name (not client_id) on the event/recurring/invoice action to the exact same name — the app links them automatically once the client is created.
-- Keep messages short and friendly — like a helpful assistant, not a chatbot essay.
+- Keep messages short and friendly — like a helpful assistant, not a chatbot essay. Whenever the answer covers more than one record, format it as a list per HOW TO WRITE THE MESSAGE above.
 - If something is unclear, ask ONE clarifying question (actions: []).
 - LOCATION / VENUE (never block on it): A missing or vague venue must NEVER stop you creating the event. When the user names a venue without a full street address (e.g. "The Grove", "Blue Note", "Sexy Fish"), create the event RIGHT NOW (leave location_address empty), and ALSO add a LOCATION_SEARCH action so the user can optionally tap the exact place to fill it in. The event exists either way — if they skip the picker, that's fine, a reminder will surface later. If the user already gave a full street address or postcode, put it straight on the event — no search needed.
 - LOCATION_SEARCH REGION: The musician is based in ${settings.country || 'GB'}. When you build a LOCATION_SEARCH "query" and the user did NOT give a city or area, append their region so results are local — prefer a city if you can infer one from their data, otherwise the country (e.g. "Sexy Fish ${settings.country || 'GB'}"). Never assume the United States.
@@ -359,6 +400,65 @@ ${JSON.stringify(settings)}
 Always respond with valid JSON only. No markdown. No explanation outside the JSON.`;
 }
 
+// ─── Response parsing ──────────────────────────────────────────────
+// The model is told to return one bare JSON object, but it occasionally wraps
+// it in code fences or prefixes it with a line of prose. A plain JSON.parse
+// fails on those, and falling back to the raw string puts `{"message":...}`
+// straight into the user's chat bubble. So: scan for the first balanced
+// {...} object and parse that instead.
+function extractJsonObject(rawText) {
+  const text = String(rawText || '')
+    .replace(/^\s*```(?:json)?\s*/i, '')
+    .replace(/\s*```\s*$/i, '')
+    .trim();
+
+  try {
+    return JSON.parse(text);
+  } catch { /* not bare JSON — scan for the object below */ }
+
+  const start = text.indexOf('{');
+  if (start === -1) return null;
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+
+    if (escaped) { escaped = false; continue; }
+    if (ch === '\\') { escaped = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+
+    if (ch === '{') {
+      depth++;
+    } else if (ch === '}') {
+      depth--;
+      if (depth === 0) {
+        try {
+          return JSON.parse(text.slice(start, i + 1));
+        } catch {
+          return null;
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
+// Last resort, when nothing parsed: keep any prose, never show a JSON blob.
+// The second replace catches output truncated mid-object (max_tokens reached),
+// which has no closing brace for the first one to match.
+function stripJsonBlobs(rawText) {
+  return String(rawText || '')
+    .replace(/```(?:json)?/gi, '')
+    .replace(/\{[\s\S]*\}/g, '')
+    .replace(/\{[\s\S]*$/, '')
+    .trim();
+}
+
 // ─── AI usage logger — fire-and-forget, never throws ───────────────
 async function logAiUsage({ userId, model, usage, channel = 'in_app' }) {
   if (!isSupabaseServerConfigured()) return;
@@ -405,7 +505,7 @@ router.post('/chat', async (req, res) => {
 
     const apiResponse = await client.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 1024,
+      max_tokens: 2000,
       temperature: 0,
       system: systemPrompt,
       messages,
@@ -419,18 +519,8 @@ router.post('/chat', async (req, res) => {
       .map((block) => block.text)
       .join('');
 
-    // Strip markdown code fences the model sometimes adds, then parse JSON
-    let parsed;
-    try {
-      const cleaned = rawText
-        .replace(/^```(?:json)?\s*/i, '')
-        .replace(/\s*```\s*$/i, '')
-        .trim();
-      parsed = JSON.parse(cleaned);
-    } catch {
-      // If the model returned non-JSON, wrap it gracefully.
-      parsed = { message: rawText, actions: [] };
-    }
+    const parsed = extractJsonObject(rawText)
+      || { message: stripJsonBlobs(rawText), actions: [] };
 
     // Normalize: accept either a single "action" or an "actions" array,
     // and expose both shapes so old and new clients keep working.
@@ -440,8 +530,13 @@ router.post('/chat', async (req, res) => {
         ? [parsed.action]
         : [];
 
+    // Never return an empty bubble — if nothing survived parsing, say so.
+    const message = typeof parsed.message === 'string' ? parsed.message.trim() : '';
+
     return res.json({
-      message: typeof parsed.message === 'string' ? parsed.message : '',
+      message: message || (actions.length
+        ? 'Done.'
+        : "Sorry — that answer didn't come through properly. Ask me again?"),
       actions,
       action: actions[0] || null,
     });
@@ -523,19 +618,10 @@ ${JSON.stringify(locationMissingEvents)}`;
       .map((b) => b.text)
       .join('');
 
-    let parsed;
-    try {
-      const cleaned = rawText
-        .replace(/^```(?:json)?\s*/i, '')
-        .replace(/\s*```\s*$/i, '')
-        .trim();
-      parsed = JSON.parse(cleaned);
-    } catch {
-      parsed = {
-        greeting: `Good ${timeOfDay}${name ? ', ' + name : ''}`,
-        items: [{ text: 'Have a great day.', type: 'general', entity_id: null, entity_type: null }],
-      };
-    }
+    const parsed = extractJsonObject(rawText) || {
+      greeting: `Good ${timeOfDay}${name ? ', ' + name : ''}`,
+      items: [{ text: 'Have a great day.', type: 'general', entity_id: null, entity_type: null }],
+    };
 
     return res.json(parsed);
   } catch (err) {
@@ -624,16 +710,7 @@ Return ONLY raw JSON in the following format (no markdown fences, no extra text)
         .map((b) => b.text)
         .join('');
 
-      let parsed;
-      try {
-        const cleaned = rawText
-          .replace(/^```(?:json)?\s*/i, '')
-          .replace(/\s*```\s*$/i, '')
-          .trim();
-        parsed = JSON.parse(cleaned);
-      } catch {
-        parsed = { items: [] };
-      }
+      const parsed = extractJsonObject(rawText) || { items: [] };
 
       if (parsed && Array.isArray(parsed.items)) {
         const keptItems = parsed.items
@@ -729,16 +806,7 @@ Return this exact format:
       .map((b) => b.text)
       .join('');
 
-    let parsed;
-    try {
-      const cleaned = rawText
-        .replace(/^```(?:json)?\s*/i, '')
-        .replace(/\s*```\s*$/i, '')
-        .trim();
-      parsed = JSON.parse(cleaned);
-    } catch {
-      parsed = { titles: {} };
-    }
+    const parsed = extractJsonObject(rawText) || { titles: {} };
 
     return res.json(parsed);
   } catch (err) {
@@ -808,13 +876,8 @@ Return ONLY raw JSON, no markdown fences:
       .map((b) => b.text)
       .join('');
 
-    let parsed;
-    try {
-      const cleaned = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
-      parsed = JSON.parse(cleaned);
-    } catch {
-      parsed = { decision: '', follow_up_at: null, action: null, reply: '' };
-    }
+    const parsed = extractJsonObject(rawText)
+      || { decision: '', follow_up_at: null, action: null, reply: '' };
 
     const decision = ['deferred', 'skipped', 'done'].includes(parsed.decision) ? parsed.decision : '';
     let follow_up_at = null;

@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Link } from "react-router-dom";
 import { appClient } from "@/api/appClient";
-import { createPageUrl } from "@/utils";
 import { useAuth } from "@/lib/AuthContext";
 import {
   Check, Mail, Bell, Banknote, Building2, CalendarDays, RefreshCw,
   ChevronDown, ChevronUp, Upload, X, Download, Upload as UploadIcon,
-  LogOut, Sparkles, Link2, Palette, FileSpreadsheet
+  LogOut, Sparkles, Link2, Palette, ChevronRight, FileSpreadsheet
 } from "lucide-react";
+import { Link } from "react-router-dom";
+import { createPageUrl } from "@/utils";
 import { useTheme, ACCENT_THEMES } from "@/lib/ThemeContext";
 import { formatDistanceToNow } from "date-fns";
 import { getAssistantProfile, DEFAULT_ASSISTANT_NAME, DEFAULT_LANGUAGE } from "@/lib/assistantProfile";
@@ -26,6 +26,7 @@ import { DEFAULT_PREFS } from "@/lib/notificationPrefs";
 import { isGmailConnected, getGmailEmail, connectGmail, disconnectGmail } from "@/lib/gmailClient";
 import { connectCalendar, getCalendarStatus, syncNow as calendarSyncNow, setSyncEnabled as setCalendarSyncEnabled, disconnectCalendar } from "@/lib/calendarClient";
 import SmartCSVImport from "@/components/SmartCSVImport";
+import DeviceAccessRow from "@/components/settings/DeviceAccessRow";
 import { exportFullApp, downloadCSV } from "@/lib/csvExport";
 import NotificationPrefsEditor, { Toggle } from "@/components/NotificationPrefsEditor";
 
@@ -549,6 +550,13 @@ export default function AppSettings() {
           <SectionHeader icon={Banknote} label="Finance" sectionKey="finance" />
           {openSections.has("finance") && (
             <div className="bg-gray-800 rounded-xl p-4 space-y-4">
+              <Link to={createPageUrl("FeeRules")} className="flex items-center justify-between">
+                <span>
+                  <span className="block text-sm font-medium text-gray-200">My rates</span>
+                  <span className="block text-[11px] text-gray-500">Fees by client, kind of gig, travel and more — used to suggest fees</span>
+                </span>
+                <ChevronRight className="w-4 h-4 text-gray-500 flex-shrink-0" />
+              </Link>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={labelCls}>Default Currency</label>
@@ -781,6 +789,9 @@ export default function AppSettings() {
           <SectionHeader icon={Link2} label="Connections" sectionKey="connections" />
           {openSections.has("connections") && (
             <div className="bg-gray-800 rounded-xl overflow-hidden divide-y divide-gray-700/60">
+
+              {/* iPhone Calendar + Reminders (iOS app only) */}
+              <DeviceAccessRow />
 
               {/* Google Calendar */}
               <div className="p-4 space-y-3">

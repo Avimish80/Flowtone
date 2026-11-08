@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Portal Template - Single-Page Flow</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-base: #030712;
+      --bg-card: rgba(17, 24, 39, 0.6);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --border-active: #8b5cf6;
+      --text-main: #f9fafb;
+      --text-muted: #9ca3af;
+      --primary: #8b5cf6;
+      --radius-lg: 1rem;
+      --radius-md: 0.5rem;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: var(--bg-base);
+      color: var(--text-main);
+      min-height: 100vh;
+      line-height: 1.5;
+      padding-bottom: 7rem; /* Space for sticky footer */
+    }
+
+    .portal-container { max-w: 800px; margin: 0 auto; padding: 2rem 1rem; }
+
+    /* Flow sections */
+    .flow-sec {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 2rem;
+      margin-bottom: 2rem;
+      transition: all 0.3s;
+      opacity: 0.5;
+    }
+    .flow-sec.active {
+      opacity: 1;
+      border-color: var(--border-active);
+      box-shadow: 0 10px 30px rgba(139, 92, 246, 0.1);
+    }
+    .sec-badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      background: rgba(255,255,255,0.05);
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .flow-sec.active .sec-badge { background: rgba(139, 92, 246, 0.2); color: var(--primary); }
+
+    .sec-title { font-size: 1.5rem; font-weight: 700; margin-bottom: 1.5rem; }
+
+    /* Package selections */
+    .packages-stack { display: flex; flex-direction: column; gap: 1rem; }
+    .pkg-row {
+      background: rgba(0,0,0,0.3); border: 1px solid var(--border-color);
+      border-radius: var(--radius-md); padding: 1.25rem; cursor: pointer;
+      display: flex; justify-content: space-between; align-items: center; transition: all 0.2s;
+    }
+    .pkg-row.selected { border-color: var(--border-active); background: rgba(139, 92, 246, 0.05); }
+    .pkg-radio { width: 18px; height: 18px; border: 2px solid var(--border-color); border-radius: 50%; margin-right: 1rem; }
+    .pkg-row.selected .pkg-radio { border-color: var(--primary); background: var(--primary); box-shadow: inset 0 0 0 3px rgba(0,0,0,0.5); }
+
+    /* Contract details */
+    .contract-box {
+      background: rgba(0,0,0,0.3); border: 1px solid var(--border-color);
+      border-radius: var(--radius-md); padding: 1.25rem; height: 160px; overflow-y: auto;
+      font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.5rem;
+    }
+    .sig-input {
+      width: 100%; padding: 0.85rem; border-radius: var(--radius-md);
+      background: rgba(0,0,0,0.4); border: 1px solid var(--border-color);
+      color: white; font-family: inherit; margin-bottom: 1rem;
+    }
+    .sig-input:focus { outline: none; border-color: var(--primary); }
+
+    /* Sticky Bottom Footer */
+    .sticky-footer {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: rgba(15, 15, 25, 0.85);
+      border-top: 1px solid var(--border-color);
+      backdrop-filter: blur(12px);
+      padding: 1.25rem 1.5rem;
+      z-index: 100;
+    }
+    .footer-content {
+      max-w: 800px; margin: 0 auto;
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 1.5rem;
+    }
+    .btn-action {
+      background: var(--primary); color: white; border: none; padding: 0.85rem 2rem;
+      border-radius: var(--radius-md); font-weight: 700; font-family: inherit; cursor: pointer;
+    }
+
+    .disabled-overlay { display: none; }
+    .locked-sec { pointer-events: none; }
+  </style>
+</head>
+<body>
+
+  <div class="portal-container">
+    <header style="margin-bottom: 3rem; text-align: center;">
+      <h1 style="font-size: 2rem; font-weight: 700;">Complete Booking Proposal</h1>
+      <p style="color: var(--text-muted); font-size: 0.95rem;">Review selections, sign contract terms, and secure the booking.</p>
+    </header>
+
+    <!-- SECTION 1: Quote -->
+    <section class="flow-sec active" id="sec-quote">
+      <span class="sec-badge">Step 1</span>
+      <h2 class="sec-title">Select Performance Setup</h2>
+      <div class="packages-stack">
+        <div class="pkg-row selected" onclick="selectPkg('ceremony', 500)">
+          <div style="display:flex; align-items:center;">
+            <div class="pkg-radio"></div>
+            <div>
+              <p style="font-weight:700;">Ceremony Backdrop</p>
+              <p style="font-size:0.75rem; color:var(--text-muted); margin-top:0.25rem;">Covers wedding procession, sign registries, exit celebratory sets.</p>
+            </div>
+          </div>
+          <span style="font-weight:700; font-size:1.1rem;">£500</span>
+        </div>
+        <div class="pkg-row" onclick="selectPkg('reception', 800)">
+          <div style="display:flex; align-items:center;">
+            <div class="pkg-radio"></div>
+            <div>
+              <p style="font-weight:700;">Ceremony & Drinks</p>
+              <p style="font-size:0.75rem; color:var(--text-muted); margin-top:0.25rem;">Ceremony setup plus an additional 90-minute garden drinks hour.</p>
+            </div>
+          </div>
+          <span style="font-weight:700; font-size:1.1rem;">£800</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 2: Agreement -->
+    <section class="flow-sec locked-sec" id="sec-contract">
+      <span class="sec-badge">Step 2</span>
+      <h2 class="sec-title">Performance Agreement</h2>
+      <div class="contract-box">
+        <p><strong>1. Logistics:</strong> The booking setup requires a dry, flat performance space. Warm meals provided for longer gigs.</p>
+        <p><strong>2. Postponement:</strong> Notice must be provided at least 14 days in advance to transfer deposits.</p>
+      </div>
+      <input type="text" class="sig-input" id="name-input" placeholder="Type Full Name to Sign" oninput="updateSig(this.value)" disabled>
+    </section>
+
+    <!-- SECTION 3: Invoice -->
+    <section class="flow-sec locked-sec" id="sec-invoice">
+      <span class="sec-badge">Step 3</span>
+      <h2 class="sec-title">Booking Retainer</h2>
+      <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(0,0,0,0.2); padding:1rem; border-radius:var(--radius-md); border:1px solid var(--border-color);">
+        <div>
+          <p style="font-weight:700;">50% Retainer Milestone</p>
+          <p style="font-size:0.75rem; color:var(--text-muted);">Secures calendar date</p>
+        </div>
+        <span style="font-weight:700; font-size:1.1rem;" id="deposit-value">£250.00</span>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- Sticky Bottom Footer -->
+  <div class="sticky-footer">
+    <div class="footer-content">
+      <div>
+        <p style="font-size:0.75rem; text-transform:uppercase; color:var(--text-muted);">Current Total</p>
+        <p style="font-size:1.5rem; font-weight:700;" id="footer-total">£500.00</p>
+      </div>
+      <button class="btn-action" id="action-btn" onclick="nextStep()">Proceed to Sign &rarr;</button>
+    </div>
+  </div>
+
+  <script>
+    const state = { step: 1, base: 500, name: '', signed: false, paid: false };
+    
+    function selectPkg(id, val) {
+      if (state.step > 1) return;
+      document.querySelectorAll('.pkg-row').forEach(r => r.classList.remove('selected'));
+      event.currentTarget.classList.add('selected');
+      state.base = val;
+      document.getElementById('footer-total').innerText = '£' + val + '.00';
+      document.getElementById('deposit-value').innerText = '£' + (val/2) + '.00';
+    }
+
+    function updateSig(val) {
+      state.name = val;
+      document.getElementById('action-btn').disabled = !val.trim();
+    }
+
+    function nextStep() {
+      if (state.step === 1) {
+        state.step = 2;
+        document.getElementById('sec-quote').classList.remove('active');
+        const cSec = document.getElementById('sec-contract');
+        cSec.classList.remove('locked-sec');
+        cSec.classList.add('active');
+        document.getElementById('name-input').disabled = false;
+        document.getElementById('action-btn').innerText = 'Accept & Sign Contract';
+        document.getElementById('action-btn').disabled = true;
+      } else if (state.step === 2) {
+        state.step = 3;
+        document.getElementById('sec-contract').classList.remove('active');
+        document.getElementById('name-input').disabled = true;
+        const iSec = document.getElementById('sec-invoice');
+        iSec.classList.remove('locked-sec');
+        iSec.classList.add('active');
+        document.getElementById('action-btn').innerText = 'Pay Deposit Simulator';
+        document.getElementById('action-btn').disabled = false;
+      } else if (state.step === 3) {
+        document.getElementById('sec-invoice').classList.remove('active');
+        document.getElementById('action-btn').innerText = 'Booking Confirmed';
+        document.getElementById('action-btn').disabled = true;
+      }
+    }
+  </script>
+</body>
+</html>

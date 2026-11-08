@@ -1,0 +1,1233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Client Portal - Emily & James Wedding - Flowtone</title>
+  <!-- Google Fonts: Outfit (modern, clean, premium geometric) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-base: #030712; /* gray-950 */
+      --bg-card: rgba(17, 24, 39, 0.4); /* gray-900 with transparency */
+      --bg-card-hover: rgba(31, 41, 55, 0.6); /* gray-800 with transparency */
+      --border-color: rgba(55, 65, 81, 0.5); /* gray-700/50 */
+      --border-active: #6366f1; /* indigo-500 */
+      --text-main: #f3f4f6; /* gray-100 */
+      --text-muted: #9ca3af; /* gray-400 */
+      --text-subtle: #6b7280; /* gray-500 */
+      --primary: #4f46e5; /* indigo-600 */
+      --primary-hover: #4338ca; /* indigo-700 */
+      --accent: #a5b4fc; /* indigo-300 */
+      --success: #34d399; /* emerald-400 */
+      --success-bg: rgba(6, 78, 59, 0.3); /* green-900/30 */
+      --warning: #fbbf24; /* amber-400 */
+      --warning-bg: rgba(120, 53, 4, 0.3); /* amber-950/30 */
+      --radius-lg: 1rem; /* 16px */
+      --radius-md: 0.75rem; /* 12px */
+      --font-outfit: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-outfit);
+      background-color: var(--bg-base);
+      color: var(--text-main);
+      min-height: 100vh;
+      line-height: 1.5;
+      padding-bottom: 4rem;
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.08) 0, transparent 50%),
+        radial-gradient(at 100% 0%, rgba(139, 92, 246, 0.05) 0, transparent 40%);
+    }
+
+    /* Portal Wrapper */
+    .portal-container {
+      max-w: 1200px;
+      margin: 0 auto;
+      padding: 0 1rem;
+    }
+
+    /* Cover Banner */
+    .banner {
+      height: 220px;
+      width: 100%;
+      background: linear-gradient(135deg, #1e1b4b 0%, #311042 50%, #030712 100%);
+      position: relative;
+      border-bottom: 1px solid var(--border-color);
+      overflow: hidden;
+      border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+    }
+
+    .banner::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 70% 30%, rgba(99, 102, 241, 0.15), transparent 60%);
+    }
+
+    /* Logo & Branding Area */
+    .header-branding {
+      position: relative;
+      margin-top: -50px;
+      padding: 0 1.5rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    .brand-logo {
+      width: 96px;
+      height: 96px;
+      background: linear-gradient(135deg, #4f46e5, #8b5cf6);
+      border-radius: var(--radius-lg);
+      border: 4px solid var(--bg-base);
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.25rem;
+      font-weight: 700;
+      color: white;
+    }
+
+    .brand-name {
+      margin-top: 1rem;
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+    }
+
+    .job-title {
+      color: var(--accent);
+      font-size: 1.125rem;
+      font-weight: 500;
+      margin-top: 0.25rem;
+    }
+
+    /* Two Column Layout */
+    .portal-layout {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 2rem;
+      align-items: start;
+    }
+
+    @media (min-width: 1024px) {
+      .portal-layout {
+        grid-template-columns: 320px 1fr;
+      }
+    }
+
+    /* Sidebar Panel */
+    .sidebar {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      position: sticky;
+      top: 1.5rem;
+    }
+
+    .sidebar-section {
+      margin-bottom: 1.5rem;
+    }
+
+    .sidebar-section:last-child {
+      margin-bottom: 0;
+    }
+
+    .sidebar-title {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-subtle);
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      padding-bottom: 0.25rem;
+    }
+
+    .sidebar-info-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.875rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .sidebar-info-label {
+      color: var(--text-muted);
+    }
+
+    .sidebar-info-value {
+      font-weight: 500;
+      text-align: right;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      border-radius: 9999px;
+      border: 1px solid transparent;
+    }
+
+    .status-badge.pending {
+      background-color: var(--warning-bg);
+      color: var(--warning);
+      border-color: rgba(251, 191, 36, 0.2);
+    }
+
+    .status-badge.completed {
+      background-color: var(--success-bg);
+      color: var(--success);
+      border-color: rgba(52, 211, 153, 0.2);
+    }
+
+    /* Tab Controls */
+    .tabs-container {
+      margin-bottom: 1.5rem;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      gap: 0.5rem;
+      overflow-x: auto;
+      scrollbar-width: none; /* Hide scrollbar Firefox */
+    }
+
+    .tabs-container::-webkit-scrollbar {
+      display: none; /* Hide scrollbar Chrome/Safari */
+    }
+
+    .tab-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-family: var(--font-outfit);
+      font-size: 1rem;
+      font-weight: 500;
+      padding: 0.75rem 1.25rem;
+      cursor: pointer;
+      position: relative;
+      transition: color 0.2s;
+      white-space: nowrap;
+    }
+
+    .tab-btn:hover {
+      color: var(--text-main);
+    }
+
+    .tab-btn.active {
+      color: var(--border-active);
+      font-weight: 600;
+    }
+
+    .tab-btn.active::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background-color: var(--border-active);
+      box-shadow: 0 0 10px rgba(99, 102, 241, 0.5);
+    }
+
+    /* Main Content Blocks */
+    .tab-panel {
+      display: none;
+      animation: fadeIn 0.3s ease-out;
+    }
+
+    .tab-panel.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .panel-header {
+      margin-bottom: 1.5rem;
+    }
+
+    .panel-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+
+    .panel-subtitle {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      margin-top: 0.25rem;
+    }
+
+    /* Glass Cards */
+    .glass-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
+    .card-title {
+      font-size: 1.125rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Interactive Package Selection */
+    .packages-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    @media (min-width: 640px) {
+      .packages-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+
+    .pkg-card {
+      background: rgba(17, 24, 39, 0.6);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 1.25rem;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 200px;
+    }
+
+    .pkg-card:hover {
+      border-color: rgba(99, 102, 241, 0.4);
+      transform: translateY(-2px);
+    }
+
+    .pkg-card.selected {
+      border-color: var(--border-active);
+      background-color: rgba(99, 102, 241, 0.08);
+      box-shadow: 0 0 15px rgba(99, 102, 241, 0.15);
+      transform: translateY(-2px);
+    }
+
+    .pkg-recommended-badge {
+      position: absolute;
+      top: -10px;
+      right: 12px;
+      background: linear-gradient(135deg, #4f46e5, #8b5cf6);
+      color: white;
+      font-size: 0.65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 0.25rem 0.5rem;
+      border-radius: 9999px;
+      letter-spacing: 0.05em;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    .pkg-name {
+      font-size: 1rem;
+      font-weight: 600;
+    }
+
+    .pkg-price {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-top: 0.5rem;
+      color: var(--accent);
+    }
+
+    .pkg-desc {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 0.5rem;
+      flex-grow: 1;
+    }
+
+    .pkg-select-indicator {
+      width: 20px;
+      height: 20px;
+      border: 2px solid var(--border-color);
+      border-radius: 50%;
+      margin-top: 1rem;
+      align-self: flex-end;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .pkg-card.selected .pkg-select-indicator {
+      border-color: var(--border-active);
+      background-color: var(--border-active);
+    }
+
+    .pkg-card.selected .pkg-select-indicator::after {
+      content: '';
+      width: 8px;
+      height: 8px;
+      background-color: white;
+      border-radius: 50%;
+    }
+
+    /* Add-ons Checkbox List */
+    .addons-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .addon-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.875rem 1rem;
+      background: rgba(17, 24, 39, 0.4);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .addon-item:hover {
+      border-color: rgba(99, 102, 241, 0.3);
+      background: rgba(17, 24, 39, 0.6);
+    }
+
+    .addon-item.selected {
+      border-color: var(--border-active);
+      background: rgba(99, 102, 241, 0.04);
+    }
+
+    .addon-left {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .addon-checkbox {
+      width: 18px;
+      height: 18px;
+      border: 2px solid var(--border-color);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .addon-item.selected .addon-checkbox {
+      border-color: var(--border-active);
+      background-color: var(--border-active);
+    }
+
+    .addon-item.selected .addon-checkbox::after {
+      content: '✓';
+      color: white;
+      font-size: 0.65rem;
+      font-weight: bold;
+    }
+
+    .addon-details {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .addon-name {
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+
+    .addon-desc {
+      font-size: 0.75rem;
+      color: var(--text-subtle);
+    }
+
+    .addon-price {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--accent);
+    }
+
+    /* Live Summary Box */
+    .summary-box {
+      border-top: 1px solid var(--border-color);
+      padding-top: 1rem;
+      margin-top: 1.5rem;
+    }
+
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.875rem;
+      margin-bottom: 0.5rem;
+      color: var(--text-muted);
+    }
+
+    .summary-row.discount {
+      color: var(--success);
+    }
+
+    .summary-row.total {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text-main);
+      border-top: 1px dashed var(--border-color);
+      padding-top: 0.75rem;
+      margin-top: 0.5rem;
+    }
+
+    /* Main CTA Buttons */
+    .btn {
+      display: block;
+      width: 100%;
+      background-color: var(--primary);
+      color: white;
+      font-family: var(--font-outfit);
+      font-size: 0.875rem;
+      font-weight: 600;
+      text-align: center;
+      padding: 0.875rem;
+      border: none;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: background-color 0.2s;
+      text-decoration: none;
+    }
+
+    .btn:hover {
+      background-color: var(--primary-hover);
+    }
+
+    .btn-secondary {
+      background-color: transparent;
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      margin-top: 0.5rem;
+    }
+
+    .btn-secondary:hover {
+      background-color: rgba(255, 255, 255, 0.05);
+      color: var(--text-main);
+    }
+
+    /* Contract Agreement View */
+    .contract-container {
+      background: rgba(17, 24, 39, 0.5);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 1.25rem;
+      height: 250px;
+      overflow-y: auto;
+      font-size: 0.825rem;
+      color: var(--text-muted);
+      margin-bottom: 1.5rem;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255,255,255,0.1) transparent;
+    }
+
+    .contract-container::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .contract-container::-webkit-scrollbar-thumb {
+      background: rgba(255,255,255,0.1);
+      border-radius: 99px;
+    }
+
+    .contract-container h3 {
+      font-size: 0.95rem;
+      color: var(--text-main);
+      margin-top: 1rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .contract-container h3:first-child {
+      margin-top: 0;
+    }
+
+    .contract-container p {
+      margin-bottom: 0.75rem;
+    }
+
+    /* Digital Signature Box */
+    .signature-card {
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      background: rgba(17, 24, 39, 0.3);
+      padding: 1.25rem;
+    }
+
+    .input-group {
+      margin-bottom: 1rem;
+    }
+
+    .input-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-subtle);
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      display: block;
+    }
+
+    .text-input {
+      width: 100%;
+      background: rgba(3, 7, 18, 0.8);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 0.75rem 1rem;
+      color: white;
+      font-family: var(--font-outfit);
+      font-size: 0.875rem;
+      transition: border-color 0.2s;
+    }
+
+    .text-input:focus {
+      outline: none;
+      border-color: var(--border-active);
+    }
+
+    /* Scripted script preview for handwritten signature */
+    .signature-preview {
+      background: #090e1a;
+      border: 1px dashed var(--border-color);
+      border-radius: var(--radius-md);
+      height: 70px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1rem;
+    }
+
+    .signature-rendered {
+      font-family: 'Georgia', cursive, serif;
+      font-style: italic;
+      font-size: 1.5rem;
+      color: var(--accent);
+      letter-spacing: 0.05em;
+    }
+
+    /* Payment Schedule & Milestones (Invoice Tab) */
+    .milestones {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .milestone-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(17, 24, 39, 0.4);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 1rem;
+    }
+
+    .milestone-left {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .milestone-label {
+      font-size: 0.875rem;
+      font-weight: 600;
+    }
+
+    .milestone-date {
+      font-size: 0.75rem;
+      color: var(--text-subtle);
+      margin-top: 0.125rem;
+    }
+
+    .milestone-right {
+      text-align: right;
+    }
+
+    .milestone-amount {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .milestone-status {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-top: 0.125rem;
+    }
+
+    .milestone-status.unpaid {
+      color: var(--warning);
+    }
+
+    .milestone-status.paid {
+      color: var(--success);
+    }
+
+    .payment-details-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      font-size: 0.875rem;
+      color: var(--text-muted);
+    }
+
+    .payment-details-row {
+      display: flex;
+      justify-content: space-between;
+    }
+
+    /* Success / Confirmed Screens */
+    .success-pane {
+      text-align: center;
+      padding: 2.5rem 1.5rem;
+      display: none;
+    }
+
+    .success-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background-color: var(--success-bg);
+      border: 1px solid rgba(52, 211, 153, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 1.25rem;
+    }
+
+    .success-icon svg {
+      width: 28px;
+      height: 28px;
+      color: var(--success);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Cover Banner -->
+  <div class="banner"></div>
+
+  <div class="portal-container">
+    
+    <!-- Branding Header -->
+    <div class="header-branding">
+      <div class="brand-logo">F</div>
+      <h1 class="brand-name">Flowtone Music Group</h1>
+      <p class="job-title">Proposal: Emily & James Wedding Ceremony & Reception</p>
+    </div>
+
+    <!-- Main Workspace Grid -->
+    <div class="portal-layout">
+      
+      <!-- Sidebar / Summary Panel -->
+      <div class="sidebar">
+        <div class="sidebar-section">
+          <h2 class="sidebar-title">Booking Details</h2>
+          
+          <div class="sidebar-info-row">
+            <span class="sidebar-info-label">Event Date</span>
+            <span class="sidebar-info-value">August 22, 2026</span>
+          </div>
+          
+          <div class="sidebar-info-row">
+            <span class="sidebar-info-label">Venue</span>
+            <span class="sidebar-info-value">Somerset House,<br>London</span>
+          </div>
+
+          <div class="sidebar-info-row">
+            <span class="sidebar-info-label">Quote Number</span>
+            <span class="sidebar-info-value">EST-1049</span>
+          </div>
+
+          <div class="sidebar-info-row" style="margin-top: 1rem;">
+            <span class="sidebar-info-label">Status</span>
+            <span class="sidebar-info-value">
+              <span id="portal-status-badge" class="status-badge pending">Awaiting Action</span>
+            </span>
+          </div>
+        </div>
+
+        <div class="sidebar-section">
+          <h2 class="sidebar-title">Contact</h2>
+          <div class="sidebar-info-row">
+            <span class="sidebar-info-label">Prepared For</span>
+            <span class="sidebar-info-value">Emily Foster &<br>James Chen</span>
+          </div>
+          <div class="sidebar-info-row">
+            <span class="sidebar-info-label">Prepared By</span>
+            <span class="sidebar-info-value">Avi Mishali</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Column Content (Tabs & Panels) -->
+      <div>
+        
+        <!-- Tab Nav -->
+        <div class="tabs-container">
+          <button class="tab-btn active" onclick="switchTab('quote')">1. Review Proposal</button>
+          <button class="tab-btn" id="nav-contract-btn" onclick="switchTab('contract')">2. Contract Agreement</button>
+          <button class="tab-btn" id="nav-invoice-btn" onclick="switchTab('invoice')">3. Invoice & Payment</button>
+        </div>
+
+        <!-- TAB 1: QUOTE -->
+        <div id="panel-quote" class="tab-panel active">
+          <div class="panel-header">
+            <h2 class="panel-title">Choose Your Live Music Package</h2>
+            <p class="panel-subtitle">Select the performance option that fits your wedding flow and budget perfectly.</p>
+          </div>
+
+          <!-- Glass Card: Pick and Choose Grid -->
+          <div class="glass-card">
+            <div class="card-title">
+              <span>Performance Options</span>
+              <span style="font-size: 0.75rem; color: var(--text-subtle); font-weight: normal;">Select one</span>
+            </div>
+
+            <div class="packages-grid">
+              <!-- Package Card 1 -->
+              <div class="pkg-card" onclick="selectPackage('duo', 950.00)">
+                <div class="pkg-name">Acoustic Lounge Duo</div>
+                <div class="pkg-price">£950.00</div>
+                <div class="pkg-desc">Guitar/Keyboard + Vocals. Best for cocktails, acoustic vibe, and lounge sets. (2 × 45 mins)</div>
+                <div class="pkg-select-indicator"></div>
+              </div>
+
+              <!-- Package Card 2 -->
+              <div class="pkg-card selected" onclick="selectPackage('trio', 1350.00)">
+                <span class="pkg-recommended-badge">Recommended</span>
+                <div class="pkg-name">Classic Jazz Trio</div>
+                <div class="pkg-price">£1,350.00</div>
+                <div class="pkg-desc">Saxophone, Double Bass + Keys. Elegant live jazz instrumental backdrop for dinner. (3 × 45 mins)</div>
+                <div class="pkg-select-indicator"></div>
+              </div>
+
+              <!-- Package Card 3 -->
+              <div class="pkg-card" onclick="selectPackage('quartet', 1800.00)">
+                <div class="pkg-name">Swing Quartet & Singer</div>
+                <div class="pkg-price">£1,800.00</div>
+                <div class="pkg-desc">Vocals, Sax, Keys, Bass + Drums. Full energy performance for dancing and party. (2 × 60 mins)</div>
+                <div class="pkg-select-indicator"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Glass Card: Optional Add-ons -->
+          <div class="glass-card">
+            <div class="card-title">Optional Add-ons</div>
+            
+            <div class="addons-list">
+              <!-- Addon Row 1 -->
+              <div class="addon-item" onclick="toggleAddon(this, 'extra-hour', 250.00)">
+                <div class="addon-left">
+                  <div class="addon-checkbox"></div>
+                  <div class="addon-details">
+                    <span class="addon-name">Extra Performance Hour</span>
+                    <span class="addon-desc">Add an extra 60-minute performance split or DJ playlist coverage</span>
+                  </div>
+                </div>
+                <div class="addon-price">+£250.00</div>
+              </div>
+
+              <!-- Addon Row 2 -->
+              <div class="addon-item" onclick="toggleAddon(this, 'lighting', 150.00)">
+                <div class="addon-left">
+                  <div class="addon-checkbox"></div>
+                  <div class="addon-details">
+                    <span class="addon-name">Premium Stage Lighting</span>
+                    <span class="addon-desc">Sleek wireless uplights, wash lights, and spotlight fixture for the band</span>
+                  </div>
+                </div>
+                <div class="addon-price">+£150.00</div>
+              </div>
+
+              <!-- Addon Row 3 -->
+              <div class="addon-item" onclick="toggleAddon(this, 'wireless-mic', 50.00)">
+                <div class="addon-left">
+                  <div class="addon-checkbox"></div>
+                  <div class="addon-details">
+                    <span class="addon-name">Wireless Roaming Microphone</span>
+                    <span class="addon-desc">High-end wireless mic connected to our PA system for wedding speeches</span>
+                  </div>
+                </div>
+                <div class="addon-price">+£50.00</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Dynamic Quote Total Card -->
+          <div class="glass-card">
+            <div class="card-title">Cost Summary</div>
+            <div class="summary-box">
+              <div class="summary-row">
+                <span>Selected Option: <span id="summary-pkg-name">Classic Jazz Trio</span></span>
+                <span id="summary-pkg-price">£1,350.00</span>
+              </div>
+              <div id="summary-addons-wrapper">
+                <!-- Selected Add-ons will render here dynamically -->
+              </div>
+              <div class="summary-row discount">
+                <span>10% Early Bird Discount</span>
+                <span id="summary-discount">-£135.00</span>
+              </div>
+              <div class="summary-row total">
+                <span>Total Amount Due</span>
+                <span id="summary-grand-total">£1,215.00</span>
+              </div>
+            </div>
+
+            <div style="margin-top: 1.5rem;">
+              <button class="btn" onclick="switchTab('contract')">Proceed to Contract &rarr;</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 2: CONTRACT -->
+        <div id="panel-contract" class="tab-panel">
+          <div class="panel-header">
+            <h2 class="panel-title">Agreement Contract</h2>
+            <p class="panel-subtitle">Please read and review the terms of service before providing your digital signature.</p>
+          </div>
+
+          <div class="glass-card">
+            <div class="contract-container">
+              <h3>1. Scope of Engagement</h3>
+              <p>The Artist (Flowtone Music Group) agrees to provide musical performance services for the Client (Emily Foster & James Chen) as detailed in the accepted package specifications. Performance schedules, soundcheck configurations, and timing limits are to be mutually agreed upon in writing prior to the performance date.</p>
+
+              <h3>2. Deposit & Balance Payments</h3>
+              <p>A non-refundable booking deposit equivalent to 50% of the total quote balance is required upon signing this agreement. This secures the booking. The remaining balance (50%) is due and payable no later than thirty (30) days prior to the event date (July 23, 2026). Failure to clear the balance on or before this deadline releases the Artist from any obligation to perform.</p>
+
+              <h3>3. Performance Space & Power Requirements</h3>
+              <p>The Client shall ensure that a clean, level, and dry performance space of at least 4m x 3m is made available for the band. The client must supply at least two (2) independent 13-amp power circuits adjacent to the performance space. In the event of outdoor performances, the staging area must be fully covered, waterproof, and protected from wind or rainfall.</p>
+
+              <h3>4. Cancellation & Force Majeure</h3>
+              <p>If the Client cancels this engagement within 60 days of the performance date, the Client remains liable to pay 100% of the contracted fee. Neither party shall be liable for failure to perform obligations under this agreement due to acts of God, strikes, local lockouts, severe illness, or government-mandated event restrictions.</p>
+            </div>
+
+            <div class="signature-card">
+              <div class="input-group">
+                <label class="input-label" for="client-sig-name">Type Full Name to Sign Contract</label>
+                <input type="text" id="client-sig-name" class="text-input" placeholder="e.g. Emily Foster" oninput="updateSignaturePreview(this.value)">
+              </div>
+
+              <div class="input-group">
+                <label class="input-label">Digitally Signed Representation</label>
+                <div class="signature-preview">
+                  <span id="sig-rendered" class="signature-rendered">[Sign above]</span>
+                </div>
+              </div>
+
+              <button id="btn-accept-contract" class="btn" onclick="submitContractAgreement()" disabled style="opacity: 0.5; cursor: not-allowed;">
+                Sign & Accept Proposal
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 3: INVOICE -->
+        <div id="panel-invoice" class="tab-panel">
+          <div class="panel-header">
+            <h2 class="panel-title">Invoice & Booking Payment</h2>
+            <p class="panel-subtitle">Thank you for accepting the booking proposal. Your deposit payment details are listed below.</p>
+          </div>
+
+          <div class="glass-card" id="invoice-pending-pane">
+            <div style="text-align: center; padding: 2rem 0; color: var(--text-muted);">
+              <svg style="width: 48px; height: 48px; margin-bottom: 1rem; opacity: 0.6;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <p style="font-weight: 600; color: white;">Awaiting Contract Signature</p>
+              <p style="font-size: 0.875rem; margin-top: 0.25rem;">Please review and sign the contract agreement tab to activate your payment schedule.</p>
+            </div>
+          </div>
+
+          <div class="glass-card" id="invoice-active-pane" style="display: none;">
+            <div class="card-title">Payment Milestones</div>
+            
+            <div class="milestones">
+              <!-- Milestone 1 -->
+              <div class="milestone-item" style="border-left: 4px solid var(--warning);">
+                <div class="milestone-left">
+                  <span class="milestone-label">50% Booking Deposit</span>
+                  <span class="milestone-date">Due on contract acceptance</span>
+                </div>
+                <div class="milestone-right">
+                  <span class="milestone-amount" id="payment-deposit-amount">£607.50</span>
+                  <div class="milestone-status unpaid" id="deposit-status">Unpaid</div>
+                </div>
+              </div>
+
+              <!-- Milestone 2 -->
+              <div class="milestone-item" style="border-left: 4px solid var(--border-color);">
+                <div class="milestone-left">
+                  <span class="milestone-label">Remaining Balance</span>
+                  <span class="milestone-date">Due July 23, 2026</span>
+                </div>
+                <div class="milestone-right">
+                  <span class="milestone-amount" id="payment-balance-amount">£607.50</span>
+                  <div class="milestone-status unpaid" style="color: var(--text-subtle);">Scheduled</div>
+                </div>
+              </div>
+            </div>
+
+            <div style="border-top: 1px dashed var(--border-color); padding-top: 1.25rem;">
+              <h4 style="font-size: 0.875rem; font-weight: 600; margin-bottom: 0.75rem;">Payment Instructions</h4>
+              
+              <div class="payment-details-list">
+                <div class="payment-details-row">
+                  <span>Bank Name</span>
+                  <strong style="color: white;">Starling Bank</strong>
+                </div>
+                <div class="payment-details-row">
+                  <span>Account Holder</span>
+                  <strong style="color: white;">Avi Mishali</strong>
+                </div>
+                <div class="payment-details-row">
+                  <span>Account Number</span>
+                  <strong style="color: white;">12345678</strong>
+                </div>
+                <div class="payment-details-row">
+                  <span>Sort Code</span>
+                  <strong style="color: white;">60-83-71</strong>
+                </div>
+                <div class="payment-details-row">
+                  <span>Payment Reference</span>
+                  <strong style="color: var(--accent);">FOSTER-220826</strong>
+                </div>
+              </div>
+            </div>
+
+            <div style="margin-top: 1.5rem;">
+              <button class="btn" onclick="simulatePayment(this)">Simulate Deposit Payment via Bank Transfer</button>
+            </div>
+          </div>
+
+          <div class="glass-card success-pane" id="payment-success-pane">
+            <div class="success-icon">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h3 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 0.25rem;">Booking Confirmed!</h3>
+            <p style="color: var(--text-muted); font-size: 0.875rem; max-w-sm mx-auto; margin-bottom: 1.5rem;">
+              Your contract is signed and the deposit has been processed. Avi will contact you shortly to plan the timeline.
+            </p>
+            <div style="display: flex; gap: 0.5rem; justify-content: center;">
+              <button class="btn" style="width: auto; padding: 0.75rem 1.5rem; font-size: 0.825rem;" onclick="window.print()">Print Invoice Receipt</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    // State representation
+    const state = {
+      selectedPkg: 'trio',
+      pkgPrice: 1350.00,
+      pkgName: 'Classic Jazz Trio',
+      addons: {},
+      isSigned: false,
+      isPaid: false
+    };
+
+    function selectPackage(id, price) {
+      if (state.isSigned) return; // Locked once signed
+
+      // Update UI classes
+      document.querySelectorAll('.pkg-card').forEach(card => card.classList.remove('selected'));
+      event.currentTarget.classList.add('selected');
+
+      // Update internal state
+      state.selectedPkg = id;
+      state.pkgPrice = price;
+      
+      const names = {
+        'duo': 'Acoustic Lounge Duo',
+        'trio': 'Classic Jazz Trio',
+        'quartet': 'Swing Quartet & Singer'
+      };
+      state.pkgName = names[id];
+
+      // Update Live summary
+      calculateTotal();
+    }
+
+    function toggleAddon(element, id, price) {
+      if (state.isSigned) return; // Locked once signed
+
+      element.classList.toggle('selected');
+      if (state.addons[id]) {
+        delete state.addons[id];
+      } else {
+        const addonNames = {
+          'extra-hour': 'Extra Performance Hour',
+          'lighting': 'Premium Stage Lighting',
+          'wireless-mic': 'Wireless Roaming Microphone'
+        };
+        state.addons[id] = { name: addonNames[id], price: price };
+      }
+
+      calculateTotal();
+    }
+
+    function calculateTotal() {
+      // 1. Base Package Price
+      document.getElementById('summary-pkg-name').innerText = state.pkgName;
+      document.getElementById('summary-pkg-price').innerText = formatGBP(state.pkgPrice);
+
+      // 2. Render Addons rows
+      const addonContainer = document.getElementById('summary-addons-wrapper');
+      addonContainer.innerHTML = '';
+      let addonsSum = 0;
+
+      Object.keys(state.addons).forEach(key => {
+        const item = state.addons[key];
+        addonsSum += item.price;
+
+        const row = document.createElement('div');
+        row.className = 'summary-row';
+        row.innerHTML = `
+          <span>+ Add-on: ${item.name}</span>
+          <span>${formatGBP(item.price)}</span>
+        `;
+        addonContainer.appendChild(row);
+      });
+
+      // 3. Subtotal
+      const subtotal = state.pkgPrice + addonsSum;
+
+      // 4. Discount (10% on package price only, or overall)
+      const discount = subtotal * 0.10;
+      document.getElementById('summary-discount').innerText = '-' + formatGBP(discount);
+
+      // 5. Grand Total
+      const grandTotal = subtotal - discount;
+      document.getElementById('summary-grand-total').innerText = formatGBP(grandTotal);
+
+      // Write values to contract sign sections
+      const halfPayment = grandTotal / 2;
+      document.getElementById('payment-deposit-amount').innerText = formatGBP(halfPayment);
+      document.getElementById('payment-balance-amount').innerText = formatGBP(halfPayment);
+    }
+
+    function updateSignaturePreview(val) {
+      const renderEl = document.getElementById('sig-rendered');
+      const submitBtn = document.getElementById('btn-accept-contract');
+      
+      if (val.trim()) {
+        renderEl.innerText = val;
+        submitBtn.disabled = false;
+        submitBtn.style.opacity = '1';
+        submitBtn.style.cursor = 'pointer';
+      } else {
+        renderEl.innerText = '[Sign above]';
+        submitBtn.disabled = true;
+        submitBtn.style.opacity = '0.5';
+        submitBtn.style.cursor = 'not-allowed';
+      }
+    }
+
+    function submitContractAgreement() {
+      state.isSigned = true;
+      
+      // Update UI Status and sidebar
+      const statusBadge = document.getElementById('portal-status-badge');
+      statusBadge.innerText = 'Deposit Pending';
+      statusBadge.className = 'status-badge pending';
+
+      // Lock package clicks
+      document.querySelectorAll('.pkg-card, .addon-item').forEach(el => {
+        el.style.opacity = '0.7';
+        el.style.cursor = 'default';
+        el.removeAttribute('onclick');
+      });
+
+      // Set Active Invoices Pane
+      document.getElementById('invoice-pending-pane').style.display = 'none';
+      document.getElementById('invoice-active-pane').style.display = 'block';
+
+      // Move navigation and tabs to the invoice page
+      document.getElementById('nav-contract-btn').classList.remove('active');
+      document.getElementById('nav-invoice-btn').classList.add('active');
+      switchTab('invoice');
+    }
+
+    function simulatePayment(btn) {
+      btn.innerText = 'Processing Payment…';
+      btn.disabled = true;
+      btn.style.opacity = '0.6';
+
+      setTimeout(() => {
+        state.isPaid = true;
+        
+        // Hide details pane, show success
+        document.getElementById('invoice-active-pane').style.display = 'none';
+        document.getElementById('payment-success-pane').style.display = 'block';
+
+        // Update status badge
+        const statusBadge = document.getElementById('portal-status-badge');
+        statusBadge.innerText = 'Confirmed';
+        statusBadge.className = 'status-badge completed';
+      }, 1500);
+    }
+
+    // Helper functions
+    function formatGBP(num) {
+      return '£' + num.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function switchTab(tabId) {
+      // Manage active state of buttons
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.innerText.toLowerCase().includes(tabId)) {
+          btn.classList.add('active');
+        }
+      });
+
+      // Manage active state of panels
+      document.querySelectorAll('.tab-panel').forEach(panel => {
+        panel.classList.remove('active');
+      });
+      document.getElementById('panel-' + tabId).classList.add('active');
+    }
+
+    // Initialize Totals on Load
+    calculateTotal();
+  </script>
+</body>
+</html>

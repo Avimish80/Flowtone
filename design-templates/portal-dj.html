@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DJ Booking Portal - Flowtone</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-base: #09090b; /* zinc-950 */
+      --bg-card: rgba(20, 20, 23, 0.6);
+      --border-color: rgba(244, 63, 94, 0.15); /* rose-500 transparent */
+      --border-active: #f43f5e; /* rose-500 */
+      --text-main: #f4f4f5;
+      --text-muted: #a1a1aa;
+      --primary: #f43f5e;
+      --primary-hover: #e11d48;
+      --accent: #22d3ee; /* cyan-400 */
+      --radius-lg: 1rem;
+      --radius-md: 0.75rem;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Outfit', sans-serif;
+      background-color: var(--bg-base);
+      color: var(--text-main);
+      min-height: 100vh;
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(244, 63, 94, 0.1) 0, transparent 50%),
+        radial-gradient(at 100% 0%, rgba(34, 211, 238, 0.08) 0, transparent 50%);
+      padding-bottom: 4rem;
+    }
+
+    .portal-container { max-w: 1200px; margin: 0 auto; padding: 0 1rem; }
+    .banner {
+      height: 200px;
+      width: 100%;
+      background: linear-gradient(135deg, #4c0519 0%, #1e1b4b 50%, #09090b 100%);
+      border-bottom: 1px solid var(--border-color);
+      border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+    }
+    .header-branding {
+      text-align: center;
+      margin-top: -50px;
+      margin-bottom: 2.5rem;
+    }
+    .brand-logo {
+      width: 90px;
+      height: 90px;
+      background: linear-gradient(135deg, #f43f5e, #a855f7);
+      border-radius: 50%;
+      border: 4px solid var(--bg-base);
+      box-shadow: 0 0 20px rgba(244, 63, 94, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: white;
+      margin: 0 auto 1rem;
+    }
+    .brand-name { font-size: 1.85rem; font-weight: 700; }
+    .job-title { color: var(--accent); font-size: 1.05rem; }
+
+    .portal-layout { display: grid; grid-template-columns: 1fr; gap: 2rem; }
+    @media (min-width: 1024px) { .portal-layout { grid-template-columns: 300px 1fr; } }
+
+    .sidebar {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+      backdrop-filter: blur(12px);
+    }
+    .sidebar-title {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      padding-bottom: 0.25rem;
+      margin-bottom: 0.75rem;
+    }
+    .sidebar-info-row { display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 0.5rem; }
+    .sidebar-info-label { color: var(--text-muted); }
+    .sidebar-info-value { font-weight: 600; text-align: right; }
+    
+    .status-badge {
+      display: inline-block;
+      padding: 0.2rem 0.6rem;
+      font-size: 0.7rem;
+      font-weight: 600;
+      border-radius: 9999px;
+      text-transform: uppercase;
+    }
+    .status-badge.pending { background: rgba(244,63,94,0.15); border: 1px solid rgba(244,63,94,0.3); color: var(--primary); }
+    .status-badge.completed { background: rgba(34,211,238,0.15); border: 1px solid rgba(34,211,238,0.3); color: var(--accent); }
+
+    .tabs-container { margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); display: flex; gap: 0.5rem; }
+    .tab-btn {
+      background: none; border: none; color: var(--text-muted);
+      font-size: 0.95rem; font-weight: 500; padding: 0.75rem 1rem; cursor: pointer;
+      font-family: inherit; transition: color 0.2s;
+    }
+    .tab-btn.active { color: var(--primary); font-weight: 600; border-bottom: 2px solid var(--primary); }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    .glass-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .card-title { font-size: 1.15rem; font-weight: 600; margin-bottom: 1rem; color: white; }
+
+    .packages-grid { display: grid; grid-template-columns: 1fr; gap: 1rem; }
+    @media (min-width: 640px) { .packages-grid { grid-template-columns: repeat(3, 1fr); } }
+
+    .pkg-card {
+      background: rgba(20,20,23,0.8);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 1.25rem;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 180px;
+      transition: all 0.2s;
+    }
+    .pkg-card.selected {
+      border-color: var(--border-active);
+      background: rgba(244,63,94,0.05);
+      box-shadow: 0 0 15px rgba(244,63,94,0.1);
+    }
+    .pkg-name { font-weight: 600; font-size: 1rem; }
+    .pkg-price { font-size: 1.35rem; font-weight: 700; color: var(--primary); margin-top: 0.5rem; }
+    .pkg-desc { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem; }
+
+    .addons-list { display: flex; flex-direction: column; gap: 0.75rem; }
+    .addon-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.8rem 1rem; background: rgba(20,20,23,0.4);
+      border: 1px solid var(--border-color); border-radius: var(--radius-md); cursor: pointer;
+    }
+    .addon-item.selected { border-color: var(--border-active); background: rgba(244,63,94,0.03); }
+    .addon-checkbox { width: 16px; height: 16px; border: 2px solid var(--border-color); border-radius: 3px; margin-right: 0.75rem; }
+    .addon-item.selected .addon-checkbox { background: var(--primary); border-color: var(--primary); }
+
+    .summary-box { border-top: 1px solid var(--border-color); padding-top: 1rem; margin-top: 1rem; }
+    .summary-row { display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 0.5rem; color: var(--text-muted); }
+    .summary-row.total { font-size: 1.2rem; font-weight: 700; color: white; border-top: 1px dashed var(--border-color); padding-top: 0.5rem; }
+
+    .btn {
+      display: block; width: 100%; background: var(--primary); color: white;
+      text-align: center; padding: 0.85rem; border: none; border-radius: var(--radius-md);
+      font-weight: 600; font-family: inherit; cursor: pointer; transition: background 0.15s;
+    }
+    .btn:hover { background: var(--primary-hover); }
+
+    .contract-container {
+      background: rgba(0,0,0,0.3); border: 1px solid var(--border-color);
+      border-radius: var(--radius-md); padding: 1rem; height: 200px; overflow-y: auto;
+      font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1.5rem;
+    }
+    .signature-preview {
+      background: #000; border: 1px dashed var(--border-color);
+      height: 60px; display: flex; align-items: center; justify-content: center;
+      font-family: 'Courier New', monospace; font-size: 1.25rem; color: var(--accent); margin: 1rem 0;
+    }
+
+    .milestones { display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1rem; }
+    .milestone-item {
+      display: flex; justify-content: space-between; align-items: center;
+      background: rgba(20,20,23,0.4); border: 1px solid var(--border-color);
+      border-radius: var(--radius-md); padding: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="banner"></div>
+  <div class="portal-container">
+    <div class="header-branding">
+      <div class="brand-logo">DJ</div>
+      <h1 class="brand-name">DJ VIBE Productions</h1>
+      <p class="job-title">Enquiry Proposal: Neon Nights Corporate Party</p>
+    </div>
+
+    <div class="portal-layout">
+      <div class="sidebar">
+        <div class="sidebar-section">
+          <h3 class="sidebar-title">Job Details</h3>
+          <div class="sidebar-info-row"><span>Date</span><span class="sidebar-info-value">October 31, 2026</span></div>
+          <div class="sidebar-info-row"><span>Venue</span><span class="sidebar-info-value">The Ministry, London</span></div>
+          <div class="sidebar-info-row"><span>Status</span><span class="sidebar-info-value"><span id="status-badge" class="status-badge pending">Awaiting Action</span></span></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="tabs-container">
+          <button class="tab-btn active" onclick="switchTab('quote')">1. Quote</button>
+          <button class="tab-btn" id="tab-contract" onclick="switchTab('contract')">2. Contract</button>
+          <button class="tab-btn" id="tab-invoice" onclick="switchTab('invoice')">3. Payment</button>
+        </div>
+
+        <!-- TAB 1 -->
+        <div id="panel-quote" class="tab-panel active">
+          <div class="glass-card">
+            <h2 class="card-title">Choose DJ Setup</h2>
+            <div class="packages-grid">
+              <div class="pkg-card" onclick="selectPackage('standard', 600)">
+                <div class="pkg-name">Standard Club DJ</div>
+                <div class="pkg-price">£600.00</div>
+                <div class="pkg-desc">Pioneer DJ Deck, PA System, basic booth lighting. (4 hours runtime)</div>
+              </div>
+              <div class="pkg-card selected" onclick="selectPackage('premium', 950)">
+                <div class="pkg-name">Premium Light Show</div>
+                <div class="pkg-price">£950.00</div>
+                <div class="pkg-desc">Upgraded sound, moving head light beams, custom DJ booth. (5 hours runtime)</div>
+              </div>
+              <div class="pkg-card" onclick="selectPackage('festival', 1500)">
+                <div class="pkg-name">Festival Experience</div>
+                <div class="pkg-price">£1,500.00</div>
+                <div class="pkg-desc">Laser show, haze machine, premium sound arrays, wireless mics. (Full night)</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="glass-card">
+            <h2 class="card-title">DJ Add-ons</h2>
+            <div class="addons-list">
+              <div class="addon-item" onclick="toggleAddon(this, 'lasers', 150)">
+                <div class="addon-checkbox"></div>
+                <span>Full Laser Production (+£150.00)</span>
+              </div>
+              <div class="addon-item" onclick="toggleAddon(this, 'extrahour', 100)">
+                <div class="addon-checkbox"></div>
+                <span>Extra Overtime Hour (+£100.00)</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="glass-card">
+            <h2 class="card-title">Summary</h2>
+            <div class="summary-box">
+              <div class="summary-row"><span>DJ Base Setup</span><span id="sum-base">£950.00</span></div>
+              <div id="sum-addons"></div>
+              <div class="summary-row total"><span>Total Cost</span><span id="sum-total">£950.00</span></div>
+            </div>
+            <button class="btn" style="margin-top: 1rem;" onclick="switchTab('contract')">Proceed to Contract &rarr;</button>
+          </div>
+        </div>
+
+        <!-- TAB 2 -->
+        <div id="panel-contract" class="tab-panel">
+          <div class="glass-card">
+            <h2 class="card-title">Agreement & Rider</h2>
+            <div class="contract-container">
+              <p><strong>1. Performance:</strong> The DJ agrees to perform during the stated hours. Overtime fees apply at £100/hr.</p>
+              <p><strong>2. Rider:</strong> Client must provide a stable, level table (minimum 1.5m wide) and 2 dedicated power sockets.</p>
+            </div>
+            <div style="margin-bottom: 1rem;">
+              <input type="text" class="btn" style="background:#18181b; border:1px solid var(--border-color); color:white; text-align:left;" placeholder="Type Full Name to Sign" oninput="updateSig(this.value)">
+            </div>
+            <div class="signature-preview"><span id="rendered-sig">[Type above]</span></div>
+            <button id="btn-sign" class="btn" disabled onclick="acceptContract()">Accept & Sign</button>
+          </div>
+        </div>
+
+        <!-- TAB 3 -->
+        <div id="panel-invoice" class="tab-panel">
+          <div class="glass-card">
+            <h2 class="card-title">Payment Milestones</h2>
+            <div class="milestones">
+              <div class="milestone-item">
+                <div><strong>50% Deposit Due</strong><p style="font-size:0.75rem; color:var(--text-muted)">Secures booking date</p></div>
+                <span id="milestone-dep">£475.00</span>
+              </div>
+            </div>
+            <button class="btn" onclick="paySim(this)">Submit Simulated Payment</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const state = { base: 950, addons: {}, signed: false };
+    function switchTab(id) {
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('panel-' + id).classList.add('active');
+      event.currentTarget.classList.add('active');
+    }
+    function selectPackage(id, val) {
+      if (state.signed) return;
+      document.querySelectorAll('.pkg-card').forEach(c => c.classList.remove('selected'));
+      event.currentTarget.classList.add('selected');
+      state.base = val;
+      calc();
+    }
+    function toggleAddon(el, id, val) {
+      if (state.signed) return;
+      el.classList.toggle('selected');
+      if (state.addons[id]) delete state.addons[id];
+      else state.addons[id] = val;
+      calc();
+    }
+    function calc() {
+      let addonSum = 0;
+      const addBox = document.getElementById('sum-addons');
+      addBox.innerHTML = '';
+      Object.keys(state.addons).forEach(k => {
+        addonSum += state.addons[k];
+        addBox.innerHTML += `<div class="summary-row"><span>+ Addon</span><span>£${state.addons[k]}.00</span></div>`;
+      });
+      document.getElementById('sum-base').innerText = '£' + state.base + '.00';
+      const tot = state.base + addonSum;
+      document.getElementById('sum-total').innerText = '£' + tot + '.00';
+      document.getElementById('milestone-dep').innerText = '£' + (tot/2) + '.00';
+    }
+    function updateSig(val) {
+      document.getElementById('rendered-sig').innerText = val || '[Type above]';
+      document.getElementById('btn-sign').disabled = !val.trim();
+    }
+    function acceptContract() {
+      state.signed = true;
+      document.getElementById('status-badge').innerText = 'Deposit Due';
+      document.getElementById('status-badge').className = 'status-badge pending';
+      switchTab('invoice');
+    }
+    function paySim(btn) {
+      btn.innerText = 'Paid';
+      btn.disabled = true;
+      document.getElementById('status-badge').innerText = 'Confirmed';
+      document.getElementById('status-badge').className = 'status-badge completed';
+    }
+    calc();
+  </script>
+</body>
+</html>

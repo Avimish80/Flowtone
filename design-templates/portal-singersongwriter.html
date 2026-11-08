@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Client Portal - Solo Acoustic Singer-Songwriter - Flowtone</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;1,400&family=Plus+Jakarta+Sans:wght@300;400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-base: #0f1411; /* deep forest/olive shadow */
+      --bg-card: rgba(22, 31, 26, 0.6);
+      --border-color: rgba(132, 204, 22, 0.12); /* lime/olive transparent */
+      --border-active: #84cc16; /* lime/olive */
+      --text-main: #f1f5f1;
+      --text-muted: #9caaa0;
+      --primary: #84cc16;
+      --primary-hover: #65a30d;
+      --accent: #a3e635;
+      --radius-lg: 1rem;
+      --radius-md: 0.75rem;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: var(--bg-base);
+      color: var(--text-main);
+      min-height: 100vh;
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(132, 204, 22, 0.08) 0, transparent 50%),
+        radial-gradient(at 100% 0%, rgba(16, 185, 129, 0.03) 0, transparent 40%);
+      padding-bottom: 4rem;
+    }
+
+    .portal-container { max-w: 1200px; margin: 0 auto; padding: 0 1rem; }
+    .banner {
+      height: 180px;
+      width: 100%;
+      background: linear-gradient(135deg, #14221a 0%, #0f1411 100%);
+      border-bottom: 1px solid var(--border-color);
+      border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+    }
+    .header-branding {
+      text-align: center;
+      margin-top: -50px;
+      margin-bottom: 2.5rem;
+    }
+    .brand-logo {
+      width: 90px;
+      height: 90px;
+      background: linear-gradient(135deg, #65a30d, #14221a);
+      border-radius: var(--radius-md);
+      border: 4px solid var(--bg-base);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Playfair Display', serif;
+      font-size: 2rem;
+      color: white;
+      margin: 0 auto 1rem;
+    }
+    .brand-name { font-family: 'Playfair Display', serif; font-size: 1.85rem; font-weight: 700; }
+    .job-title { color: var(--accent); font-size: 1rem; }
+
+    .portal-layout { display: grid; grid-template-columns: 1fr; gap: 2rem; }
+    @media (min-width: 1024px) { .portal-layout { grid-template-columns: 300px 1fr; } }
+
+    .sidebar {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+      backdrop-filter: blur(12px);
+    }
+    .sidebar-title {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      padding-bottom: 0.25rem;
+      margin-bottom: 0.75rem;
+    }
+    .sidebar-info-row { display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 0.5rem; }
+    .sidebar-info-label { color: var(--text-muted); }
+    .sidebar-info-value { font-weight: 600; text-align: right; }
+    
+    .status-badge {
+      display: inline-block;
+      padding: 0.2rem 0.6rem;
+      font-size: 0.7rem;
+      font-weight: 600;
+      border-radius: 9999px;
+    }
+    .status-badge.pending { background: rgba(132,204,22,0.15); border: 1px solid rgba(132,204,22,0.3); color: var(--accent); }
+    .status-badge.completed { background: rgba(52,211,153,0.15); border: 1px solid rgba(52,211,153,0.3); color: #34d399; }
+
+    .tabs-container { margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); display: flex; gap: 0.5rem; }
+    .tab-btn {
+      background: none; border: none; color: var(--text-muted);
+      font-size: 0.95rem; font-weight: 500; padding: 0.75rem 1rem; cursor: pointer;
+      font-family: inherit; transition: color 0.2s;
+    }
+    .tab-btn.active { color: var(--accent); font-weight: 600; border-bottom: 2px solid var(--accent); }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    .glass-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .card-title { font-family: 'Playfair Display', serif; font-size: 1.15rem; font-weight: 600; margin-bottom: 1rem; color: white; }
+
+    .packages-grid { display: grid; grid-template-columns: 1fr; gap: 1rem; }
+    @media (min-width: 640px) { .packages-grid { grid-template-columns: repeat(3, 1fr); } }
+
+    .pkg-card {
+      background: rgba(15,22,18,0.8);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 1.25rem;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 180px;
+      transition: all 0.2s;
+    }
+    .pkg-card.selected {
+      border-color: var(--border-active);
+      background: rgba(132,204,22,0.05);
+    }
+    .pkg-name { font-family: 'Playfair Display', serif; font-weight: 600; font-size: 1rem; }
+    .pkg-price { font-size: 1.35rem; font-weight: 700; color: var(--accent); margin-top: 0.5rem; }
+    .pkg-desc { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem; }
+
+    .addons-list { display: flex; flex-direction: column; gap: 0.75rem; }
+    .addon-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.8rem 1rem; background: rgba(15,22,18,0.4);
+      border: 1px solid var(--border-color); border-radius: var(--radius-md); cursor: pointer;
+    }
+    .addon-item.selected { border-color: var(--border-active); background: rgba(132,204,22,0.03); }
+    .addon-checkbox { width: 16px; height: 16px; border: 2px solid var(--border-color); border-radius: 3px; margin-right: 0.75rem; }
+    .addon-item.selected .addon-checkbox { background: var(--accent); border-color: var(--accent); }
+
+    .summary-box { border-top: 1px solid var(--border-color); padding-top: 1rem; margin-top: 1rem; }
+    .summary-row { display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 0.5rem; color: var(--text-muted); }
+    .summary-row.total { font-size: 1.2rem; font-weight: 700; color: white; border-top: 1px dashed var(--border-color); padding-top: 0.5rem; }
+
+    .btn {
+      display: block; width: 100%; background: var(--primary); color: white;
+      text-align: center; padding: 0.85rem; border: none; border-radius: var(--radius-md);
+      font-weight: 600; font-family: inherit; cursor: pointer; transition: background 0.15s;
+    }
+    .btn:hover { background: var(--primary-hover); }
+
+    .contract-container {
+      background: rgba(0,0,0,0.3); border: 1px solid var(--border-color);
+      border-radius: var(--radius-md); padding: 1rem; height: 200px; overflow-y: auto;
+      font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1.5rem;
+    }
+    .signature-preview {
+      background: #000; border: 1px dashed var(--border-color);
+      height: 60px; display: flex; align-items: center; justify-content: center;
+      font-family: 'Playfair Display', serif; font-style: italic; font-size: 1.25rem; color: var(--accent); margin: 1rem 0;
+    }
+
+    .milestones { display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1rem; }
+    .milestone-item {
+      display: flex; justify-content: space-between; align-items: center;
+      background: rgba(15,22,18,0.4); border: 1px solid var(--border-color);
+      border-radius: var(--radius-md); padding: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="banner"></div>
+  <div class="portal-container">
+    <div class="header-branding">
+      <div class="brand-logo">F</div>
+      <h1 class="brand-name">Faye Wood Acoustic</h1>
+      <p class="job-title">Enquiry Proposal: Intimate Wedding Ceremony & Drinks</p>
+    </div>
+
+    <div class="portal-layout">
+      <div class="sidebar">
+        <div class="sidebar-section">
+          <h3 class="sidebar-title">Performance</h3>
+          <div class="sidebar-info-row"><span>Date</span><span class="sidebar-info-value">October 17, 2026</span></div>
+          <div class="sidebar-info-row"><span>Venue</span><span class="sidebar-info-value">Kew Gardens, London</span></div>
+          <div class="sidebar-info-row"><span>Status</span><span class="sidebar-info-value"><span id="status-badge" class="status-badge pending">Awaiting Action</span></span></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="tabs-container">
+          <button class="tab-btn active" onclick="switchTab('quote')">1. Quote</button>
+          <button class="tab-btn" id="tab-contract" onclick="switchTab('contract')">2. Contract</button>
+          <button class="tab-btn" id="tab-invoice" onclick="switchTab('invoice')">3. Payment</button>
+        </div>
+
+        <!-- TAB 1 -->
+        <div id="panel-quote" class="tab-panel active">
+          <div class="glass-card">
+            <h2 class="card-title">Select Set Repertoire</h2>
+            <div class="packages-grid">
+              <div class="pkg-card" onclick="selectPackage('ceremony', 450)">
+                <div class="pkg-name">Ceremony Only</div>
+                <div class="pkg-price">£450.00</div>
+                <div class="pkg-desc">Bridal entrance, signing register, exit song. Handcrafted acoustic arrangements.</div>
+              </div>
+              <div class="pkg-card selected" onclick="selectPackage('drinks', 700)">
+                <div class="pkg-name">Ceremony & Drinks</div>
+                <div class="pkg-price">£700.00</div>
+                <div class="pkg-desc">Wedding ceremony set plus 1.5 hours of rustic acoustic folk cover sets for guests.</div>
+              </div>
+              <div class="pkg-card" onclick="selectPackage('dinner', 950)">
+                <div class="pkg-name">Full Day Folk</div>
+                <div class="pkg-price">£950.00</div>
+                <div class="pkg-desc">Ceremony, drinks canapes, plus soft acoustic dinner background music.</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="glass-card">
+            <h2 class="card-title">Acoustic Add-ons</h2>
+            <div class="addons-list">
+              <div class="addon-item" onclick="toggleAddon(this, 'special', 100)">
+                <div class="addon-checkbox"></div>
+                <span>Special Song Request Arrangement (+£100.00)</span>
+              </div>
+              <div class="addon-item" onclick="toggleAddon(this, 'overtime', 120)">
+                <div class="addon-checkbox"></div>
+                <span>Extra 45-Minute Performance Set (+£120.00)</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="glass-card">
+            <h2 class="card-title">Summary</h2>
+            <div class="summary-box">
+              <div class="summary-row"><span>Acoustic Base</span><span id="sum-base">£700.00</span></div>
+              <div id="sum-addons"></div>
+              <div class="summary-row total"><span>Total Cost</span><span id="sum-total">£700.00</span></div>
+            </div>
+            <button class="btn" style="margin-top: 1rem;" onclick="switchTab('contract')">Proceed to Contract &rarr;</button>
+          </div>
+        </div>
+
+        <!-- TAB 2 -->
+        <div id="panel-contract" class="tab-panel">
+          <div class="glass-card">
+            <h2 class="card-title">Folk Performance Agreement</h2>
+            <div class="contract-container">
+              <p><strong>1. Performance:</strong> Solo acoustic singer-songwriter. Minimal PA provided for ceremony.</p>
+              <p><strong>2. Retainer:</strong> 50% retainer securing the date must be paid upon contract acceptance.</p>
+            </div>
+            <div style="margin-bottom: 1rem;">
+              <input type="text" class="btn" style="background:#0f1411; border:1px solid var(--border-color); color:white; text-align:left;" placeholder="Type Full Name to Sign" oninput="updateSig(this.value)">
+            </div>
+            <div class="signature-preview"><span id="rendered-sig">[Type above]</span></div>
+            <button id="btn-sign" class="btn" disabled onclick="acceptContract()">Accept & Sign</button>
+          </div>
+        </div>
+
+        <!-- TAB 3 -->
+        <div id="panel-invoice" class="tab-panel">
+          <div class="glass-card">
+            <h2 class="card-title">Date Retainer</h2>
+            <div class="milestones">
+              <div class="milestone-item">
+                <div><strong>50% Booking Guarantee</strong><p style="font-size:0.75rem; color:var(--text-muted)">Due on contract signing</p></div>
+                <span id="milestone-dep">£350.00</span>
+              </div>
+            </div>
+            <button class="btn" onclick="paySim(this)">Submit Retainer Payment</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const state = { base: 700, addons: {}, signed: false };
+    function switchTab(id) {
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('panel-' + id).classList.add('active');
+      event.currentTarget.classList.add('active');
+    }
+    function selectPackage(id, val) {
+      if (state.signed) return;
+      document.querySelectorAll('.pkg-card').forEach(c => c.classList.remove('selected'));
+      event.currentTarget.classList.add('selected');
+      state.base = val;
+      calc();
+    }
+    function toggleAddon(el, id, val) {
+      if (state.signed) return;
+      el.classList.toggle('selected');
+      if (state.addons[id]) delete state.addons[id];
+      else state.addons[id] = val;
+      calc();
+    }
+    function calc() {
+      let addonSum = 0;
+      const addBox = document.getElementById('sum-addons');
+      addBox.innerHTML = '';
+      Object.keys(state.addons).forEach(k => {
+        addonSum += state.addons[k];
+        addBox.innerHTML += `<div class="summary-row"><span>+ Addon</span><span>£${state.addons[k]}.00</span></div>`;
+      });
+      document.getElementById('sum-base').innerText = '£' + state.base + '.00';
+      const tot = state.base + addonSum;
+      document.getElementById('sum-total').innerText = '£' + tot + '.00';
+      document.getElementById('milestone-dep').innerText = '£' + (tot/2) + '.00';
+    }
+    function updateSig(val) {
+      document.getElementById('rendered-sig').innerText = val || '[Type above]';
+      document.getElementById('btn-sign').disabled = !val.trim();
+    }
+    function acceptContract() {
+      state.signed = true;
+      document.getElementById('status-badge').innerText = 'Deposit Due';
+      document.getElementById('status-badge').className = 'status-badge pending';
+      switchTab('invoice');
+    }
+    function paySim(btn) {
+      btn.innerText = 'Deposit Paid';
+      btn.disabled = true;
+      document.getElementById('status-badge').innerText = 'Confirmed';
+      document.getElementById('status-badge').className = 'status-badge completed';
+    }
+    calc();
+  </script>
+</body>
+</html>

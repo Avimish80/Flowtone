@@ -8,6 +8,7 @@ import calendarRoutes from './routes/calendar.js';
 import billingRoutes, { handleStripeWebhook } from './routes/billing.js';
 import meRoutes from './routes/me.js';
 import publicRoutes from './routes/public.js';
+import calendarClassifyRoutes from './routes/calendarClassify.js';
 import { requireAuthenticatedUser } from './lib/auth.js';
 import { startScheduler } from './scheduler.js';
 
@@ -28,6 +29,8 @@ app.use(
       if (!origin) return callback(null, true);
       // Always allow localhost for development
       if (/^https?:\/\/localhost(:\d+)?$/.test(origin)) return callback(null, true);
+      // The iOS app (Capacitor) serves its bundle from capacitor://localhost
+      if (origin === 'capacitor://localhost') return callback(null, true);
       // Allow local network IPs (phone on same WiFi during dev)
       if (/^http:\/\/192\.168\.\d+\.\d+(:\d+)?$/.test(origin)) return callback(null, true);
       if (/^http:\/\/10\.\d+\.\d+\.\d+(:\d+)?$/.test(origin)) return callback(null, true);
@@ -49,6 +52,7 @@ app.use(express.json());
 
 // ─── Routes ────────────────────────────────────────────────────────
 app.use('/api/ai', requireAuthenticatedUser, aiRoutes);
+app.use('/api/ai', requireAuthenticatedUser, calendarClassifyRoutes);
 app.use('/api/push', pushRoutes);
 app.use('/api/gmail', gmailRoutes);
 app.use('/api/calendar', calendarRoutes);

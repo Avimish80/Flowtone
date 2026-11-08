@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Landing Template - Bento Grid Layout</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-base: #030712;
+      --bg-card: rgba(17, 24, 39, 0.45);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --border-active: #10b981;
+      --text-main: #f9fafb;
+      --text-muted: #9ca3af;
+      --primary: #10b981;
+      --radius-lg: 1rem;
+      --radius-md: 0.75rem;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: var(--bg-base);
+      color: var(--text-main);
+      min-height: 100vh;
+      padding: 2rem 1rem 4rem;
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.06) 0, transparent 55%),
+        radial-gradient(at 100% 100%, rgba(99, 102, 241, 0.04) 0, transparent 60%);
+    }
+
+    .bento-container {
+      max-w: 960px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1rem;
+    }
+
+    @media (min-width: 768px) {
+      .bento-container {
+        grid-template-columns: repeat(3, 1fr);
+        grid-auto-rows: minmax(140px, auto);
+      }
+      .col-span-3 { grid-column: span 3; }
+      .col-span-2 { grid-column: span 2; }
+      .row-span-2 { grid-row: span 2; }
+    }
+
+    .bento-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+      backdrop-filter: blur(12px);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    /* Hero Bento Box */
+    .bento-hero {
+      background-image: linear-gradient(to right, rgba(3, 7, 18, 0.8) 0%, rgba(3, 7, 18, 0.2) 100%), url('https://images.unsplash.com/photo-1510915361894-db8b60106cb1?auto=format&fit=crop&w=1200&q=80');
+      background-size: cover;
+      background-position: center;
+      min-height: 220px;
+    }
+    .hero-title { font-size: 2.25rem; font-weight: 700; margin-bottom: 0.5rem; line-height: 1.1; }
+    .hero-sub { text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.2em; font-weight: 700; color: var(--primary); }
+
+    /* Soundclips Box */
+    .track-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem;
+      background: rgba(0,0,0,0.2);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      margin-bottom: 0.5rem;
+    }
+    .play-icon {
+      width: 28px; height: 28px; border-radius: 50%; background: var(--primary);
+      border: none; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.75rem;
+    }
+
+    /* Package boxes */
+    .bento-pkg { cursor: pointer; transition: all 0.2s; }
+    .bento-pkg:hover { border-color: var(--primary); transform: scale(1.02); }
+    .pkg-price { font-size: 1.5rem; font-weight: 700; color: var(--primary); margin-top: 1rem; }
+
+    /* Form styling */
+    .form-group { display: flex; flex-direction: column; margin-bottom: 1rem; }
+    .form-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 0.25rem; font-weight: 600; }
+    .form-input {
+      background: rgba(0, 0, 0, 0.4); border: 1px solid var(--border-color);
+      border-radius: var(--radius-md); padding: 0.75rem 1rem; color: white; font-family: inherit; font-size: 0.85rem;
+    }
+    .form-input:focus { outline: none; border-color: var(--primary); }
+    .btn-submit {
+      width: 100%; background: var(--primary); color: white; border: none; padding: 0.85rem;
+      border-radius: var(--radius-md); font-weight: 700; font-family: inherit; cursor: pointer;
+    }
+
+    .success-pane { text-align: center; padding: 1.5rem 0; display: none; }
+  </style>
+</head>
+<body>
+
+  <div class="bento-container">
+    
+    <!-- Hero Box (Wide) -->
+    <div class="bento-box bento-hero col-span-3">
+      <div>
+        <span class="hero-sub">Live Performance Designer</span>
+        <h1 class="hero-title">Acoustic Modernity</h1>
+      </div>
+      <p style="color: var(--text-muted); font-size: 0.9rem; max-w: 400px;">Elevating cocktail hours, receptions, and dinners with a seamless live ambient audio layer.</p>
+    </div>
+
+    <!-- About Box (Wide) -->
+    <div class="bento-box col-span-2">
+      <h3 style="font-size:1.15rem; margin-bottom:0.75rem;">Creative Repertoire</h3>
+      <p style="color:var(--text-muted); font-size:0.875rem; line-height:1.6;">Every booking features customized song lists prepared to fit the atmosphere of your celebration, blending classic hits with contemporary covers.</p>
+    </div>
+
+    <!-- Sound Board Box (Tall) -->
+    <div class="bento-box row-span-2">
+      <div>
+        <h3 style="font-size:1.15rem; margin-bottom:1rem;">Sound Clips</h3>
+        <div class="track-row">
+          <div style="display:flex; align-items:center; gap:0.5rem;">
+            <button class="play-icon">&#9658;</button>
+            <span style="font-size:0.8rem; font-weight:600;">Chill Cover</span>
+          </div>
+          <span style="font-size:0.7rem; color:var(--text-muted);">1:30</span>
+        </div>
+        <div class="track-row">
+          <div style="display:flex; align-items:center; gap:0.5rem;">
+            <button class="play-icon">&#9658;</button>
+            <span style="font-size:0.8rem; font-weight:600;">Upbeat Jam</span>
+          </div>
+          <span style="font-size:0.7rem; color:var(--text-muted);">2:00</span>
+        </div>
+      </div>
+      <p style="font-size:0.75rem; color:var(--text-muted);">Recorded live in studio session.</p>
+    </div>
+
+    <!-- Package 1 Box -->
+    <div class="bento-box bento-pkg" onclick="selectPkg('ceremony')">
+      <div>
+        <span style="font-size:0.75rem; text-transform:uppercase; color:var(--text-muted);">Option A</span>
+        <h3 style="font-size:1.1rem; margin-top:0.25rem;">Ceremony Backdrop</h3>
+      </div>
+      <div>
+        <p class="pkg-price">£500</p>
+        <span style="font-size:0.75rem; color:var(--primary);">Select Option &rarr;</span>
+      </div>
+    </div>
+
+    <!-- Package 2 Box -->
+    <div class="bento-box bento-pkg" onclick="selectPkg('reception')">
+      <div>
+        <span style="font-size:0.75rem; text-transform:uppercase; color:var(--text-muted);">Option B</span>
+        <h3 style="font-size:1.1rem; margin-top:0.25rem;">Ceremony & Drinks</h3>
+      </div>
+      <div>
+        <p class="pkg-price">£800</p>
+        <span style="font-size:0.75rem; color:var(--primary);">Select Option &rarr;</span>
+      </div>
+    </div>
+
+    <!-- Booking Enquiry Box (Wide + Tall) -->
+    <div class="bento-box col-span-2 row-span-2" id="contact">
+      <h3 style="font-size:1.15rem; margin-bottom:1rem;">Check Date & Availability</h3>
+      <div id="form-container">
+        <form onsubmit="sendForm(event)">
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+            <div class="form-group">
+              <label class="form-label">Name</label>
+              <input type="text" class="form-input" placeholder="Sarah Jenkins" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Email</label>
+              <input type="email" class="form-input" placeholder="sarah@example.com" required>
+            </div>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+            <div class="form-group">
+              <label class="form-label">Date</label>
+              <input type="date" id="evt-date" class="form-input" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Option</label>
+              <select class="form-input" id="pkg-select">
+                <option value="ceremony">Ceremony Backdrop</option>
+                <option value="reception">Ceremony & Drinks</option>
+              </select>
+            </div>
+          </div>
+          <button type="submit" class="btn-submit" style="margin-top:0.5rem;">Submit Enquiry</button>
+        </form>
+      </div>
+
+      <div class="success-pane" id="success-container">
+        <h4 style="font-size:1.25rem; margin-bottom:0.5rem;">Enquiry Received</h4>
+        <p style="color:var(--text-muted); font-size:0.85rem;">Checking availability for <strong id="success-date" style="color:white"></strong>. We will contact you soon.</p>
+      </div>
+    </div>
+
+    <!-- Review Box -->
+    <div class="bento-box">
+      <p style="font-style:italic; font-size:0.8rem; color:var(--text-muted);">"Absolutely stunning performance. Perfect backdrop for our drinks."</p>
+      <span style="font-size:0.75rem; font-weight:600; margin-top:0.5rem;">- Jenkins Wedding</span>
+    </div>
+
+  </div>
+
+  <script>
+    function selectPkg(val) {
+      document.getElementById('pkg-select').value = val;
+      document.getElementById('contact').scrollIntoView({ behavior: 'smooth' });
+    }
+    function sendForm(e) {
+      e.preventDefault();
+      document.getElementById('success-date').innerText = document.getElementById('evt-date').value;
+      document.getElementById('form-container').style.display = 'none';
+      document.getElementById('success-container').style.display = 'block';
+    }
+  </script>
+</body>
+</html>

@@ -168,7 +168,11 @@
       "Bash(node --check server/lib/googleCalendar.js)",
       "Bash(echo \"exit:$?\")",
       "Bash(sqlite3 flowtone.db \".tables\")",
-      "Bash(sqlite3 flowtone.db \"SELECT endpoint, user_agent, created_at FROM push_subscriptions;\")"
+      "Bash(sqlite3 flowtone.db \"SELECT endpoint, user_agent, created_at FROM push_subscriptions;\")",
+      "Bash(brew list *)",
+      "Bash(xcode-select -p)",
+      "Bash(sysctl -n machdep.cpu.brand_string)",
+      "Bash(sw_vers -productVersion)"
     ]
   }
 }

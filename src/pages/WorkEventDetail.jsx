@@ -535,12 +535,12 @@ export default function WorkEventDetail() {
         </div>
       )}
 
-      {/* Pulled from Google with no details — nudge the user to complete it */}
-      {id && event.created_from_gcal && !event.client_id && (
+      {/* Pulled from Google / iPhone calendar with no details — nudge the user to complete it */}
+      {id && (event.created_from_gcal || event.created_from_device) && !event.client_id && (
         <div className="mx-4 mt-4 bg-amber-900/25 border border-amber-700/50 rounded-xl p-4">
           <div className="flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0" />
-            <span className="text-sm text-amber-100">This gig came from Google. Add the client, fee and any details to complete it.</span>
+            <span className="text-sm text-amber-100">This gig came from your {event.created_from_device ? "iPhone calendar" : "Google Calendar"}. Add the client, fee and any details to complete it.</span>
           </div>
         </div>
       )}

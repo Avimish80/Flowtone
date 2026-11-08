@@ -8,15 +8,22 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-try {
-  const envFile = readFileSync(join(__dirname, '.env'), 'utf8');
-  for (const line of envFile.split('\n')) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith('#')) continue;
-    const eqIdx = trimmed.indexOf('=');
-    if (eqIdx < 0) continue;
-    const key = trimmed.slice(0, eqIdx).trim();
-    const val = trimmed.slice(eqIdx + 1).trim();
-    process.env[key] = val; // always override
-  }
-} catch { /* .env not found — rely on real env vars */ }
+
+function loadFile(name) {
+  try {
+    const envFile = readFileSync(join(__dirname, name), 'utf8');
+    for (const line of envFile.split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const eqIdx = trimmed.indexOf('=');
+      if (eqIdx < 0) continue;
+      const key = trimmed.slice(0, eqIdx).trim();
+      const val = trimmed.slice(eqIdx + 1).trim();
+      process.env[key] = val; // always override
+    }
+  } catch { /* file not found — rely on real env vars */ }
+}
+
+// ENV_FILE (e.g. ".env.localdb") is read instead of .env — used to run the
+// server against the local Supabase stack without touching production config.
+loadFile(process.env.ENV_FILE || '.env');

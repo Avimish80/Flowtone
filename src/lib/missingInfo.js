@@ -61,14 +61,14 @@ export function hasInvoice(e, documents) {
 }
 
 /**
- * Source-agnostic "came from outside" check. Today the only external source is
- * Google Calendar (created_from_gcal). A future email→event flow sets the same
- * kind of flag and slots in here only — nothing downstream needs to change.
+ * Source-agnostic "came from outside" check: Google Calendar (created_from_gcal)
+ * or a linked iPhone calendar (created_from_device). A future email→event flow
+ * sets the same kind of flag and slots in here only.
  * The flag is sticky (never cleared once set), so callers must ALWAYS pair it
  * with a live empty-field check, never notify on the flag alone.
  */
 export function isExternalEvent(e) {
-  return e.created_from_gcal === true;
+  return e.created_from_gcal === true || e.created_from_device === true;
 }
 
 // ─── Finders ──────────────────────────────────────────────────────────────────

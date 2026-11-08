@@ -78,8 +78,10 @@ const Leads = lazy(() => import('./pages/Leads'));
 const Packages = lazy(() => import('./pages/Packages'));
 const Practice = lazy(() => import('./pages/Practice'));
 const WorkEventDetail = lazy(() => import('./pages/WorkEventDetail'));
-const SheetImport = lazy(() => import('./pages/SheetImport'));
 const Missions = lazy(() => import('./pages/Missions'));
+const FeeRules = lazy(() => import('./pages/FeeRules'));
+const FeeCatchUp = lazy(() => import('./pages/FeeCatchUp'));
+const SheetImport = lazy(() => import('./pages/SheetImport'));
 const MissionDetail = lazy(() => import('./pages/MissionDetail'));
 const WorkEvents = lazy(() => import('./pages/WorkEvents'));
 
@@ -99,6 +101,8 @@ export const PAGES = {
     "EstimateDetail": EstimateDetail,
     "Estimates": Estimates,
     "Finance": Finance,
+    "FeeRules": FeeRules,
+    "FeeCatchUp": FeeCatchUp,
     "InvoiceDetail": InvoiceDetail,
     "Invoices": Invoices,
     "LeadDetail": LeadDetail,
@@ -106,8 +110,8 @@ export const PAGES = {
     "Missions": Missions,
     "MissionDetail": MissionDetail,
     "Packages": Packages,
-    "Practice": Practice,
     "SheetImport": SheetImport,
+    "Practice": Practice,
     "WorkEventDetail": WorkEventDetail,
     "WorkEvents": WorkEvents,
 }

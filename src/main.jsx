@@ -1,5 +1,6 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
+import { Capacitor } from '@capacitor/core'
 import App from '@/App.jsx'
 import { ThemeProvider } from '@/lib/ThemeContext'
 import { PrivacyProvider } from '@/lib/PrivacyContext'
@@ -13,8 +14,9 @@ try {
   if (localStorage.getItem("flowtone_hide_fees") === "1") document.documentElement.classList.add("hide-fees");
 } catch {}
 
-// Register service worker for PWA / offline support
-if ("serviceWorker" in navigator) {
+// Register service worker for PWA / offline support. Not in the iOS app:
+// the bundle is already local there, and WKWebView has no web push.
+if ("serviceWorker" in navigator && !Capacitor.isNativePlatform()) {
   window.addEventListener("load", () => {
     navigator.serviceWorker
       .register("/sw.js")
