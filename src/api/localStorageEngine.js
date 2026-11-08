@@ -46,9 +46,24 @@ function matchesExact(rowValue, queryValue) {
   return rowValue === queryValue;
 }
 
-function hydrateRow(row) {
+// Entities whose records carry their own `payload` object (read as
+// item.payload.*). For these the jsonb column IS that object, so it is nested
+// back under `payload` on read instead of being spread onto the record.
+const NESTED_PAYLOAD_ENTITIES = new Set(["ActionItem"]);
+
+function isPlainObject(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function hydrateRow(row, entityName) {
   if (!row) return null;
   const { payload, user_id: _userId, ...rest } = row;
+  if (NESTED_PAYLOAD_ENTITIES.has(entityName)) {
+    return {
+      ...rest,
+      payload: isPlainObject(payload) ? payload : {},
+    };
+  }
   return {
     ...(payload || {}),
     ...rest,
@@ -77,6 +92,15 @@ function splitRecord(entityName, record = {}) {
     } else {
       payload[key] = value;
     }
+  }
+
+  // The record's own payload object is the column value; any unknown keys
+  // passed alongside it are merged in. Without this the (empty) leftover object
+  // replaced it on every write and the item lost all its details.
+  if (NESTED_PAYLOAD_ENTITIES.has(entityName)) {
+    const own = isPlainObject(row.payload) ? row.payload : {};
+    delete row.payload;
+    return { row, payload: { ...own, ...payload } };
   }
 
   return { row, payload };
@@ -137,7 +161,7 @@ export function createLocalEntity(entityName) {
 
       if (error) throw error;
 
-      let records = (data || []).map(hydrateRow);
+      let records = (data || []).map((row) => hydrateRow(row, entityName));
       records = sortRecords(records, sortField);
       if (limit) records = records.slice(0, limit);
       return records;
@@ -159,7 +183,7 @@ export function createLocalEntity(entityName) {
 
       if (error) throw error;
 
-      let records = (data || []).map(hydrateRow);
+      let records = (data || []).map((row) => hydrateRow(row, entityName));
       records = records.filter((record) =>
         Object.entries(queryObj).every(([key, value]) => matchesExact(record[key], value))
       );
@@ -202,7 +226,7 @@ export function createLocalEntity(entityName) {
         .single();
 
       if (error) throw error;
-      return hydrateRow(data);
+      return hydrateRow(data, entityName);
     },
 
     async createMany(records = []) {
@@ -242,7 +266,7 @@ export function createLocalEntity(entityName) {
         .select("*");
 
       if (error) throw error;
-      return (data || []).map(hydrateRow);
+      return (data || []).map((row) => hydrateRow(row, entityName));
     },
 
     async update(id, updates) {
@@ -269,7 +293,7 @@ export function createLocalEntity(entityName) {
       if (existingError) throw existingError;
 
       const merged = {
-        ...hydrateRow(existing),
+        ...hydrateRow(existing, entityName),
         ...updates,
         id,
         created_at: existing.created_at,
@@ -293,7 +317,7 @@ export function createLocalEntity(entityName) {
         .single();
 
       if (error) throw error;
-      return hydrateRow(data);
+      return hydrateRow(data, entityName);
     },
 
     async delete(id) {

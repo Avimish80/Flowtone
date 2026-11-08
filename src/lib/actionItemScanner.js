@@ -320,6 +320,7 @@ export function extractCandidateFindings(events, documents, clients, now, leads 
       allowed_item_types,
       entity_type: item.entity_type,
       entity_id: item.entity_id,
+      priority: item.priority,
       payload: item.payload || {},
       action_targets,
     };

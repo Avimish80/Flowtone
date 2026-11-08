@@ -4,6 +4,10 @@ import { flowtoneJson } from "@/lib/flowtoneApi";
 import { isPreviewModeEnabled } from "@/lib/supabaseClient";
 import { getCachedProfileSync, getAssistantProfile, DEFAULT_LANGUAGE } from "@/lib/assistantProfile";
 
+// The server writes titles in batches of ~15 (a few model calls in a row for a
+// long list), so allow longer than the default 15s request timeout.
+const COMPOSE_TIMEOUT_MS = 60000;
+
 function latestUpdatedAt(records) {
   let max = 0;
   for (const r of records) {
@@ -41,7 +45,10 @@ export async function runMissionScan() {
   const hasDueSnooze = allItems.some(
     (i) => i.status === "snoozed" && i.snoozed_until && new Date(i.snoozed_until).getTime() <= now
   );
-  const dataChanged = dataTimestamp > lastScanData || openItems.length === 0 || hasDueSnooze;
+  // Open items saved without their details (an old data-layer bug wrote an empty
+  // payload) must be refilled, so their buttons, chips and titles work again.
+  const needsBackfill = openItems.some((i) => !i.payload?.payload_sig);
+  const dataChanged = dataTimestamp > lastScanData || openItems.length === 0 || hasDueSnooze || needsBackfill;
 
   if (!dataChanged) return;
 
@@ -76,6 +83,7 @@ export async function runMissionScan() {
 
       const response = await flowtoneJson("/api/ai/compose-missions", {
         method: "POST",
+        timeoutMs: COMPOSE_TIMEOUT_MS,
         body: JSON.stringify({
           candidates: activeCandidates,
           context_notes: contextNotes,
@@ -102,7 +110,9 @@ export async function runMissionScan() {
             entity_type: matchingCandidate?.entity_type || "event",
             entity_id: matchingCandidate?.entity_id || "",
             title: item.title,
-            priority: typeof item.priority === "number" ? Math.max(0, Math.min(2, item.priority)) : 1,
+            priority: typeof item.priority === "number"
+              ? Math.max(0, Math.min(2, item.priority))
+              : (matchingCandidate?.priority ?? 1),
             action_type: "navigate",
             action_target: target,
             payload: {
@@ -170,6 +180,7 @@ export async function runMissionScan() {
       try {
         const result = await flowtoneJson("/api/ai/compose-missions", {
           method: "POST",
+          timeoutMs: COMPOSE_TIMEOUT_MS,
           body: JSON.stringify({
             items: needsComposition,
             name: profile?.user_name || "",

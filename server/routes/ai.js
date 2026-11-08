@@ -2,6 +2,8 @@ import { Router } from 'express';
 import Anthropic from '@anthropic-ai/sdk';
 import { getAuthenticatedUser } from '../lib/auth.js';
 import { getSupabaseAdmin, isSupabaseServerConfigured } from '../lib/supabaseAdmin.js';
+import { extractJsonObject } from '../lib/extractJson.js';
+import { composeTitles, composeDecisions } from '../lib/composeBatches.js';
 
 const router = Router();
 
@@ -401,52 +403,7 @@ Always respond with valid JSON only. No markdown. No explanation outside the JSO
 }
 
 // ─── Response parsing ──────────────────────────────────────────────
-// The model is told to return one bare JSON object, but it occasionally wraps
-// it in code fences or prefixes it with a line of prose. A plain JSON.parse
-// fails on those, and falling back to the raw string puts `{"message":...}`
-// straight into the user's chat bubble. So: scan for the first balanced
-// {...} object and parse that instead.
-function extractJsonObject(rawText) {
-  const text = String(rawText || '')
-    .replace(/^\s*```(?:json)?\s*/i, '')
-    .replace(/\s*```\s*$/i, '')
-    .trim();
-
-  try {
-    return JSON.parse(text);
-  } catch { /* not bare JSON — scan for the object below */ }
-
-  const start = text.indexOf('{');
-  if (start === -1) return null;
-
-  let depth = 0;
-  let inString = false;
-  let escaped = false;
-
-  for (let i = start; i < text.length; i++) {
-    const ch = text[i];
-
-    if (escaped) { escaped = false; continue; }
-    if (ch === '\\') { escaped = true; continue; }
-    if (ch === '"') { inString = !inString; continue; }
-    if (inString) continue;
-
-    if (ch === '{') {
-      depth++;
-    } else if (ch === '}') {
-      depth--;
-      if (depth === 0) {
-        try {
-          return JSON.parse(text.slice(start, i + 1));
-        } catch {
-          return null;
-        }
-      }
-    }
-  }
-
-  return null;
-}
+// extractJsonObject lives in ../lib/extractJson.js (shared with composeBatches).
 
 // Last resort, when nothing parsed: keep any prose, never show a JSON blob.
 // The second replace catches output truncated mid-object (max_tokens reached),
@@ -636,9 +593,14 @@ ${JSON.stringify(locationMissingEvents)}`;
 
 // ─── POST /api/ai/compose-missions ─────────────────────────────────
 // Takes structured findings from the deterministic scanner and asks
-// Haiku to write natural, human-like text for each one.
-// Body: { items: [{ item_type, payload }], name, language, assistantName }
-// Returns: { titles: { "item_type::entity_id": "natural text" } }
+// Haiku to write natural, human-like text for each one. Missions go to the
+// model in batches (../lib/composeBatches.js); a cut-off or broken batch only
+// loses its own AI text, the rest still come back.
+// Body: { items: [{ item_type, entity_id, payload }] }  — legacy titles, or
+//       { candidates: [...], context_notes }            — hybrid decisions
+//       plus name, language, assistantName
+// Returns: { titles: { "item_type::entity_id": "natural text" } }  (legacy)
+//          { items: [{ key, item_type, title, priority }] }         (hybrid)
 router.post('/compose-missions', async (req, res) => {
   try {
     const {
@@ -651,164 +613,31 @@ router.post('/compose-missions', async (req, res) => {
     } = req.body;
 
     const client = getClient();
-
-    // ─── Hybrid AI-Driven Scanning Path ──────────────────────────────
-    if (candidates.length > 0) {
-      const candidateJSONStr = JSON.stringify(
-        candidates.map(c => ({
-          candidate_key: c.candidate_key,
-          default_item_type: c.default_item_type,
-          allowed_item_types: c.allowed_item_types,
-          payload: c.payload,
-        })),
-        null,
-        2
-      );
-
-      const prompt = `You are ${assistantName || 'Flowtone'}, a warm, direct, personal assistant for ${name || 'a professional musician'}.${language !== 'English' ? `\nIMPORTANT: Write ALL text values in ${language}.` : ''}
-
-You are evaluating a list of "candidate findings" (potential alerts/opportunities) from their business database.
-The user has configured the following personal instructions or preferences ("context_notes") that define how you should act, prioritize, and adjust your alerts:
-=== USER CUSTOM PREFERENCES ===
-"${context_notes}"
-===============================
-
-Analyze each candidate finding in the list below. For each candidate:
-1. **Decide if it should be an active mission.** Set "keep" to false to suppress the alert if it violates the user's custom preferences (e.g. if the user says "ignore rehearsal locations" and the event title contains "rehearsal"). Otherwise, set "keep" to true.
-2. **Choose the item_type.** You can keep the candidate's default_item_type, or adjust/upgrade it based on user preferences.
-   - You MUST select only from the allowed_item_types array for that candidate.
-   - Example upgrade: If a gig is ready to invoice (default \`gig_ready_to_invoice\`) but the user preferences say "don't make me draft invoices, just make them ready to send", you can upgrade the type to \`invoice_ready_to_send\` (if it is listed in allowed_item_types).
-3. **Write a title (message).** Max 15 words. Be direct, natural, warm, and speak in the first person ("I...", "Your..."). Always specify the actual client, gig, or invoice name directly. When you mention a money amount, use the symbol for that candidate's own "currency" field — GBP → £, USD → $, EUR → €, AUD → A$, CAD → C$ — never default to dollars.
-4. **Choose priority.** Set to \`0\` (low), \`1\` (normal), or \`2\` (high).
-5. **Echo candidate_key exactly.** CRITICAL: You must return the candidate_key exactly as received in the "key" field. Do not modify, trim, or reconstruct the candidate_key in any way.
-
-Candidates:
-${candidateJSONStr}
-
-Return ONLY raw JSON in the following format (no markdown fences, no extra text):
-{
-  "items": [
-    {
-      "key": "candidate_key_exactly_as_received",
-      "keep": true | false,
-      "item_type": "one of the allowed_item_types",
-      "title": "Natural language title",
-      "priority": 0 | 1 | 2
-    }
-  ]
-}`;
-
+    const callModel = async (prompt, maxTokens) => {
       const apiResponse = await client.messages.create({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 2048,
+        max_tokens: maxTokens,
         temperature: 0,
         messages: [{ role: 'user', content: prompt }],
       });
-
-      const rawText = apiResponse.content
+      const text = apiResponse.content
         .filter((b) => b.type === 'text')
         .map((b) => b.text)
         .join('');
+      return { text, stopReason: apiResponse.stop_reason };
+    };
 
-      const parsed = extractJsonObject(rawText) || { items: [] };
-
-      if (parsed && Array.isArray(parsed.items)) {
-        const keptItems = parsed.items
-          .filter((item) => item.key && item.keep !== false)
-          .map((item) => {
-            const candidate = candidates.find((c) => c.candidate_key === item.key);
-            if (!candidate) return null;
-
-            let item_type = item.item_type;
-            if (!candidate.allowed_item_types.includes(item_type)) {
-              item_type = candidate.default_item_type;
-            }
-
-            return {
-              key: item.key,
-              item_type,
-              title: item.title || '',
-              priority: typeof item.priority === 'number' ? Math.max(0, Math.min(2, item.priority)) : 1,
-            };
-          })
-          .filter(Boolean);
-
-        return res.json({ items: keptItems });
-      }
-
-      return res.json({ items: [] });
+    // ─── Hybrid AI-Driven Scanning Path ──────────────────────────────
+    if (candidates.length > 0) {
+      const decided = await composeDecisions(candidates, { context_notes, name, language, assistantName }, callModel);
+      return res.json({ items: decided });
     }
 
     // ─── Legacy Title Composition Path ───────────────────────────────
     if (!items.length) return res.json({ titles: {} });
 
-    const itemDescriptions = items.map((item) => {
-      const p = item.payload || {};
-      switch (item.item_type) {
-        case 'gig_missing_location':
-          return `{ key: "${item.item_type}::${item.entity_id}", type: "problem", gig: "${p.event_title}", date: "${p.event_date}", issue: "no venue address — can't plan travel" }`;
-        case 'gig_missing_fee':
-          return `{ key: "${item.item_type}::${item.entity_id}", type: "problem", gig: "${p.event_title}", date: "${p.event_date}", issue: "no fee set — can't create invoice" }`;
-        case 'gig_missing_client':
-          return `{ key: "${item.item_type}::${item.entity_id}", type: "problem", gig: "${p.event_title}", date: "${p.event_date}", fee: ${p.fee}, currency: "${p.currency || 'GBP'}", issue: "no client on the gig — need to know who it's for before invoicing" }`;
-        case 'gig_missing_contact':
-          return `{ key: "${item.item_type}::${item.entity_id}", type: "problem", gig: "${p.event_title}", date: "${p.event_date}", client: "${p.client_name}", issue: "no email on file for this client — needed to send their invoice" }`;
-        case 'gig_ready_to_invoice':
-          return `{ key: "${item.item_type}::${item.entity_id}", type: "opportunity", gig: "${p.event_title}", client: "${p.client_name}", fee: ${p.fee}, currency: "${p.currency || 'GBP'}", issue: "needs an invoice" }`;
-        case 'invoice_overdue':
-          return `{ key: "${item.item_type}::${item.entity_id}", type: "urgent", invoice: "${p.invoice_title}", client: "${p.client_name}", due: "${p.due_date}", total: ${p.total}, currency: "${p.currency || 'GBP'}" }`;
-        case 'invoice_draft_stale':
-          return `{ key: "${item.item_type}::${item.entity_id}", type: "problem", invoice: "${p.invoice_title}", client: "${p.client_name}", issue: "draft sitting for over a week" }`;
-        case 'invoice_ready_to_send':
-          return `{ key: "${item.item_type}::${item.entity_id}", type: "opportunity", invoice: "${p.invoice_title}", client: "${p.client_name}", total: ${p.total}, currency: "${p.currency || 'GBP'}", issue: "draft is complete — ready to send" }`;
-        case 'invoice_ready_no_email':
-          return `{ key: "${item.item_type}::${item.entity_id}", type: "opportunity", invoice: "${p.invoice_title}", client: "${p.client_name}", total: ${p.total}, currency: "${p.currency || 'GBP'}", issue: "invoice is ready but there's no email on file — suggest grabbing the PDF to send by WhatsApp or another way" }`;
-        default:
-          return `{ key: "${item.item_type}::${item.entity_id}", type: "unknown" }`;
-      }
-    });
-
-    const prompt = `You are Flowtone, a personal assistant for ${name || 'a professional musician'}.${assistantName ? ` Your name is "${assistantName}".` : ''}${language !== 'English' ? `\nIMPORTANT: Write ALL text values in ${language}.` : ''}
-
-Write a short, natural message for each item below. You are speaking directly to the user.
-
-Rules:
-- Max 15 words per message
-- ALWAYS name the specific client, gig, or invoice from the item — never say "this client", "their", or "the gig" vaguely. Use the actual name.
-- Include the key number (fee or total) when present, using the symbol for that item's own "currency" field — GBP → £, USD → $, EUR → €, AUD → A$, CAD → C$ — never default to dollars.
-- Sound like a real human assistant — warm, direct, no BS
-- For opportunities: state what's ready and the key detail (client + amount)
-- For problems: say what's missing and why it matters
-- For urgent items: be direct about the urgency
-- Speak in first person as the assistant ("I can...", "Your...", "The...")
-- Return ONLY raw JSON — no markdown fences
-
-Items:
-[${itemDescriptions.join(',\n')}]
-
-Return this exact format:
-{
-  "titles": {
-    "<key>": "natural message text",
-    ...
-  }
-}`;
-
-    const apiResponse = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 1024,
-      temperature: 0,
-      messages: [{ role: 'user', content: prompt }],
-    });
-
-    const rawText = apiResponse.content
-      .filter((b) => b.type === 'text')
-      .map((b) => b.text)
-      .join('');
-
-    const parsed = extractJsonObject(rawText) || { titles: {} };
-
-    return res.json(parsed);
+    const titles = await composeTitles(items, { name, language, assistantName }, callModel);
+    return res.json({ titles });
   } catch (err) {
     console.error('[AI compose-missions error]', err);
     if (err.message === 'ANTHROPIC_API_KEY is not set') {
