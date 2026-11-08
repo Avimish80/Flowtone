@@ -96,7 +96,7 @@ export default function AddressAutocomplete({
                 onClick={() => pick(r.address)}
                 className="w-full text-left px-3 py-2.5 hover:bg-gray-800 active:bg-gray-700 transition-colors flex items-start gap-2"
               >
-                <MapPin className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0 mt-0.5" />
+                <MapPin className="w-3.5 h-3.5 text-gray-400 flex-shrink-0 mt-0.5" />
                 <span className="min-w-0">
                   <span className="block text-sm text-white truncate">{r.label}</span>
                   <span className="block text-xs text-gray-500 truncate">{r.address}</span>

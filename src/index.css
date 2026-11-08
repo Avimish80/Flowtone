@@ -263,6 +263,17 @@ html:not(.dark) [class*="from-indigo-900"] {
 html:not(.dark) [class*="to-gray-900"] {
   --tw-gradient-to: #f4f4f5 !important;
 }
+/* Graphite hero cards and the Finance tiles start from gray-800 (and amber-950
+   when something is overdue): start them from white / pale amber instead of
+   a dark stop that made the light-mode tile a smear. */
+html:not(.dark) [class*="from-gray-800"] {
+  --tw-gradient-from: #ffffff !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to, rgba(255,255,255,0)) !important;
+}
+html:not(.dark) [class*="from-amber-950"] {
+  --tw-gradient-from: #fffbeb !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to, rgba(255,251,235,0)) !important;
+}
 /* Also handle the border on gradient cards */
 html:not(.dark) [class*="from-indigo-900"] + * { border-color: rgb(var(--accent-500) / 0.2) !important; }
 
@@ -333,7 +344,10 @@ html:not(.dark) [class*="border-indigo-700"]  { border-color: rgb(var(--accent-5
 html:not(.dark) [class*="border-indigo-500"]  { border-color: rgb(var(--accent-500) / 0.30) !important; }
 html:not(.dark) [class*="border-gray-700/"]   { border-color: rgba(212,212,216,0.8) !important; }
 html:not(.dark) [class*="border-gray-800/"]   { border-color: rgba(228,228,231,0.9) !important; }
-html:not(.dark) [class*="border-red-700"]     { border-color: rgba(239,68,68,0.35)  !important; }
+/* Row dividers (divide-y) had no light rule, so they stayed near-black. */
+html:not(.dark) [class*="divide-gray-700"] > * + *,
+html:not(.dark) [class*="divide-gray-800"] > * + * { border-color: #e4e4e7 !important; }
+html:not(.dark) [class*="border-red-700"]{ border-color: rgba(239,68,68,0.35)  !important; }
 html:not(.dark) [class*="border-green-700"]   { border-color: rgba(34,197,94,0.35)  !important; }
 html:not(.dark) [class*="border-blue-700"]    { border-color: rgba(59,130,246,0.35) !important; }
 html:not(.dark) [class*="border-yellow-700"]  { border-color: rgba(234,179,8,0.35)  !important; }

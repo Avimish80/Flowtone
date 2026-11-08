@@ -96,7 +96,7 @@ export default function InvoiceImportModal({ onClose, onImported }) {
         <div className="p-5">
           {step === "upload" && (
             <div
-              className="border-2 border-dashed border-gray-600 rounded-xl p-10 text-center cursor-pointer hover:border-indigo-500 transition-colors"
+              className="border-2 border-dashed border-gray-600 rounded-xl p-10 text-center cursor-pointer hover:border-gray-500 transition-colors"
               onClick={() => fileRef.current?.click()}
               onDrop={e => { e.preventDefault(); handleFile(e.dataTransfer.files[0]); }}
               onDragOver={e => e.preventDefault()}
@@ -151,7 +151,7 @@ export default function InvoiceImportModal({ onClose, onImported }) {
 
               <div className="flex gap-3">
                 <button onClick={() => setStep("upload")} className="flex-1 bg-gray-700 hover:bg-gray-600 text-white rounded-xl py-3 text-sm font-medium transition-colors">Back</button>
-                <button onClick={handleImport} className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl py-3 text-sm font-medium transition-colors">
+                <button onClick={handleImport} className="flex-1 bg-ink hover:bg-ink/90 text-ink-fg rounded-xl py-3 text-sm font-medium transition-colors">
                   Import {rows.length} Invoices
                 </button>
               </div>
@@ -160,7 +160,7 @@ export default function InvoiceImportModal({ onClose, onImported }) {
 
           {step === "importing" && (
             <div className="text-center py-10">
-              <Loader2 className="w-10 h-10 text-indigo-400 animate-spin mx-auto mb-4" />
+              <Loader2 className="w-10 h-10 text-gray-400 animate-spin mx-auto mb-4" />
               <p className="text-white font-medium">Importing...</p>
               <p className="text-gray-400 text-sm mt-1">Creating clients, events & invoices</p>
             </div>
@@ -184,7 +184,7 @@ export default function InvoiceImportModal({ onClose, onImported }) {
                   {results.errors.map((e, i) => <p key={i} className="text-red-400 text-xs">Row {e.row}: {e.error}</p>)}
                 </div>
               )}
-              <button onClick={onClose} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl py-3 text-sm font-medium transition-colors">Done</button>
+              <button onClick={onClose} className="w-full bg-ink hover:bg-ink/90 text-ink-fg rounded-xl py-3 text-sm font-medium transition-colors">Done</button>
             </div>
           )}
 

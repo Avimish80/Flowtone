@@ -15,7 +15,7 @@ import { applyImport, undoImport, getLastImport, importInProgress } from "@/lib/
 // which, review every change gig by gig, then apply (and undo if needed).
 
 const card = "rounded-2xl border border-gray-700/60 bg-gray-800/30";
-const primary = "w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold disabled:opacity-40";
+const primary = "w-full py-3 rounded-xl bg-ink hover:bg-ink/90 text-ink-fg text-sm font-semibold disabled:opacity-40";
 const quiet = "text-gray-500 hover:text-gray-300 text-xs transition-colors";
 
 const niceDate = (d) => { try { return format(parseISO(d), "EEE d MMM yyyy"); } catch { return d || ""; } };
@@ -40,8 +40,8 @@ function categoryOf(plan, match) {
 function Tick({ on, onClick, disabled }) {
   return (
     <button type="button" onClick={onClick} disabled={disabled} aria-pressed={on}
-      className={`h-5 w-5 rounded-md border flex items-center justify-center flex-shrink-0 transition-colors ${on ? "bg-indigo-600 border-indigo-500" : "border-gray-600 bg-gray-900"} disabled:opacity-30`}>
-      {on && <Check className="w-3.5 h-3.5 text-white" />}
+      className={`h-5 w-5 rounded-md border flex items-center justify-center flex-shrink-0 transition-colors ${on ? "bg-ink border-ink/60 text-ink-fg" : "border-gray-600 bg-gray-900"} disabled:opacity-30`}>
+      {on && <Check className="w-3.5 h-3.5 text-ink-fg" />}
     </button>
   );
 }
@@ -238,10 +238,10 @@ export default function SheetImport() {
     const [d, n] = progress;
     return (
       <div className="p-4 max-w-xl mx-auto space-y-3 pt-16 text-center">
-        <Loader2 className="w-6 h-6 text-indigo-400 animate-spin mx-auto" />
+        <Loader2 className="w-6 h-6 text-gray-400 animate-spin mx-auto" />
         <p className="text-sm text-white">{busy || "Saving changes…"} {n ? `${d} of ${n}` : ""}</p>
         <div className="h-1.5 rounded-full bg-gray-800 overflow-hidden">
-          <div className="h-full bg-indigo-500 transition-all" style={{ width: n ? `${(d / n) * 100}%` : "0%" }} />
+          <div className="h-full bg-ink transition-all text-ink-fg" style={{ width: n ? `${(d / n) * 100}%` : "0%" }} />
         </div>
         <p className="text-[11px] text-gray-600">Keep the app open until this finishes.</p>
       </div>
@@ -259,8 +259,8 @@ export default function SheetImport() {
             in Flowtone, and you see every change before anything is saved.
           </p>
         </div>
-        <label className={`${card} flex flex-col items-center justify-center gap-2 py-10 cursor-pointer hover:border-indigo-500/60 transition-colors`}>
-          {busy ? <Loader2 className="w-6 h-6 text-indigo-400 animate-spin" /> : <Upload className="w-6 h-6 text-indigo-400" />}
+        <label className={`${card} flex flex-col items-center justify-center gap-2 py-10 cursor-pointer hover:border-gray-500 transition-colors`}>
+          {busy ? <Loader2 className="w-6 h-6 text-gray-400 animate-spin" /> : <Upload className="w-6 h-6 text-gray-400" />}
           <span className="text-sm text-white font-medium">{busy || "Choose a file"}</span>
           <span className="text-[11px] text-gray-500">.xlsx · .xls · .csv · .numbers</span>
           <input type="file" className="hidden" disabled={!!busy || saving}
@@ -293,7 +293,7 @@ export default function SheetImport() {
     return (
       <div className="p-4 max-w-xl mx-auto space-y-4 pb-28">
         <div>
-          <p className="text-base font-semibold text-white flex items-center gap-2"><FileSpreadsheet className="w-4 h-4 text-indigo-400" />{fileName}</p>
+          <p className="text-base font-semibold text-white flex items-center gap-2"><FileSpreadsheet className="w-4 h-4 text-gray-400" />{fileName}</p>
           <p className="text-xs text-gray-500 mt-1">{sheet.rows.length} rows. Check what each column holds; leave a field empty if the file doesn't have it.</p>
         </div>
         {sheets.length > 1 && (
@@ -393,7 +393,7 @@ export default function SheetImport() {
       <div className="flex gap-3 overflow-x-auto text-xs -mx-4 px-4 pb-1">
         {TABS.filter(([k]) => counts[k]).map(([k, l]) => (
           <button key={k} onClick={() => setTab(k)}
-            className={`whitespace-nowrap ${tab === k ? "text-indigo-400" : k === "check" ? "text-amber-400" : "text-gray-500"}`}>
+            className={`whitespace-nowrap ${tab === k ? "text-ink" : k === "check" ? "text-amber-400" : "text-gray-500"}`}>
             {l} {counts[k]}
           </button>
         ))}
@@ -433,7 +433,7 @@ export default function SheetImport() {
                     const takenBy = matches.findIndex((x, k) => k !== i && x.eventId === id);
                     return (
                       <button key={id} onClick={() => repoint(i, id)}
-                        className={`w-full text-left px-2.5 py-2 ${id === m.eventId ? "text-indigo-300" : "text-gray-300"}`}>
+                        className={`w-full text-left px-2.5 py-2 ${id === m.eventId ? "text-white font-medium" : "text-gray-300"}`}>
                         {e.title || "(untitled)"} <span className="text-gray-500">· {niceDate(e.date)}{takenBy >= 0 ? ` · line ${rows[takenBy].line}` : ""}</span>
                       </button>
                     );

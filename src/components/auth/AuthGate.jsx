@@ -1,6 +1,28 @@
 import { useEffect, useMemo, useState } from "react";
 import { Loader2, Mail, CreditCard, Music2, LogOut, ShieldAlert, CheckCircle2, KeyRound } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
+import { mailpitUrl } from "@/lib/supabaseClient";
+
+// The sign-in screens are dark by design. The app's light-mode overrides key
+// off <html> (no .dark class) and would paint their white text near-black on
+// the dark backdrop, so hold dark mode while they are on screen (ThemeProvider
+// applies the saved theme after this mounts, hence the observer) and hand the
+// user's own choice back when they leave.
+function useHoldDarkMode() {
+  useEffect(() => {
+    const root = document.documentElement;
+    const hold = () => { if (!root.classList.contains("dark")) root.classList.add("dark"); };
+    hold();
+    const observer = new MutationObserver(hold);
+    observer.observe(root, { attributes: true, attributeFilter: ["class"] });
+    return () => {
+      observer.disconnect();
+      let theme = "dark";
+      try { theme = localStorage.getItem("mos_theme") || "dark"; } catch {}
+      if (theme !== "dark") root.classList.remove("dark");
+    };
+  }, []);
+}
 
 function Panel({ children }) {
   return (
@@ -22,8 +44,9 @@ function PrimaryButton({ children, className = "", ...props }) {
 }
 
 function ScreenFrame({ children }) {
+  useHoldDarkMode();
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(99,102,241,0.18),_transparent_35%),linear-gradient(180deg,_#050816_0%,_#030712_100%)] px-4 py-8 text-white">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.06),_transparent_35%),linear-gradient(180deg,_#0c0c0e_0%,_#09090b_100%)] px-4 py-8 text-white">
       <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-5xl items-center justify-center">
         {children}
       </div>
@@ -42,7 +65,7 @@ function FeatureList() {
     <div className="space-y-3">
       {items.map((item) => (
         <div key={item} className="flex items-start gap-3 text-sm text-gray-300">
-          <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-400" />
+          <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0 text-gray-400" />
           <span>{item}</span>
         </div>
       ))}
@@ -51,8 +74,9 @@ function FeatureList() {
 }
 
 function BrandSplash({ caption = "Tuning your workspace" }) {
+  useHoldDarkMode();
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#030712] text-white">
+    <div className="relative min-h-screen overflow-hidden bg-[#09090b] text-white">
       <style>{`
         @keyframes ft-eq      { 0%,100% { transform: scaleY(0.22); } 50% { transform: scaleY(1); } }
         @keyframes ft-breathe { 0%,100% { transform: scale(1); opacity: 0.5; } 50% { transform: scale(1.18); opacity: 0.9; } }
@@ -61,18 +85,18 @@ function BrandSplash({ caption = "Tuning your workspace" }) {
         @media (prefers-reduced-motion: reduce) { .ft-anim { animation: none !important; } }
       `}</style>
 
-      {/* Drifting aurora glow */}
+      {/* Drifting glow: neutral light, no colour */}
       <div className="pointer-events-none absolute inset-0">
-        <div className="ft-anim absolute left-1/2 top-1/3 h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-indigo-600/30 blur-[120px]" style={{ animation: "ft-drift 20s ease-in-out infinite" }} />
-        <div className="ft-anim absolute left-1/4 top-1/2 h-[320px] w-[320px] rounded-full bg-fuchsia-600/20 blur-[120px]" style={{ animation: "ft-drift 26s ease-in-out infinite reverse" }} />
-        <div className="ft-anim absolute right-1/4 top-1/4 h-[280px] w-[280px] rounded-full bg-sky-500/20 blur-[120px]" style={{ animation: "ft-drift 30s ease-in-out infinite" }} />
+        <div className="ft-anim absolute left-1/2 top-1/3 h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-white/[0.06] blur-[120px]" style={{ animation: "ft-drift 20s ease-in-out infinite" }} />
+        <div className="ft-anim absolute left-1/4 top-1/2 h-[320px] w-[320px] rounded-full bg-white/[0.03] blur-[120px]" style={{ animation: "ft-drift 26s ease-in-out infinite reverse" }} />
+        <div className="ft-anim absolute right-1/4 top-1/4 h-[280px] w-[280px] rounded-full bg-white/[0.03] blur-[120px]" style={{ animation: "ft-drift 30s ease-in-out infinite" }} />
       </div>
 
       <div className="relative z-10 flex min-h-screen flex-col items-center justify-center gap-8 px-6">
-        {/* Glowing logo orb */}
+        {/* Logo tile */}
         <div className="ft-anim relative" style={{ animation: "ft-float 4s ease-in-out infinite" }}>
-          <div className="ft-anim absolute inset-0 rounded-[28px] bg-indigo-500/40 blur-2xl" style={{ animation: "ft-breathe 3s ease-in-out infinite" }} />
-          <div className="relative flex h-20 w-20 items-center justify-center rounded-[28px] border border-white/10 bg-gradient-to-br from-indigo-500/90 to-fuchsia-500/80 shadow-2xl shadow-indigo-900/50">
+          <div className="ft-anim absolute inset-0 rounded-[28px] bg-white/10 blur-2xl" style={{ animation: "ft-breathe 3s ease-in-out infinite" }} />
+          <div className="relative flex h-20 w-20 items-center justify-center rounded-[28px] border border-white/10 bg-gray-800 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
             <Music2 className="h-9 w-9 text-white" />
           </div>
         </div>
@@ -82,7 +106,7 @@ function BrandSplash({ caption = "Tuning your workspace" }) {
           {[0, 1, 2, 3, 4, 5, 6].map((i) => (
             <span
               key={i}
-              className="ft-anim w-1.5 rounded-full bg-gradient-to-t from-indigo-500 to-fuchsia-400"
+              className="ft-anim w-1.5 rounded-full bg-gradient-to-t from-gray-600 to-gray-200"
               style={{
                 height: "100%",
                 transformOrigin: "bottom",
@@ -94,7 +118,7 @@ function BrandSplash({ caption = "Tuning your workspace" }) {
 
         {/* Wordmark */}
         <div className="flex flex-col items-center gap-2">
-          <p className="text-2xl font-bold tracking-[0.3em] text-indigo-100">
+          <p className="text-2xl font-bold tracking-[0.3em] text-gray-200">
             FLOWTONE
           </p>
           <p className="text-[11px] font-medium uppercase tracking-[0.25em] text-gray-500">{caption}</p>
@@ -129,6 +153,8 @@ export default function AuthGate() {
   const [isVerifying, setIsVerifying] = useState(false);
   const [localError, setLocalError] = useState("");
   const [resendCooldown, setResendCooldown] = useState(0);
+  // Set only when the app talks to the local Supabase stack on the Mac.
+  const mailpit = mailpitUrl();
 
   useEffect(() => {
     if (resendCooldown <= 0) return undefined;
@@ -202,7 +228,7 @@ export default function AuthGate() {
       <ScreenFrame>
         <div className="grid w-full gap-8 lg:grid-cols-[1.1fr_0.9fr]">
           <div className="space-y-6 self-center">
-            <div className="inline-flex items-center gap-2 rounded-full border border-indigo-400/20 bg-indigo-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-indigo-200">
+            <div className="inline-flex items-center gap-2 rounded-full border border-gray-700/60 bg-gray-700/50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-gray-200">
               <Music2 className="h-3.5 w-3.5" />
               Flowtone
             </div>
@@ -250,7 +276,7 @@ export default function AuthGate() {
                     <PrimaryButton
                       type="submit"
                       disabled={!email.trim() || isSendingMagicLink}
-                      className="bg-indigo-600 text-white hover:bg-indigo-500"
+                      className="bg-ink text-ink-fg hover:bg-ink/90"
                     >
                       {isSendingMagicLink ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
                       Send Code
@@ -274,6 +300,15 @@ export default function AuthGate() {
                       We sent a 6-digit code to <span className="text-white">{email}</span>.
                       Enter it below — no need to tap any link.
                     </p>
+                    {mailpit && (
+                      <p className="mt-2 text-xs text-gray-500">
+                        This build talks to the local stack on the Mac, so the code lands in{" "}
+                        <a href={mailpit} target="_blank" rel="noreferrer" className="text-gray-300 underline underline-offset-2">
+                          Mailpit
+                        </a>
+                        , not in your inbox.
+                      </p>
+                    )}
                   </div>
 
                   <form className="space-y-4" onSubmit={handleVerifyCode}>
@@ -300,7 +335,7 @@ export default function AuthGate() {
                     <PrimaryButton
                       type="submit"
                       disabled={otpCode.length < 4 || isVerifying}
-                      className="bg-indigo-600 text-white hover:bg-indigo-500"
+                      className="bg-ink text-ink-fg hover:bg-ink/90"
                     >
                       {isVerifying ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
                       Sign In
@@ -375,7 +410,7 @@ export default function AuthGate() {
             </button>
           </div>
 
-          <div className="rounded-2xl border border-indigo-900/50 bg-indigo-950/30 px-4 py-4">
+          <div className="rounded-2xl border border-gray-700/60 bg-gray-800/40 px-4 py-4">
             <p className="text-sm font-medium text-white">
               {hasAccess ? "Your account has access to Flowtone." : "Upgrade to unlock the full product."}
             </p>
@@ -396,7 +431,7 @@ export default function AuthGate() {
             <PrimaryButton
               onClick={openCheckout}
               disabled={isStartingCheckout || isLoadingAccess}
-              className="bg-indigo-600 text-white hover:bg-indigo-500"
+              className="bg-ink text-ink-fg hover:bg-ink/90"
             >
               {isStartingCheckout ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
               {hasAccess ? "Change Plan" : "Start Paid Beta"}

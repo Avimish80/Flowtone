@@ -135,7 +135,7 @@ export default function WorkEvents() {
           <button onClick={() => setShowImport(true)} className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-2 rounded-lg flex items-center gap-1 text-sm font-medium transition-colors">
             <Upload className="w-4 h-4" />
           </button>
-          <Link to={createPageUrl("WorkEventDetail")} className="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-2 rounded-lg flex items-center gap-1 text-sm font-medium transition-colors">
+          <Link to={createPageUrl("WorkEventDetail")} className="bg-ink hover:bg-ink/90 text-ink-fg px-3 py-2 rounded-lg flex items-center gap-1 text-sm font-medium transition-colors">
             <Plus className="w-4 h-4" /> New
           </Link>
         </div>
@@ -143,7 +143,7 @@ export default function WorkEvents() {
 
       {selectMode && (
         <div className="flex items-center gap-3 mb-4 bg-gray-800 rounded-xl px-4 py-3">
-          <button onClick={toggleSelectAll} className="text-indigo-400 text-sm flex items-center gap-1.5">
+          <button onClick={toggleSelectAll} className="text-ink text-sm flex items-center gap-1.5">
             {selected.size === filtered.length ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
             {selected.size === filtered.length ? "Deselect all" : "Select all"}
           </button>
@@ -161,7 +161,7 @@ export default function WorkEvents() {
         <select
           value={filterStatus}
           onChange={e => setFilterStatus(e.target.value)}
-          className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
+          className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-gray-400"
         >
           <option value="upcoming">Upcoming</option>
           <option value="past">Past</option>
@@ -173,7 +173,7 @@ export default function WorkEvents() {
         <select
           value={filterType}
           onChange={e => setFilterType(e.target.value)}
-          className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
+          className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-gray-400"
         >
           <option value="all">All Types</option>
           {EVENT_TYPES.map(t => (
@@ -187,7 +187,7 @@ export default function WorkEvents() {
       ) : sorted.length === 0 ? (
         <div className="text-center py-16 text-gray-500">
           <p className="mb-3">No events found</p>
-          <Link to={createPageUrl("WorkEventDetail")} className="text-indigo-400 text-sm">+ Create your first event</Link>
+          <Link to={createPageUrl("WorkEventDetail")} className="text-ink text-sm">+ Create your first event</Link>
         </div>
       ) : (
         <div className="space-y-2">
@@ -195,9 +195,9 @@ export default function WorkEvents() {
             const isSelected = selected.has(event.id);
             const clientName = clientMap[event.client_id]?.name || "";
             const card = (
-              <div className={`flex items-center gap-3 bg-gray-800 rounded-xl p-4 transition-colors ${isSelected ? "ring-2 ring-indigo-500" : ""}`}>
+              <div className={`flex items-center gap-3 bg-gray-800 rounded-xl p-4 transition-colors ${isSelected ? "ring-2 ring-ink/60" : ""}`}>
                 {selectMode && (
-                  <button onClick={() => toggleSelect(event.id)} className="flex-shrink-0 text-indigo-400">
+                  <button onClick={() => toggleSelect(event.id)} className="flex-shrink-0 text-ink">
                     {isSelected ? <CheckSquare className="w-5 h-5" /> : <Square className="w-5 h-5 text-gray-600" />}
                   </button>
                 )}
@@ -213,7 +213,7 @@ export default function WorkEvents() {
                   <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                     <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${statusColors[event.status]}`}>{STATUS_LABELS[event.status] || event.status}</span>
                     <span className="text-[10px] text-gray-500">{event.event_type}</span>
-                    {event.is_recurring && <span className="text-[10px] text-indigo-400/70">{"\u21BB"}</span>}
+                    {event.is_recurring && <span className="text-[10px] text-gray-500">{"\u21BB"}</span>}
                     {(event.created_from_gcal || event.created_from_device) && !event.client_id && (
                       <span className="text-[10px] px-2 py-0.5 rounded-full border font-medium bg-amber-900/30 text-amber-300 border-amber-700/40">Needs details</span>
                     )}

@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 
 const TYPE_CONFIG = {
-  chart:  { label: "Chart",  icon: Music,     color: "bg-indigo-500/20 text-indigo-400 border-indigo-500/30" },
+  chart:  { label: "Chart",  icon: Music,     color: "bg-gray-700/50 text-ink border-gray-700/60" },
   lyrics: { label: "Lyrics", icon: Mic2,      color: "bg-pink-500/20 text-pink-400 border-pink-500/30" },
   notes:  { label: "Notes",  icon: StickyNote, color: "bg-amber-500/20 text-amber-400 border-amber-500/30" },
 };
@@ -65,7 +65,7 @@ export default function Charts() {
       <div className="flex items-center justify-end mb-5">
         <Link
           to={createPageUrl("ChartDetail")}
-          className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-xl text-sm font-medium transition-colors"
+          className="flex items-center gap-1.5 bg-ink hover:bg-ink/90 text-ink-fg px-3 py-1.5 rounded-xl text-sm font-medium transition-colors"
         >
           <Plus className="w-4 h-4" /> New
         </Link>
@@ -75,7 +75,7 @@ export default function Charts() {
       <div className="relative mb-4">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
         <input
-          className="w-full bg-gray-800 border border-gray-700 rounded-xl pl-9 pr-9 py-2.5 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-indigo-500"
+          className="w-full bg-gray-800 border border-gray-700 rounded-xl pl-9 pr-9 py-2.5 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-gray-400"
           placeholder="Search title, genre, tags…"
           value={search}
           onChange={e => setSearch(e.target.value)}
@@ -95,12 +95,12 @@ export default function Charts() {
             onClick={() => setFilter(f.key)}
             className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border ${
               filter === f.key
-                ? "bg-indigo-600 border-indigo-500 text-white"
+                ? "bg-ink border-ink/60 text-ink-fg"
                 : "bg-gray-800 border-gray-700 text-gray-400 hover:text-white"
             }`}
           >
             {f.label}
-            <span className={`ml-1.5 text-xs ${filter === f.key ? "text-indigo-200" : "text-gray-600"}`}>
+            <span className={`ml-1.5 text-xs ${filter === f.key ? "text-gray-200" : "text-gray-600"}`}>
               {counts[f.key]}
             </span>
           </button>

@@ -334,7 +334,7 @@ export default function AppSettings() {
 
   const SectionHeader = ({ icon: Icon, label, sectionKey }) => (
     <button onClick={() => toggleSection(sectionKey)} className="w-full flex items-center gap-2 mb-3">
-      <Icon className="w-4 h-4 text-indigo-400" />
+      <Icon className="w-4 h-4 text-gray-400" />
       <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wide flex-1 text-left">{label}</h2>
       {openSections.has(sectionKey)
         ? <ChevronUp className="w-4 h-4 text-gray-500" />
@@ -342,7 +342,7 @@ export default function AppSettings() {
     </button>
   );
 
-  const inputCls = "w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500 placeholder-gray-500";
+  const inputCls = "w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-400 placeholder-gray-500";
   const labelCls = "text-xs text-gray-400 mb-1 block";
 
   return (
@@ -361,7 +361,7 @@ export default function AppSettings() {
           onClick={() => window.dispatchEvent(new CustomEvent("flowtone:start-tour"))}
           className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-gray-800 hover:bg-gray-700 text-gray-300 transition-colors"
         >
-          <RefreshCw className="w-4 h-4 text-indigo-400" /> Replay app tour
+          <RefreshCw className="w-4 h-4 text-gray-400" /> Replay app tour
         </button>
 
         {/* ── Appearance ───────────────────────────────────────────── */}
@@ -371,7 +371,7 @@ export default function AppSettings() {
           <SectionHeader icon={Palette} label="Appearance" sectionKey="appearance" />
           {openSections.has("appearance") && (
             <div className="bg-gray-800 rounded-xl p-4">
-              <p className="text-xs text-gray-500 mb-3">Color theme — recolors the whole app. Themes beyond Indigo are a Pro feature.</p>
+              <p className="text-xs text-gray-500 mb-3">Color theme for main buttons, links and the selected tab. Themes beyond Graphite are a Pro feature.</p>
               <div className="grid grid-cols-4 gap-2">
                 {ACCENT_THEMES.map((t) => (
                   <button
@@ -379,7 +379,7 @@ export default function AppSettings() {
                     onClick={() => setAccent(t.id)}
                     className={`flex flex-col items-center gap-1.5 py-3 rounded-xl border transition-all ${
                       accent === t.id
-                        ? "border-indigo-500 ring-2 ring-indigo-500 bg-gray-900"
+                        ? "border-ink/60 ring-2 ring-ink/60 bg-gray-900"
                         : "border-gray-700/60 hover:border-gray-600"
                     }`}
                   >
@@ -391,7 +391,7 @@ export default function AppSettings() {
                       {t.label}
                     </span>
                     {t.pro && (
-                      <span className="text-[9px] font-semibold uppercase tracking-wider text-indigo-400 bg-indigo-600/20 px-1.5 py-0.5 rounded-full">
+                      <span className="text-[9px] font-semibold uppercase tracking-wider text-gray-400 bg-gray-700/50 px-1.5 py-0.5 rounded-full">
                         Pro
                       </span>
                     )}
@@ -425,7 +425,7 @@ export default function AppSettings() {
                     </div>
                   )}
                   <div>
-                    <button onClick={() => logoInputRef.current?.click()} className="text-xs text-indigo-400 hover:text-indigo-300 underline underline-offset-2">
+                    <button onClick={() => logoInputRef.current?.click()} className="text-xs text-ink hover:text-ink/80 underline underline-offset-2">
                       {profile?.logo ? "Change logo" : "Upload logo"}
                     </button>
                     <p className="text-[10px] text-gray-500 mt-0.5">PNG or SVG recommended · max 1 MB</p>
@@ -631,7 +631,7 @@ export default function AppSettings() {
                   // tuning Atelier must not disturb Statement.
                   const custom = getTemplateCustom(settings, activeId);
                   const setCustom = (patch) => onChange("invoice_custom", setTemplateCustom(settings, activeId, patch));
-                  const segBtn = (on) => `min-w-0 text-[11px] py-1.5 px-1 rounded-md transition-colors truncate ${on ? "bg-indigo-600 text-white" : "bg-gray-900 text-gray-400 hover:text-gray-200"}`;
+                  const segBtn = (on) => `min-w-0 text-[11px] py-1.5 px-1 rounded-md transition-colors truncate ${on ? "bg-ink text-ink-fg" : "bg-gray-900 text-gray-400 hover:text-gray-200"}`;
                   // cols wraps a set onto a grid — five font names do not fit one
                   // row at 360px and get truncated to "Geom…". Class strings are
                   // literal because Tailwind cannot see interpolated names.
@@ -657,7 +657,7 @@ export default function AppSettings() {
                           <button
                             key={t.id}
                             onClick={() => onChange("invoice_template", t.id)}
-                            className={`rounded-[3px] transition-all ${activeId === t.id ? "ring-2 ring-indigo-500 ring-offset-2 ring-offset-gray-800" : "opacity-55 hover:opacity-100"}`}
+                            className={`rounded-[3px] transition-all ${activeId === t.id ? "ring-2 ring-ink/60 ring-offset-2 ring-offset-gray-800" : "opacity-55 hover:opacity-100"}`}
                             aria-label={t.name}
                             aria-pressed={activeId === t.id}
                           >
@@ -726,9 +726,9 @@ export default function AppSettings() {
                         <label className="flex items-center justify-between cursor-pointer">
                           <span className="text-sm text-white">Show logo</span>
                           <button onClick={() => setCustom({ show_logo: !custom.show_logo })}
-                            className={`w-11 h-6 rounded-full transition-colors relative flex-shrink-0 ${custom.show_logo ? "bg-indigo-600" : "bg-gray-600"}`}
+                            className={`w-11 h-6 rounded-full transition-colors relative flex-shrink-0 ${custom.show_logo ? "bg-ink text-ink-fg" : "bg-gray-600"}`}
                             aria-pressed={custom.show_logo}>
-                            <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-all ${custom.show_logo ? "left-[22px]" : "left-0.5"}`} />
+                            <span className={`absolute top-0.5 w-5 h-5 rounded-full transition-all ${custom.show_logo ? "left-[22px] bg-gray-950" : "left-0.5 bg-white"}`} />
                           </button>
                         </label>
                       </div>
@@ -767,7 +767,7 @@ export default function AppSettings() {
                   <p className="text-xs text-gray-400">
                     iOS is blocking Flowtone's notifications. Turn on Allow Notifications for Flowtone, then come back here.
                   </p>
-                  <button onClick={openIosSettings} className="text-xs font-medium text-indigo-400 hover:text-indigo-300 transition-colors">
+                  <button onClick={openIosSettings} className="text-xs font-medium text-ink hover:text-ink/80 transition-colors">
                     Open iOS Settings
                   </button>
                 </div>
@@ -790,12 +790,12 @@ export default function AppSettings() {
                     const active = (settings.notification_level || "standard") === key;
                     return (
                       <button key={key} onClick={() => handleLevelChange(key)}
-                        className={`w-full flex items-center justify-between gap-3 px-3.5 py-3 text-left transition-colors ${active ? "bg-indigo-600/15" : "bg-gray-900 hover:bg-gray-900/60"}`}>
+                        className={`w-full flex items-center justify-between gap-3 px-3.5 py-3 text-left transition-colors ${active ? "bg-gray-700/50" : "bg-gray-900 hover:bg-gray-900/60"}`}>
                         <div>
                           <p className={`text-sm ${active ? "text-white font-medium" : "text-gray-300"}`}>{label}</p>
                           <p className="text-xs text-gray-500 mt-0.5">{desc}</p>
                         </div>
-                        {active && <Check className="w-4 h-4 text-indigo-400 flex-shrink-0" />}
+                        {active && <Check className="w-4 h-4 text-gray-400 flex-shrink-0" />}
                       </button>
                     );
                   })}
@@ -891,7 +891,7 @@ export default function AppSettings() {
                   <div className="pl-6 space-y-3">
                     <p className="text-xs text-gray-500 leading-relaxed">Two-way sync — gigs you create here appear in Google Calendar, and vice versa.</p>
                     <button onClick={handleConnectCalendar} disabled={calBusy}
-                      className="flex items-center gap-2 text-sm font-medium text-indigo-400 hover:text-indigo-300 disabled:opacity-50 transition-colors">
+                      className="flex items-center gap-2 text-sm font-medium text-ink hover:text-ink/80 disabled:opacity-50 transition-colors">
                       <CalendarDays className="w-4 h-4" />
                       Connect Google Calendar
                     </button>
@@ -921,7 +921,7 @@ export default function AppSettings() {
                   <div className="pl-6 space-y-3">
                     <p className="text-xs text-gray-500">Send invoices directly from your Gmail account.</p>
                     <button onClick={connectGmail}
-                      className="flex items-center gap-2 text-sm font-medium text-indigo-400 hover:text-indigo-300 transition-colors">
+                      className="flex items-center gap-2 text-sm font-medium text-ink hover:text-ink/80 transition-colors">
                       <Mail className="w-4 h-4" />
                       Connect Gmail
                     </button>
@@ -940,7 +940,7 @@ export default function AppSettings() {
                       <button key={app} onClick={() => onChange("default_nav_app", app)}
                         className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
                           settings.default_nav_app === app
-                            ? "bg-indigo-600 border-indigo-500 text-white"
+                            ? "bg-ink border-ink/60 text-ink-fg"
                             : "bg-gray-900 border-gray-700 text-gray-400 hover:text-white"
                         }`}>
                         {app === "google_maps" ? "Google Maps" : "Waze"}
@@ -970,7 +970,7 @@ export default function AppSettings() {
                 Restore from Backup
               </button>
               <button onClick={async () => { const csv = await exportFullApp(appClient); downloadCSV("flowtone-backup.csv", csv); }}
-                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-indigo-600 hover:bg-indigo-500 text-white transition-colors">
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-ink hover:bg-ink/90 text-ink-fg transition-colors">
                 <Download className="w-4 h-4" />
                 Export Full App Backup
               </button>

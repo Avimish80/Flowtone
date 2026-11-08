@@ -78,8 +78,8 @@ export default function CoachMarks() {
     width: rect.width + PAD * 2,
     height: rect.height + PAD * 2,
     borderRadius: 14,
-    boxShadow: "0 0 0 9999px rgba(2,6,23,0.80)",
-    border: "2px solid rgba(129,140,248,0.9)",
+    boxShadow: "0 0 0 9999px rgba(9,9,11,0.80)",
+    border: "2px solid rgb(var(--ink) / 0.9)",
     pointerEvents: "none",
     transition: "all 180ms ease",
   };
@@ -97,13 +97,13 @@ export default function CoachMarks() {
     : { position: "fixed", left: 16, right: 16, top: "40%" };
 
   return createPortal(
-    <div className="fixed inset-0 z-[9999]" style={{ background: rect ? "transparent" : "rgba(2,6,23,0.80)" }}>
+    <div className="fixed inset-0 z-[9999]" style={{ background: rect ? "transparent" : "rgba(9,9,11,0.80)" }}>
       {hole && <div style={hole} />}
 
       <div style={card} className="mx-auto max-w-sm">
-        <div className="rounded-2xl border border-indigo-500/30 bg-gray-900 shadow-2xl shadow-black/50 p-4">
+        <div className="rounded-2xl border border-gray-700/60 bg-gray-900 shadow-2xl shadow-black/50 p-4">
           <div className="flex items-center gap-2 mb-1.5">
-            <Sparkles className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+            <Sparkles className="w-4 h-4 text-gray-400 flex-shrink-0" />
             <p className="text-sm font-semibold text-white">{s.title}</p>
             <span className="ml-auto text-[11px] text-gray-500">{step + 1} / {STEPS.length}</span>
           </div>
@@ -111,13 +111,13 @@ export default function CoachMarks() {
 
           <div className="flex items-center gap-1.5 mt-3.5">
             {STEPS.map((_, i) => (
-              <span key={i} className={`h-1.5 rounded-full transition-all ${i === step ? "w-5 bg-indigo-400" : "w-1.5 bg-gray-700"}`} />
+              <span key={i} className={`h-1.5 rounded-full transition-all ${i === step ? "w-5 bg-gray-400" : "w-1.5 bg-gray-700"}`} />
             ))}
             <div className="flex-1" />
             <button onClick={finish} className="text-xs text-gray-500 hover:text-gray-300 px-2 py-1.5 transition-colors">
               Skip
             </button>
-            <button onClick={next} className="text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg px-3.5 py-1.5 transition-colors">
+            <button onClick={next} className="text-xs font-semibold bg-ink hover:bg-ink/90 text-ink-fg rounded-lg px-3.5 py-1.5 transition-colors">
               {isLast ? "Got it" : "Next"}
             </button>
           </div>

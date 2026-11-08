@@ -12,11 +12,11 @@ import {
 // ── Constants ────────────────────────────────────────────────────────
 
 const CATEGORIES = [
-  { value: "technique",    label: "Technique",     icon: Dumbbell, color: "text-orange-400" },
-  { value: "repertoire",   label: "Repertoire",    icon: Music,    color: "text-indigo-400" },
-  { value: "theory",       label: "Theory",        icon: Brain,    color: "text-purple-400" },
-  { value: "performance",  label: "Performance",   icon: Mic2,     color: "text-pink-400" },
-  { value: "sight_reading",label: "Sight-Reading", icon: Eye,      color: "text-cyan-400" },
+  { value: "technique",    label: "Technique",     icon: Dumbbell, color: "text-gray-400" },
+  { value: "repertoire",   label: "Repertoire",    icon: Music,    color: "text-gray-400" },
+  { value: "theory",       label: "Theory",        icon: Brain,    color: "text-gray-400" },
+  { value: "performance",  label: "Performance",   icon: Mic2,     color: "text-gray-400" },
+  { value: "sight_reading",label: "Sight-Reading", icon: Eye,      color: "text-gray-400" },
 ];
 
 const ENERGY = [
@@ -28,7 +28,7 @@ const ENERGY = [
 ];
 
 const labelCls = "text-xs text-gray-400 mb-1 block";
-const inputCls  = "w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500 placeholder-gray-500";
+const inputCls  = "w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-400 placeholder-gray-500";
 const today     = format(new Date(), "yyyy-MM-dd");
 
 // ── Helpers ──────────────────────────────────────────────────────────
@@ -231,7 +231,7 @@ export default function Practice() {
         <button
           onClick={saveSession}
           disabled={savingSession || (!sessionForm.items.length && !sessionForm.session_notes?.trim())}
-          className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white px-4 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-colors"
+          className="bg-ink hover:bg-ink/90 disabled:opacity-40 text-ink-fg px-4 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-colors"
         >
           <Check className="w-4 h-4" /> Save
         </button>
@@ -288,7 +288,7 @@ export default function Practice() {
               <button key={e.value} onClick={() => setSessionForm(p => ({ ...p, energy_rating: e.value }))}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
                   sessionForm.energy_rating === e.value
-                    ? "bg-indigo-600 border-indigo-500 text-white"
+                    ? "bg-ink border-ink/60 text-ink-fg"
                     : "bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-600"
                 }`}>
                 {e.label}
@@ -309,7 +309,7 @@ export default function Practice() {
                   <CategoryBadge value={item.category} />
                   <span className="text-xs text-gray-500">{item.duration_minutes} min</span>
                   {item.chart_id && (
-                    <span className="text-xs text-indigo-400">
+                    <span className="text-xs text-ink">
                       {charts.find(c => c.id === item.chart_id)?.title || "Chart"}
                     </span>
                   )}
@@ -368,7 +368,7 @@ export default function Practice() {
         </button>
         <h1 className="flex-1 font-semibold text-white">New Practice Goal</h1>
         <button onClick={saveGoal} disabled={savingGoal || !goalForm.title.trim()}
-          className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white px-4 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-colors">
+          className="bg-ink hover:bg-ink/90 disabled:opacity-40 text-ink-fg px-4 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-colors">
           <Check className="w-4 h-4" /> Save
         </button>
       </div>
@@ -427,7 +427,7 @@ export default function Practice() {
             <Check className="w-3.5 h-3.5" /> Log
           </button>
           <button onClick={() => navigate(createPageUrl(`WorkEventDetail?event_type=Practice`))}
-            className="flex items-center gap-1.5 bg-teal-600 hover:bg-teal-500 text-white px-3 py-1.5 rounded-xl text-sm font-medium transition-colors">
+            className="flex items-center gap-1.5 bg-ink hover:bg-ink/90 text-ink-fg px-3 py-1.5 rounded-xl text-sm font-medium transition-colors">
             <Calendar className="w-3.5 h-3.5" /> Schedule
           </button>
         </div>
@@ -444,9 +444,9 @@ export default function Practice() {
         </div>
         <div className="bg-gray-800 rounded-xl p-3 text-center">
           <div className="flex items-center justify-center gap-1 mb-1">
-            <Clock className="w-4 h-4 text-indigo-400" />
+            <Clock className="w-4 h-4 text-gray-400" />
           </div>
-          <p className="text-2xl font-bold text-indigo-400">{Math.round(monthMins / 60)}<span className="text-sm font-normal">h</span></p>
+          <p className="text-2xl font-bold text-white">{Math.round(monthMins / 60)}<span className="text-sm font-normal">h</span></p>
           <p className="text-[10px] text-gray-500 uppercase tracking-wide mt-0.5">This Month</p>
         </div>
         <div className="bg-gray-800 rounded-xl p-3 text-center">
@@ -464,10 +464,10 @@ export default function Practice() {
         <div className="grid gap-1" style={{ gridTemplateColumns: "repeat(35, 1fr)" }}>
           {grid.map((day, i) => {
             let bg = "bg-gray-700";
-            if (day.mins >= 120) bg = "bg-indigo-500";
-            else if (day.mins >= 60)  bg = "bg-indigo-600/70";
-            else if (day.mins >= 30)  bg = "bg-indigo-700/60";
-            else if (day.mins > 0)    bg = "bg-indigo-800/60";
+            if (day.mins >= 120) bg = "bg-ink";
+            else if (day.mins >= 60)  bg = "bg-ink/70";
+            else if (day.mins >= 30)  bg = "bg-ink/40";
+            else if (day.mins > 0)    bg = "bg-ink/20";
             const isToday = day.date === today;
             return (
               <div key={i} title={`${day.date}: ${fmtDuration(day.mins)}`}
@@ -477,7 +477,7 @@ export default function Practice() {
         </div>
         <div className="flex items-center gap-1.5 mt-2 justify-end">
           <span className="text-[10px] text-gray-600">Less</span>
-          {["bg-gray-700","bg-indigo-800/60","bg-indigo-700/60","bg-indigo-600/70","bg-indigo-500"].map((c,i) => (
+          {["bg-gray-700","bg-ink/20","bg-ink/40","bg-ink/70","bg-ink"].map((c,i) => (
             <div key={i} className={`w-2.5 h-2.5 rounded-sm ${c}`} />
           ))}
           <span className="text-[10px] text-gray-600">More</span>
@@ -519,7 +519,7 @@ export default function Practice() {
                         <p className="text-sm text-white font-medium leading-snug">{g.title}</p>
                         <div className="flex items-center gap-2 mt-1 flex-wrap">
                           <CategoryBadge value={g.category} />
-                          {linkedChart && <span className="text-xs text-indigo-400">{linkedChart.title}</span>}
+                          {linkedChart && <span className="text-xs text-ink">{linkedChart.title}</span>}
                           {g.target_date && (
                             <span className="text-xs text-gray-500">by {g.target_date}</span>
                           )}
@@ -564,9 +564,9 @@ export default function Practice() {
             className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-700/40 transition-colors"
           >
             <div className="flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-teal-400" />
+              <Calendar className="w-4 h-4 text-gray-400" />
               <span className="text-sm font-semibold text-white">Coming Up</span>
-              <span className="text-xs bg-teal-500/20 text-teal-400 border border-teal-500/30 px-1.5 py-0.5 rounded-full font-medium">
+              <span className="text-xs bg-gray-700/50 text-gray-300 border border-gray-700/60 px-1.5 py-0.5 rounded-full font-medium">
                 {upcoming.length}
               </span>
             </div>
@@ -584,11 +584,11 @@ export default function Practice() {
                     onClick={() => navigate(createPageUrl(`WorkEventDetail?id=${ev.id}`))}
                     className="w-full text-left bg-gray-900 rounded-xl px-3 py-3 flex items-start gap-3 hover:bg-gray-800 transition-colors"
                   >
-                    <div className="w-10 h-10 rounded-xl bg-teal-900/40 border border-teal-700/40 flex-shrink-0 flex flex-col items-center justify-center">
-                      <span className="text-[10px] text-teal-400 font-medium leading-none">
+                    <div className="w-10 h-10 rounded-xl bg-gray-700/50 border border-gray-700/60 flex-shrink-0 flex flex-col items-center justify-center">
+                      <span className="text-[10px] text-gray-400 font-medium leading-none">
                         {format(parseISO(ev.date), "MMM").toUpperCase()}
                       </span>
-                      <span className="text-sm font-bold text-teal-300 leading-tight">
+                      <span className="text-sm font-bold text-white leading-tight">
                         {format(parseISO(ev.date), "d")}
                       </span>
                     </div>
@@ -602,7 +602,7 @@ export default function Practice() {
                           <span className="text-xs text-gray-500">· {ev.start_time}{ev.end_time ? `–${ev.end_time}` : ""}</span>
                         )}
                         {(ev.duration_hours || ev.practice_plan) && (
-                          <span className="text-xs text-teal-500">
+                          <span className="text-xs text-gray-500">
                             {ev.duration_hours ? `${ev.duration_hours}h planned` : ""}
                           </span>
                         )}
@@ -624,7 +624,7 @@ export default function Practice() {
               {/* Quick-add a new scheduled session */}
               <button
                 onClick={() => navigate(createPageUrl(`WorkEventDetail?date=${today}&event_type=Practice`))}
-                className="w-full flex items-center justify-center gap-2 border border-dashed border-teal-700/50 text-teal-500 hover:border-teal-500 hover:text-teal-400 rounded-xl py-2.5 text-sm transition-colors"
+                className="w-full flex items-center justify-center gap-2 border border-dashed border-gray-700 text-gray-400 hover:border-gray-500 hover:text-gray-200 rounded-xl py-2.5 text-sm transition-colors"
               >
                 <Plus className="w-4 h-4" /> Schedule Another Session
               </button>
@@ -637,16 +637,16 @@ export default function Practice() {
       {upcoming.length === 0 && (
         <button
           onClick={() => navigate(createPageUrl(`WorkEventDetail?date=${today}&event_type=Practice`))}
-          className="w-full flex items-center gap-3 bg-teal-900/20 border border-dashed border-teal-700/40 hover:border-teal-600 rounded-xl px-4 py-3 mb-4 text-left transition-colors group"
+          className="w-full flex items-center gap-3 bg-gray-800/40 border border-dashed border-gray-700 hover:border-gray-500 rounded-xl px-4 py-3 mb-4 text-left transition-colors group"
         >
-          <div className="w-8 h-8 rounded-lg bg-teal-900/50 flex items-center justify-center flex-shrink-0 group-hover:bg-teal-900">
-            <Calendar className="w-4 h-4 text-teal-400" />
+          <div className="w-8 h-8 rounded-lg bg-gray-700/50 flex items-center justify-center flex-shrink-0 group-hover:bg-gray-700">
+            <Calendar className="w-4 h-4 text-gray-300" />
           </div>
           <div className="flex-1">
-            <p className="text-sm font-medium text-teal-300">Schedule a Practice Session</p>
+            <p className="text-sm font-medium text-gray-200">Schedule a Practice Session</p>
             <p className="text-xs text-gray-500">Plan your next session on the calendar</p>
           </div>
-          <ArrowRight className="w-4 h-4 text-teal-600 group-hover:text-teal-400" />
+          <ArrowRight className="w-4 h-4 text-gray-500 group-hover:text-gray-300" />
         </button>
       )}
 
@@ -657,7 +657,7 @@ export default function Practice() {
           className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-700/40 transition-colors"
         >
           <div className="flex items-center gap-2">
-            <CalendarDays className="w-4 h-4 text-indigo-400" />
+            <CalendarDays className="w-4 h-4 text-gray-400" />
             <span className="text-sm font-semibold text-white">Recent Sessions</span>
             <span className="text-xs text-gray-600">{sessions.length} total</span>
           </div>

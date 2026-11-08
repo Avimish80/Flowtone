@@ -4,7 +4,7 @@ import { MailOpen, Link2, EyeOff, Inbox } from "lucide-react";
 import { format } from "date-fns";
 
 const statusColors = {
-  new: "bg-indigo-500/20 text-indigo-300 border-indigo-500/30",
+  new: "bg-gray-700/50 text-gray-300 border-gray-700/60",
   reviewed: "bg-gray-500/20 text-gray-400 border-gray-500/30",
   linked: "bg-green-500/20 text-green-400 border-green-500/30",
   ignored: "bg-gray-700/30 text-gray-600 border-gray-700/30",
@@ -45,7 +45,7 @@ export default function EmailInbox() {
             key={s}
             onClick={() => setFilter(s)}
             className={`px-3 py-1.5 rounded-full text-xs font-medium flex-shrink-0 transition-colors ${
-              filter === s ? "bg-indigo-600 text-white" : "bg-gray-800 text-gray-400 hover:text-white"
+              filter === s ? "bg-ink text-ink-fg" : "bg-gray-800 text-gray-400 hover:text-white"
             }`}
           >
             {s.charAt(0).toUpperCase() + s.slice(1)}
@@ -56,7 +56,7 @@ export default function EmailInbox() {
       {selected ? (
         /* Email Detail View */
         <div className="p-4">
-          <button onClick={() => setSelected(null)} className="text-indigo-400 text-sm mb-4 flex items-center gap-1">
+          <button onClick={() => setSelected(null)} className="text-ink text-sm mb-4 flex items-center gap-1">
             ← Back to inbox
           </button>
           <div className="bg-gray-800 rounded-xl p-4 space-y-3">
@@ -100,7 +100,7 @@ export default function EmailInbox() {
               <div className="flex items-start gap-3">
                 <div className="mt-0.5 flex-shrink-0">
                   {email.status === "new" ? (
-                    <div className="w-2 h-2 rounded-full bg-indigo-400 mt-1.5" />
+                    <div className="w-2 h-2 rounded-full bg-gray-400 mt-1.5" />
                   ) : (
                     <div className="w-2 h-2 rounded-full bg-transparent mt-1.5" />
                   )}

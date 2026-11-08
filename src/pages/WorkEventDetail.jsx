@@ -403,7 +403,7 @@ export default function WorkEventDetail() {
           <button
             onClick={handleCreate}
             disabled={saving}
-            className="px-4 py-1.5 rounded-lg text-sm font-medium bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white flex items-center gap-1.5 transition-colors flex-shrink-0"
+            className="px-4 py-1.5 rounded-lg text-sm font-medium bg-ink hover:bg-ink/90 disabled:opacity-50 text-ink-fg flex items-center gap-1.5 transition-colors flex-shrink-0"
           >
             {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Creating…</> : <><Check className="w-4 h-4" /> Create</>}
           </button>
@@ -412,7 +412,7 @@ export default function WorkEventDetail() {
 
       {/* Hero ticket — at-a-glance, fully clickable summary for an existing event */}
       {id && (
-        <div className="mx-4 mt-4 bg-gradient-to-br from-indigo-900/80 to-gray-900 rounded-2xl border border-indigo-700/30 overflow-hidden">
+        <div className="mx-4 mt-4 bg-gradient-to-br from-gray-800/80 to-gray-900 rounded-2xl border border-gray-700/60 overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
           <div className="p-6">
             <div className="flex items-start justify-between gap-3">
               <h2 className="text-2xl font-bold text-white leading-tight">{event.title || "Untitled Event"}</h2>
@@ -423,7 +423,7 @@ export default function WorkEventDetail() {
                   </span>
                 )}
                 <span className="text-[11px] h-4 flex items-center">
-                  {savingState === "saving" && <span className="text-indigo-300/80 flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> Saving…</span>}
+                  {savingState === "saving" && <span className="text-gray-400 flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> Saving…</span>}
                   {savingState === "saved" && <span className="text-green-400 flex items-center gap-1"><Check className="w-3 h-3" /> Saved</span>}
                 </span>
               </div>
@@ -431,16 +431,16 @@ export default function WorkEventDetail() {
 
             <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
               {event.event_type && (
-                <span className="text-[11px] font-medium text-indigo-200 bg-indigo-600/30 px-2 py-0.5 rounded-full">{event.event_type}</span>
+                <span className="text-[11px] font-medium text-gray-200 bg-gray-700/50 px-2 py-0.5 rounded-full">{event.event_type}</span>
               )}
               {event.status && (
                 <span className="text-[11px] font-medium text-gray-300 bg-gray-700/50 px-2 py-0.5 rounded-full">{STATUS_LABELS[event.status] || event.status}</span>
               )}
               {event.is_recurring && (
-                <span className="text-[11px] font-medium text-indigo-200 bg-indigo-600/30 px-2 py-0.5 rounded-full flex items-center gap-1"><RefreshCw className="w-3 h-3" /> Recurring</span>
+                <span className="text-[11px] font-medium text-gray-200 bg-gray-700/50 px-2 py-0.5 rounded-full flex items-center gap-1"><RefreshCw className="w-3 h-3" /> Recurring</span>
               )}
               {isPractice && alreadyLogged && (
-                <span className="text-[11px] font-medium text-teal-300 bg-teal-900/50 px-2 py-0.5 rounded-full flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Logged</span>
+                <span className="text-[11px] font-medium text-green-400 bg-green-500/15 px-2 py-0.5 rounded-full flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Logged</span>
               )}
             </div>
 
@@ -451,11 +451,11 @@ export default function WorkEventDetail() {
                     onClick={() => navigate(createPageUrl(`CalendarView?date=${event.date}`))}
                     className="flex items-center gap-1.5 hover:text-white transition-colors"
                   >
-                    <CalendarDays className="w-4 h-4 text-indigo-400" />{eventDateLabel(event.date)}
+                    <CalendarDays className="w-4 h-4 text-gray-400" />{eventDateLabel(event.date)}
                   </button>
                 )}
                 {event.start_time && (
-                  <span className="flex items-center gap-1.5"><Clock className="w-4 h-4 text-indigo-400" />{event.start_time}{event.end_time ? `–${event.end_time}` : ""}</span>
+                  <span className="flex items-center gap-1.5"><Clock className="w-4 h-4 text-gray-400" />{event.start_time}{event.end_time ? `–${event.end_time}` : ""}</span>
                 )}
               </div>
             )}
@@ -463,7 +463,7 @@ export default function WorkEventDetail() {
             {clientObj && (
               <div className="mt-3">
                 <Link to={createPageUrl(`ClientDetail?id=${clientObj.id}`)} className="flex items-center gap-1.5 text-sm text-gray-200 hover:text-white transition-colors min-w-0">
-                  <User className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+                  <User className="w-4 h-4 text-gray-400 flex-shrink-0" />
                   <span className="truncate">{clientObj.name}</span>
                 </Link>
                 {(clientPhone || clientEmail) && (
@@ -474,12 +474,12 @@ export default function WorkEventDetail() {
                       </a>
                     )}
                     {clientPhone && (
-                      <a href={`tel:${clientPhone}`} className="flex items-center gap-1.5 text-xs font-medium text-indigo-200 bg-indigo-600/30 hover:bg-indigo-600/50 px-2.5 py-1 rounded-lg transition-colors">
+                      <a href={`tel:${clientPhone}`} className="flex items-center gap-1.5 text-xs font-medium text-gray-200 bg-gray-700/50 hover:bg-gray-700/60 px-2.5 py-1 rounded-lg transition-colors">
                         <Phone className="w-3.5 h-3.5" /> Call
                       </a>
                     )}
                     {clientEmail && (
-                      <a href={`mailto:${clientEmail}`} className="flex items-center gap-1.5 text-xs font-medium text-indigo-200 bg-indigo-600/30 hover:bg-indigo-600/50 px-2.5 py-1 rounded-lg transition-colors">
+                      <a href={`mailto:${clientEmail}`} className="flex items-center gap-1.5 text-xs font-medium text-gray-200 bg-gray-700/50 hover:bg-gray-700/60 px-2.5 py-1 rounded-lg transition-colors">
                         <Mail className="w-3.5 h-3.5" /> Email
                       </a>
                     )}
@@ -495,9 +495,9 @@ export default function WorkEventDetail() {
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 mt-3 text-sm text-gray-300 hover:text-white transition-colors group"
               >
-                <MapPin className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+                <MapPin className="w-4 h-4 text-gray-400 flex-shrink-0" />
                 <span className="truncate flex-1">{event.location_address}</span>
-                <Navigation className="w-4 h-4 text-indigo-400 flex-shrink-0 group-hover:text-indigo-300" />
+                <Navigation className="w-4 h-4 text-gray-400 flex-shrink-0 group-hover:text-gray-200" />
               </a>
             )}
 
@@ -506,27 +506,27 @@ export default function WorkEventDetail() {
                 onClick={() => goToSection("info")}
                 className="flex items-start gap-2 mt-3 text-sm text-gray-300 hover:text-white transition-colors text-left w-full"
               >
-                <FileText className="w-4 h-4 text-indigo-400 flex-shrink-0 mt-0.5" />
+                <FileText className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
                 <span className="truncate flex-1">{notesFirstLine}</span>
               </button>
             )}
 
             {/* What's attached — tap to jump to that section */}
             {(linkedDoc || equipmentCount > 0 || (!isPractice && practiceCount > 0)) && (
-              <div className="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-indigo-700/20">
+              <div className="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-gray-700/60">
                 {linkedDoc && (
                   <button onClick={() => goToSection("financials")} className={heroBadge}>
-                    <FileText className="w-3.5 h-3.5 text-indigo-400" /> {linkedDocLabel}
+                    <FileText className="w-3.5 h-3.5 text-gray-400" /> {linkedDocLabel}
                   </button>
                 )}
                 {equipmentCount > 0 && (
                   <button onClick={() => goToSection("equipment")} className={heroBadge}>
-                    <Package className="w-3.5 h-3.5 text-indigo-400" /> Gear · {equipmentCount}
+                    <Package className="w-3.5 h-3.5 text-gray-400" /> Gear · {equipmentCount}
                   </button>
                 )}
                 {!isPractice && practiceCount > 0 && (
                   <button onClick={() => goToSection("practice")} className={heroBadge}>
-                    <Dumbbell className="w-3.5 h-3.5 text-teal-400" /> Practice · {practiceCount}
+                    <Dumbbell className="w-3.5 h-3.5 text-gray-400" /> Practice · {practiceCount}
                   </button>
                 )}
               </div>
@@ -548,12 +548,12 @@ export default function WorkEventDetail() {
       {/* Apply-to-series prompt — shown after saving a recurring event when
            time or price changed */}
       {seriesPrompt && (
-        <div className="mx-4 mt-4 bg-indigo-950/60 border border-indigo-700/50 rounded-xl p-4">
+        <div className="mx-4 mt-4 bg-gray-700/50 border border-gray-700/60 rounded-xl p-4">
           <div className="flex items-start gap-3">
-            <RefreshCw className="w-4 h-4 text-indigo-400 flex-shrink-0 mt-0.5" />
+            <RefreshCw className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
             <div className="flex-1 min-w-0">
-              <p className="text-sm text-indigo-100 font-medium mb-0.5">Apply to all upcoming lessons?</p>
-              <p className="text-xs text-indigo-300/70">
+              <p className="text-sm text-gray-200 font-medium mb-0.5">Apply to all upcoming lessons?</p>
+              <p className="text-xs text-gray-400">
                 {seriesPrompt.fields
                   .map((f) => ({
                     start_time: "start time", end_time: "end time",
@@ -567,7 +567,7 @@ export default function WorkEventDetail() {
             </div>
             <button
               onClick={dismissSeriesPrompt}
-              className="text-indigo-400/60 hover:text-indigo-300 transition-colors flex-shrink-0"
+              className="text-gray-500 hover:text-gray-200 transition-colors flex-shrink-0"
             >
               <X className="w-4 h-4" />
             </button>
@@ -576,7 +576,7 @@ export default function WorkEventDetail() {
             <button
               onClick={handleApplyToSeries}
               disabled={applyingToSeries}
-              className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-lg py-2 text-sm font-medium flex items-center justify-center gap-1.5 transition-colors"
+              className="flex-1 bg-ink hover:bg-ink/90 disabled:opacity-50 text-ink-fg rounded-lg py-2 text-sm font-medium flex items-center justify-center gap-1.5 transition-colors"
             >
               {applyingToSeries
                 ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Applying…</>
@@ -594,16 +594,16 @@ export default function WorkEventDetail() {
 
       {/* Practice check-in banner — shown for past/today practice events */}
       {showCheckin && (
-        <div className="mx-4 mt-4 bg-teal-900/30 border border-teal-700/50 rounded-xl p-4">
+        <div className="mx-4 mt-4 bg-gray-800/40 border border-gray-700/60 rounded-xl p-4">
           <div className="flex items-center gap-2 mb-3">
-            <Dumbbell className="w-4 h-4 text-teal-400" />
-            <span className="text-sm font-semibold text-teal-200">Did you complete this practice session?</span>
+            <Dumbbell className="w-4 h-4 text-gray-400" />
+            <span className="text-sm font-semibold text-gray-200">Did you complete this practice session?</span>
           </div>
           <div className="flex gap-3">
             <button
               onClick={() => handlePracticeCheckin(true)}
               disabled={loggingPractice}
-              className="flex-1 flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-500 disabled:opacity-50 text-white rounded-lg py-2.5 text-sm font-semibold transition-colors"
+              className="flex-1 flex items-center justify-center gap-2 bg-ink hover:bg-ink/90 disabled:opacity-50 text-ink-fg rounded-lg py-2.5 text-sm font-semibold transition-colors"
             >
               {loggingPractice ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
               Yes, I did it!
@@ -622,14 +622,14 @@ export default function WorkEventDetail() {
 
       {/* Already logged confirmation */}
       {alreadyLogged && (
-        <div className="mx-4 mt-4 bg-teal-900/20 border border-teal-700/40 rounded-xl px-4 py-3 flex items-center justify-between">
+        <div className="mx-4 mt-4 bg-green-950/40 border border-green-700/40 rounded-xl px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-teal-400" />
-            <span className="text-sm text-teal-300 font-medium">Practice session logged</span>
+            <CheckCircle2 className="w-4 h-4 text-green-400" />
+            <span className="text-sm text-green-300 font-medium">Practice session logged</span>
           </div>
           <button
             onClick={() => navigate(createPageUrl("Practice"))}
-            className="flex items-center gap-1 text-xs text-teal-400 hover:text-teal-300 transition-colors"
+            className="flex items-center gap-1 text-xs text-green-400 hover:text-green-300 transition-colors"
           >
             View <ExternalLink className="w-3 h-3" />
           </button>
@@ -658,7 +658,7 @@ export default function WorkEventDetail() {
               onClick={() => toggleSection(key)}
               className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-800/50 transition-colors"
             >
-              <Icon className={`w-4 h-4 flex-shrink-0 ${key === "practice" ? "text-teal-400" : "text-indigo-400"}`} />
+              <Icon className={`w-4 h-4 flex-shrink-0 text-gray-400`} />
               <span className="flex-1 font-medium text-gray-200 text-sm">{label}</span>
               {openSection === key ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
             </button>
@@ -674,7 +674,7 @@ export default function WorkEventDetail() {
                         <Dumbbell className="w-3 h-3" /> Preparing For
                       </label>
                       <select
-                        className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-teal-500"
+                        className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-gray-400"
                         value={event.linked_gig_id || ""}
                         onChange={e => onChange("linked_gig_id", e.target.value || null)}
                       >
@@ -696,7 +696,7 @@ export default function WorkEventDetail() {
                         <Target className="w-3 h-3" /> Linked Goal
                       </label>
                       <select
-                        className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-teal-500"
+                        className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-gray-400"
                         value={event.practice_goal_id || ""}
                         onChange={e => onChange("practice_goal_id", e.target.value || null)}
                       >
@@ -711,7 +711,7 @@ export default function WorkEventDetail() {
                     <div>
                       <label className="text-xs text-gray-400 mb-1 block">Practice Plan</label>
                       <textarea
-                        className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-teal-500 resize-none"
+                        className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-gray-400 resize-none"
                         placeholder="What will you work on? (scales, repertoire, technique...)"
                         rows={4}
                         value={event.practice_plan || ""}
@@ -727,7 +727,7 @@ export default function WorkEventDetail() {
                         min={0.25}
                         max={8}
                         step={0.25}
-                        className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-teal-500"
+                        className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-gray-400"
                         value={event.duration_hours || 1}
                         onChange={e => onChange("duration_hours", parseFloat(e.target.value) || 1)}
                       />
@@ -735,12 +735,12 @@ export default function WorkEventDetail() {
 
                     {/* Already logged: show quick link */}
                     {alreadyLogged && (
-                      <div className="flex items-center gap-2 bg-teal-900/20 border border-teal-700/40 rounded-lg px-3 py-2">
-                        <CheckCircle2 className="w-4 h-4 text-teal-400 flex-shrink-0" />
-                        <span className="text-xs text-teal-300 flex-1">Session has been logged to your Practice log.</span>
+                      <div className="flex items-center gap-2 bg-green-950/40 border border-green-700/40 rounded-lg px-3 py-2">
+                        <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" />
+                        <span className="text-xs text-green-300 flex-1">Session has been logged to your Practice log.</span>
                         <button
                           onClick={() => navigate(createPageUrl("Practice"))}
-                          className="text-xs text-teal-400 hover:text-teal-300 flex items-center gap-1"
+                          className="text-xs text-green-400 hover:text-green-300 flex items-center gap-1"
                         >
                           View <ExternalLink className="w-3 h-3" />
                         </button>
@@ -760,13 +760,13 @@ export default function WorkEventDetail() {
                             onClick={() => navigate(createPageUrl("WorkEventDetail?id=" + p.id))}
                             className="w-full flex items-center gap-3 bg-gray-800/60 border border-gray-700/50 rounded-xl px-3 py-2.5 text-left hover:bg-gray-800 transition-colors"
                           >
-                            <Dumbbell className="w-4 h-4 text-teal-400 flex-shrink-0" />
+                            <Dumbbell className="w-4 h-4 text-gray-400 flex-shrink-0" />
                             <div className="flex-1 min-w-0">
                               <p className="text-sm text-white truncate">{p.title || "Practice Session"}</p>
                               <p className="text-xs text-gray-500">{p.date}{p.start_time ? ` · ${p.start_time}` : ""}{p.duration_hours ? ` · ${p.duration_hours}h` : ""}</p>
                             </div>
                             {p.practice_logged && (
-                              <CheckCircle2 className="w-4 h-4 text-teal-400 flex-shrink-0" />
+                              <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" />
                             )}
                           </button>
                         ))}
@@ -781,7 +781,7 @@ export default function WorkEventDetail() {
                         onClick={() => navigate(createPageUrl(
                           `WorkEventDetail?event_type=Practice&date=${event.date || ""}&linked_gig_id=${id}`
                         ))}
-                        className="w-full flex items-center justify-center gap-2 border border-teal-700/50 text-teal-400 hover:bg-teal-900/20 rounded-xl py-2.5 text-sm font-medium transition-colors"
+                        className="w-full flex items-center justify-center gap-2 border border-gray-700 text-gray-300 hover:bg-gray-800 rounded-xl py-2.5 text-sm font-medium transition-colors"
                       >
                         <Dumbbell className="w-4 h-4" />
                         Add Practice Session

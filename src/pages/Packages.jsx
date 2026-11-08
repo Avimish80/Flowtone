@@ -190,7 +190,7 @@ export default function Packages() {
           <button onClick={handleShare} className="text-gray-500 hover:text-gray-300 text-xs flex items-center gap-1 transition-colors">
             <Link2 className="w-3 h-3" /> Share link
           </button>
-          <button onClick={() => startEdit(null)} className="text-indigo-400 hover:text-indigo-300 text-xs flex items-center gap-1 transition-colors">
+          <button onClick={() => startEdit(null)} className="text-ink hover:text-ink/80 text-xs flex items-center gap-1 transition-colors">
             <Plus className="w-3.5 h-3.5" /> New
           </button>
         </div>
@@ -204,7 +204,7 @@ export default function Packages() {
           </p>
           <button
             onClick={() => startEdit(null)}
-            className="mt-6 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors"
+            className="mt-6 bg-ink hover:bg-ink/90 text-ink-fg text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors"
           >
             Create first package
           </button>
@@ -228,7 +228,7 @@ export default function Packages() {
                     <div className="flex items-start justify-between gap-3">
                       <p className="text-base font-semibold text-white">{pkg.name}</p>
                       {pkg.price != null && (
-                        <p className="text-base font-bold text-indigo-400 whitespace-nowrap">
+                        <p className="text-base font-bold text-ink whitespace-nowrap">
                           {currencySymbol(pkg.currency)}{Number(pkg.price).toLocaleString()}
                         </p>
                       )}
@@ -277,9 +277,9 @@ export default function Packages() {
 function PackageEditor({ form, setForm, onSave, onCancel, saving }) {
   const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
   const inputClass =
-    "w-full bg-gray-900 border border-gray-700 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500";
+    "w-full bg-gray-900 border border-gray-700 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-gray-400";
   return (
-    <div className="rounded-2xl border border-indigo-700/40 bg-gray-800/50 p-4 space-y-3">
+    <div className="rounded-2xl border border-gray-700/60 bg-gray-800/50 p-4 space-y-3">
       <input className={inputClass} placeholder="Package name (e.g. DJ + Saxophone)" value={form.name} onChange={set("name")} autoFocus />
       <textarea className={`${inputClass} min-h-[80px]`} placeholder="What's included, set length, extras…" value={form.description} onChange={set("description")} />
       <div className="flex gap-2">
@@ -292,7 +292,7 @@ function PackageEditor({ form, setForm, onSave, onCancel, saving }) {
         <button onClick={onCancel} className="text-gray-500 hover:text-gray-300 text-xs flex items-center gap-1 transition-colors">
           <X className="w-3.5 h-3.5" /> Cancel
         </button>
-        <button onClick={onSave} disabled={saving} className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white text-xs font-semibold px-4 py-2 rounded-lg flex items-center gap-1 transition-colors">
+        <button onClick={onSave} disabled={saving} className="bg-ink hover:bg-ink/90 disabled:opacity-60 text-ink-fg text-xs font-semibold px-4 py-2 rounded-lg flex items-center gap-1 transition-colors">
           <Check className="w-3.5 h-3.5" /> {saving ? "Saving…" : "Save"}
         </button>
       </div>

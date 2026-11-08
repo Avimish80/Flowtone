@@ -32,7 +32,7 @@ export default function OnboardingGate({ children }) {
   if (status === "loading") {
     return (
       <div className="fixed inset-0 bg-gray-950 flex items-center justify-center">
-        <Sparkles className="w-8 h-8 text-indigo-500 animate-pulse" />
+        <Sparkles className="w-8 h-8 text-gray-400 animate-pulse" />
       </div>
     );
   }

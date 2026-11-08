@@ -8,7 +8,7 @@ const docStatusColors = {
   sent: "bg-blue-500/20 text-blue-400 border-blue-500/30",
   accepted: "bg-green-500/20 text-green-400 border-green-500/30",
   rejected: "bg-red-500/20 text-red-400 border-red-500/30",
-  converted: "bg-indigo-500/20 text-indigo-400 border-indigo-500/30",
+  converted: "bg-gray-700/50 text-ink border-gray-700/60",
   paid: "bg-green-500/20 text-green-400 border-green-500/30",
   cancelled: "bg-gray-600/20 text-gray-500 border-gray-600/30",
 };
@@ -73,9 +73,9 @@ export default function EventFinancialsSection({ event, onChange, estimate, invo
   return (
     <div className="space-y-3">
       {/* Total — lead with the money */}
-      <div className="bg-indigo-950/40 border border-indigo-700/30 rounded-2xl p-4 flex items-end justify-between">
+      <div className="bg-gray-700/50 border border-gray-700/60 rounded-2xl p-4 flex items-end justify-between">
         <div>
-          <p className="text-[11px] uppercase tracking-wider text-indigo-300/70">Total</p>
+          <p className="text-[11px] uppercase tracking-wider text-gray-400">Total</p>
           <p className="text-3xl font-bold text-white mt-0.5 sensitive">{sym}{total.toFixed(2)}</p>
         </div>
         {locked && !allowEdit && (
@@ -156,7 +156,7 @@ export default function EventFinancialsSection({ event, onChange, estimate, invo
               onChange={(e) => setNewAmount(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") addAdjustment(); }}
             />
-            <button onClick={addAdjustment} className="text-indigo-400 hover:text-indigo-300 transition-colors flex-shrink-0">
+            <button onClick={addAdjustment} className="text-ink hover:text-ink/80 transition-colors flex-shrink-0">
               <Plus className="w-4 h-4" />
             </button>
           </div>
@@ -176,7 +176,7 @@ export default function EventFinancialsSection({ event, onChange, estimate, invo
       <div className="flex items-center justify-between px-1">
         <span className="text-xs text-gray-500">Currency</span>
         <select
-          className="bg-gray-800 border border-gray-700 rounded-lg px-2 py-1 text-sm text-white focus:outline-none focus:border-indigo-500"
+          className="bg-gray-800 border border-gray-700 rounded-lg px-2 py-1 text-sm text-white focus:outline-none focus:border-gray-400"
           value={event.currency || "GBP"}
           onChange={(e) => onChange("currency", e.target.value)}
         >
@@ -192,7 +192,7 @@ export default function EventFinancialsSection({ event, onChange, estimate, invo
               to={createPageUrl(`DocumentDetail?id=${estimate.id}`)}
               className="flex items-center gap-3 bg-gray-800 rounded-xl p-3 hover:bg-gray-700 transition-colors"
             >
-              <FileText className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+              <FileText className="w-4 h-4 text-gray-400 flex-shrink-0" />
               <div className="flex-1 min-w-0">
                 <p className="text-xs text-gray-500 uppercase tracking-wide">Estimate</p>
                 <p className="text-sm text-white truncate sensitive">{currencySymbol(estimate.currency)}{(estimate.total || estimate.subtotal || 0).toFixed(2)}</p>

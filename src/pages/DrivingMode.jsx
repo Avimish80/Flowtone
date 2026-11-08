@@ -62,7 +62,7 @@ export default function DrivingMode() {
               <div className="flex items-start justify-between gap-3 mb-4">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <Music2 className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+                    <Music2 className="w-4 h-4 text-gray-400 flex-shrink-0" />
                     <p className="font-semibold text-white truncate">{event.title}</p>
                   </div>
                   <div className="flex items-center gap-3 text-sm text-gray-400">

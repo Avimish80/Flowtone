@@ -8,7 +8,7 @@ import {
 } from "@/lib/feeRules";
 import { gigsMissingFee } from "@/lib/missingInfo";
 
-const inputCls = "w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500 placeholder-gray-500";
+const inputCls = "w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-400 placeholder-gray-500";
 const STOP_WORDS = new Set(["gig", "the", "with", "and", "for", "option", "provisional", "confirmed", "lesson", "pro"]);
 
 // Most common leading words of gig titles ("Muzika - Manchester" → "muzika"):
@@ -56,7 +56,7 @@ function RuleEditor({ rule, clients, symbol, onChange, onDone, onDelete }) {
           <div className="flex rounded-lg border border-gray-700 overflow-hidden flex-shrink-0">
             {[["add", symbol], ["percent", "%"]].map(([k, l]) => (
               <button key={k} onClick={() => set({ kind: k })}
-                className={`px-3 py-2 text-sm ${rule.kind === k ? "bg-indigo-600 text-white" : "text-gray-400"}`}>{l}</button>
+                className={`px-3 py-2 text-sm ${rule.kind === k ? "bg-ink text-ink-fg" : "text-gray-400"}`}>{l}</button>
             ))}
           </div>
         )}
@@ -66,7 +66,7 @@ function RuleEditor({ rule, clients, symbol, onChange, onDone, onDelete }) {
       </div>
       <div className="flex items-center justify-between">
         <button onClick={onDelete} className="text-xs text-red-400 flex items-center gap-1"><Trash2 className="w-3.5 h-3.5" />Delete</button>
-        <button onClick={onDone} className="text-sm font-medium text-indigo-400 flex items-center gap-1"><Check className="w-4 h-4" />Done</button>
+        <button onClick={onDone} className="text-sm font-medium text-ink flex items-center gap-1"><Check className="w-4 h-4" />Done</button>
       </div>
     </div>
   );
@@ -168,12 +168,12 @@ export default function FeeRules() {
 
       {missing.length > 0 && (
         <Link to={createPageUrl("FeeCatchUp")}
-          className="flex items-center justify-between rounded-2xl border border-indigo-700/40 bg-indigo-950/40 px-4 py-3">
+          className="flex items-center justify-between rounded-2xl border border-gray-700/60 bg-gray-700/50 px-4 py-3">
           <span>
             <span className="block text-sm text-white">{missing.length} past gigs need a fee</span>
-            <span className="block text-[11px] text-indigo-300">{covered} covered by your rates</span>
+            <span className="block text-[11px] text-gray-300">{covered} covered by your rates</span>
           </span>
-          <ArrowRight className="w-4 h-4 text-indigo-300" />
+          <ArrowRight className="w-4 h-4 text-gray-300" />
         </Link>
       )}
 
@@ -192,7 +192,7 @@ export default function FeeRules() {
         )}
         {titleWords.length > 0 && (
           <div className="space-y-1.5">
-            <p className="text-[11px] text-gray-500 flex items-center gap-1"><Sparkles className="w-3 h-3 text-indigo-400" />Common in your gig titles — tap to set a fee:</p>
+            <p className="text-[11px] text-gray-500 flex items-center gap-1"><Sparkles className="w-3 h-3 text-gray-400" />Common in your gig titles — tap to set a fee:</p>
             <div className="flex flex-wrap gap-2">
               {titleWords.map(([w, n]) => (
                 <button key={w} onClick={() => addRule("set", { label: w[0].toUpperCase() + w.slice(1), when: { type: "keyword", value: w } })}

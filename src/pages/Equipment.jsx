@@ -8,8 +8,8 @@ import SortDropdown from "@/components/SortDropdown";
 const CATEGORIES = ["instrument", "amp", "pedal", "accessory", "other"];
 
 const catColors = {
-  instrument: "text-purple-400", amp: "text-blue-400",
-  pedal: "text-yellow-400", accessory: "text-green-400", other: "text-gray-400"
+  instrument: "text-gray-400", amp: "text-gray-400",
+  pedal: "text-gray-400", accessory: "text-gray-400", other: "text-gray-400"
 };
 
 const SORT_OPTIONS = [
@@ -108,7 +108,7 @@ export default function Equipment() {
           >
             {selectMode ? "Cancel" : "Select"}
           </button>
-          <button onClick={openNew} className="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-2 rounded-lg flex items-center gap-1 text-sm font-medium transition-colors">
+          <button onClick={openNew} className="bg-ink hover:bg-ink/90 text-ink-fg px-3 py-2 rounded-lg flex items-center gap-1 text-sm font-medium transition-colors">
             <Plus className="w-4 h-4" /> Add
           </button>
         </div>
@@ -116,7 +116,7 @@ export default function Equipment() {
 
       {selectMode && (
         <div className="flex items-center gap-3 mb-4 bg-gray-800 rounded-xl px-4 py-3">
-          <button onClick={toggleSelectAll} className="text-indigo-400 text-sm flex items-center gap-1.5">
+          <button onClick={toggleSelectAll} className="text-ink text-sm flex items-center gap-1.5">
             {selected.size === items.length ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
             {selected.size === items.length ? "Deselect all" : "Select all"}
           </button>
@@ -135,40 +135,40 @@ export default function Equipment() {
         <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 mb-4 space-y-3">
           <p className="text-sm font-medium text-gray-200">{editing === "new" ? "New Item" : "Edit Item"}</p>
           <input
-            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-indigo-500"
+            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-gray-400"
             placeholder="Name"
             value={form.name}
             onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
           />
           <select
-            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500"
+            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-400"
             value={form.category}
             onChange={e => setForm(p => ({ ...p, category: e.target.value }))}
           >
             {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
           <input
-            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-indigo-500"
+            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-gray-400"
             placeholder="Serial number (optional)"
             value={form.serial_number}
             onChange={e => setForm(p => ({ ...p, serial_number: e.target.value }))}
           />
           <input
-            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-indigo-500"
+            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-gray-400"
             placeholder="Estimated value (£)"
             type="number"
             value={form.estimated_value}
             onChange={e => setForm(p => ({ ...p, estimated_value: e.target.value }))}
           />
           <textarea
-            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-indigo-500 resize-none"
+            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-gray-400 resize-none"
             placeholder="Notes"
             rows={2}
             value={form.notes}
             onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
           />
           <div className="flex gap-2">
-            <button onClick={handleSave} className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg py-2 text-sm font-medium flex items-center justify-center gap-1 transition-colors">
+            <button onClick={handleSave} className="flex-1 bg-ink hover:bg-ink/90 text-ink-fg rounded-lg py-2 text-sm font-medium flex items-center justify-center gap-1 transition-colors">
               <Check className="w-4 h-4" /> Save
             </button>
             {editing !== "new" && (
@@ -187,16 +187,16 @@ export default function Equipment() {
         <div className="text-center py-16 text-gray-500">
           <Package className="w-10 h-10 mx-auto mb-3 opacity-30" />
           <p className="mb-2">No gear added yet</p>
-          <button onClick={openNew} className="text-indigo-400 text-sm">+ Add your first item</button>
+          <button onClick={openNew} className="text-ink text-sm">+ Add your first item</button>
         </div>
       ) : (
         <div className="space-y-2">
           {sorted.map(item => {
             const isSelected = selected.has(item.id);
             return (
-              <div key={item.id} className={`bg-gray-800 rounded-xl p-4 flex items-center gap-3 transition-colors ${isSelected ? "ring-2 ring-indigo-500" : ""}`}>
+              <div key={item.id} className={`bg-gray-800 rounded-xl p-4 flex items-center gap-3 transition-colors ${isSelected ? "ring-2 ring-ink/60" : ""}`}>
                 {selectMode && (
-                  <button onClick={() => toggleSelect(item.id)} className="flex-shrink-0 text-indigo-400">
+                  <button onClick={() => toggleSelect(item.id)} className="flex-shrink-0 text-ink">
                     {isSelected ? <CheckSquare className="w-5 h-5" /> : <Square className="w-5 h-5 text-gray-600" />}
                   </button>
                 )}

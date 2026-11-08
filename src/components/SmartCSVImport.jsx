@@ -450,7 +450,7 @@ export default function SmartCSVImport({ onClose, onImported }) {
               {error && <p className="text-red-400 text-sm mb-3">{error}</p>}
               <button
                 onClick={() => fileRef.current?.click()}
-                className="w-full border-2 border-dashed border-gray-700 hover:border-indigo-500 rounded-xl p-8 flex flex-col items-center gap-3 transition-colors"
+                className="w-full border-2 border-dashed border-gray-700 hover:border-gray-500 rounded-xl p-8 flex flex-col items-center gap-3 transition-colors"
               >
                 <Upload className="w-8 h-8 text-gray-500" />
                 <span className="text-gray-300 font-medium">Tap to choose a CSV file</span>
@@ -463,9 +463,9 @@ export default function SmartCSVImport({ onClose, onImported }) {
           {/* Preview step */}
           {step === "preview" && (
             <div className="space-y-4">
-              <div className="flex items-center gap-2 bg-indigo-900/30 border border-indigo-700/40 rounded-xl px-4 py-3">
-                <CheckCircle2 className="w-4 h-4 text-indigo-400" />
-                <span className="text-sm text-indigo-300">
+              <div className="flex items-center gap-2 bg-gray-800/40 border border-gray-700/60 rounded-xl px-4 py-3">
+                <CheckCircle2 className="w-4 h-4 text-gray-400" />
+                <span className="text-sm text-gray-300">
                   Detected: <strong className="capitalize">{detectedType === "full_app" ? "Full App Backup" : detectedType}</strong> — {rows.length} row{rows.length !== 1 ? "s" : ""} found
                 </span>
               </div>
@@ -481,7 +481,7 @@ export default function SmartCSVImport({ onClose, onImported }) {
                           <select
                             value={mapping[field] || ""}
                             onChange={e => setMapping(prev => ({ ...prev, [field]: e.target.value || undefined }))}
-                            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none focus:border-indigo-500 appearance-none"
+                            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none focus:border-gray-400 appearance-none"
                           >
                             <option value="">— skip —</option>
                             {headers.map(h => <option key={h} value={h}>{h}</option>)}
@@ -540,14 +540,14 @@ export default function SmartCSVImport({ onClose, onImported }) {
               <button
                 onClick={handleImport}
                 disabled={importing}
-                className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-xl py-2.5 text-sm font-medium flex items-center justify-center gap-2"
+                className="flex-1 bg-ink hover:bg-ink/90 disabled:opacity-50 text-ink-fg rounded-xl py-2.5 text-sm font-medium flex items-center justify-center gap-2"
               >
                 {importing ? <><Loader2 className="w-4 h-4 animate-spin" /> Importing...</> : `Import ${rows.length} rows`}
               </button>
             </>
           )}
           {step === "done" && (
-            <button onClick={() => { onImported?.(); onClose(); }} className="flex-1 bg-indigo-600 text-white rounded-xl py-2.5 text-sm font-medium">Done</button>
+            <button onClick={() => { onImported?.(); onClose(); }} className="flex-1 bg-ink text-ink-fg rounded-xl py-2.5 text-sm font-medium">Done</button>
           )}
         </div>
       </div>

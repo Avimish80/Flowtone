@@ -127,15 +127,15 @@ export default function DeviceCalendarLink({ onClose }) {
               {(calendars || []).slice().sort((a, b) => (calCounts[b.id] || 0) - (calCounts[a.id] || 0)).map((c) => (
                 <button key={c.id} onClick={() => setSelectedCals(toggle(selectedCals, c.id))}
                   className="w-full flex items-center gap-3 px-4 py-3 text-left">
-                  <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: c.color || "#6366f1" }} />
+                  <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: c.color || "#a1a1aa" }} />
                   <span className="flex-1 min-w-0">
                     <span className="block text-sm text-white truncate">{c.title}</span>
                     <span className="block text-[11px] text-gray-500 truncate">
                       {[c.account, calCounts[c.id] != null ? `${calCounts[c.id]} events in the last year` : null].filter(Boolean).join(" · ")}
                     </span>
                   </span>
-                  <span className={`w-5 h-5 rounded-md border flex items-center justify-center ${selectedCals.has(c.id) ? "bg-indigo-600 border-indigo-500" : "border-gray-600"}`}>
-                    {selectedCals.has(c.id) && <Check className="w-3.5 h-3.5 text-white" />}
+                  <span className={`w-5 h-5 rounded-md border flex items-center justify-center ${selectedCals.has(c.id) ? "bg-ink border-ink/60 text-ink-fg" : "border-gray-600"}`}>
+                    {selectedCals.has(c.id) && <Check className="w-3.5 h-3.5 text-ink-fg" />}
                   </span>
                 </button>
               ))}
@@ -151,7 +151,7 @@ export default function DeviceCalendarLink({ onClose }) {
                 {RANGES.map((r) => (
                   <button key={r.key} onClick={() => setRangeKey(r.key)} className="w-full flex items-center justify-between px-4 py-3 text-left">
                     <span className="text-sm text-white">{r.label}</span>
-                    {rangeKey === r.key && <Check className="w-4 h-4 text-indigo-400" />}
+                    {rangeKey === r.key && <Check className="w-4 h-4 text-gray-400" />}
                   </button>
                 ))}
               </div>
@@ -162,7 +162,7 @@ export default function DeviceCalendarLink({ onClose }) {
             </div>
             <div className="flex items-start justify-between gap-3 rounded-2xl border border-gray-700/60 bg-gray-800/30 p-4">
               <div>
-                <p className="text-sm text-white flex items-center gap-1.5"><Sparkles className="w-3.5 h-3.5 text-indigo-400" />Let AI spot personal events</p>
+                <p className="text-sm text-white flex items-center gap-1.5"><Sparkles className="w-3.5 h-3.5 text-gray-400" />Let AI spot personal events</p>
                 <p className="text-[11px] text-gray-500 mt-0.5">For calendars that mix work and personal life. Personal entries start unticked.</p>
               </div>
               <Toggle on={aiCheck} onClick={() => setAiCheck(!aiCheck)} />
@@ -198,8 +198,8 @@ export default function DeviceCalendarLink({ onClose }) {
                     <div className="rounded-2xl border border-gray-700/60 bg-gray-800/30 divide-y divide-gray-700/60">
                       {g.rows.map((r) => (
                         <button key={r.key} onClick={() => setPicked(toggle(picked, r.key))} className="w-full flex items-center gap-3 px-4 py-2.5 text-left">
-                          <span className={`w-5 h-5 rounded-md border flex-shrink-0 flex items-center justify-center ${picked.has(r.key) ? "bg-indigo-600 border-indigo-500" : "border-gray-600"}`}>
-                            {picked.has(r.key) && <Check className="w-3.5 h-3.5 text-white" />}
+                          <span className={`w-5 h-5 rounded-md border flex-shrink-0 flex items-center justify-center ${picked.has(r.key) ? "bg-ink border-ink/60 text-ink-fg" : "border-gray-600"}`}>
+                            {picked.has(r.key) && <Check className="w-3.5 h-3.5 text-ink-fg" />}
                           </span>
                           <span className="flex-1 min-w-0">
                             <span className="block text-sm text-white truncate">{r.device.title || "(untitled)"}</span>
@@ -225,7 +225,7 @@ export default function DeviceCalendarLink({ onClose }) {
 
         {step === "done" && result && (
           <div className="space-y-4 pt-6 text-center">
-            <CalendarDays className="w-10 h-10 text-indigo-400 mx-auto" />
+            <CalendarDays className="w-10 h-10 text-gray-400 mx-auto" />
             <p className="text-base font-semibold text-white">Calendar linked</p>
             <p className="text-sm text-gray-400">
               {result.created} imported{result.linked ? ` · ${result.linked} matched to existing gigs` : ""}{result.updated ? ` · ${result.updated} updated` : ""}.
@@ -243,18 +243,18 @@ export default function DeviceCalendarLink({ onClose }) {
       <div className="p-4 border-t border-gray-800 max-w-xl w-full mx-auto">
         {step === "calendars" && (
           <button disabled={!selectedCals.size} onClick={() => setStep("range")}
-            className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold disabled:opacity-40">
+            className="w-full py-3 rounded-xl bg-ink hover:bg-ink/90 text-ink-fg text-sm font-semibold disabled:opacity-40">
             Next{selectedCals.size ? ` · ${selectedCals.size} calendar${selectedCals.size > 1 ? "s" : ""}` : ""}
           </button>
         )}
         {step === "range" && (
-          <button onClick={findEvents} className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold">
+          <button onClick={findEvents} className="w-full py-3 rounded-xl bg-ink hover:bg-ink/90 text-ink-fg text-sm font-semibold">
             Find events
           </button>
         )}
         {step === "review" && !busy && (
           <button onClick={doImport}
-            className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold">
+            className="w-full py-3 rounded-xl bg-ink hover:bg-ink/90 text-ink-fg text-sm font-semibold">
             {picked.size ? `Import ${picked.size} event${picked.size > 1 ? "s" : ""}` : "Link calendar"}
           </button>
         )}
@@ -265,10 +265,10 @@ export default function DeviceCalendarLink({ onClose }) {
           <div className="space-y-2">
             {result?.pastNew > 0 && (
               <button onClick={() => { onClose(); navigate(createPageUrl("FeeCatchUp")); }}
-                className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold">Fill in fees</button>
+                className="w-full py-3 rounded-xl bg-ink hover:bg-ink/90 text-ink-fg text-sm font-semibold">Fill in fees</button>
             )}
             <button onClick={onClose}
-              className={`w-full py-3 rounded-xl text-sm font-semibold ${result?.pastNew > 0 ? "text-gray-400" : "bg-indigo-600 hover:bg-indigo-500 text-white"}`}>Done</button>
+              className={`w-full py-3 rounded-xl text-sm font-semibold ${result?.pastNew > 0 ? "text-gray-400" : "bg-ink hover:bg-ink/90 text-ink-fg"}`}>Done</button>
           </div>
         )}
       </div>

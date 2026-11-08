@@ -55,14 +55,14 @@ export default class ErrorBoundary extends React.Component {
           gap: 16,
           padding: 24,
           textAlign: "center",
-          background: "#030712",
+          background: "#09090b",
           color: "#fff",
           fontFamily:
             "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif",
         }}
       >
         <p style={{ fontSize: 18, fontWeight: 700 }}>Something went wrong</p>
-        <p style={{ fontSize: 14, color: "#9ca3af", maxWidth: 360 }}>
+        <p style={{ fontSize: 14, color: "#a1a1aa", maxWidth: 360 }}>
           Flowtone hit an unexpected error. Reloading usually fixes it.
         </p>
         <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
@@ -70,8 +70,8 @@ export default class ErrorBoundary extends React.Component {
             onClick={this.handleReload}
             style={{
               padding: "10px 20px",
-              background: "#6366f1",
-              color: "#fff",
+              background: "#f4f4f5",
+              color: "#09090b",
               border: "none",
               borderRadius: 12,
               fontSize: 14,
@@ -85,7 +85,7 @@ export default class ErrorBoundary extends React.Component {
             style={{
               padding: "10px 20px",
               background: "rgba(255,255,255,.06)",
-              color: "#c7d2fe",
+              color: "#d4d4d8",
               border: "1px solid rgba(255,255,255,.18)",
               borderRadius: 12,
               fontSize: 14,

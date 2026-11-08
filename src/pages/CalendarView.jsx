@@ -17,8 +17,9 @@ const STATUS_COLORS = {
   completed: { bg: "bg-green-500",   bar: "bg-green-500",   pill: "bg-green-500/15 text-green-600 dark:text-green-300 border-green-500/30", dot: "bg-green-400" },
   cancelled: { bg: "bg-gray-400",    bar: "bg-gray-400",    pill: "bg-gray-400/15 text-gray-500 border-gray-400/30", dot: "bg-gray-500" },
 };
-// Practice events always render in teal regardless of status
-const PRACTICE_COLOR = { bg: "bg-teal-500", bar: "bg-teal-500", pill: "bg-teal-500/15 text-teal-600 dark:text-teal-300 border-teal-500/30", dot: "bg-teal-400" };
+// Practice events always render neutral regardless of status: they are
+// personal time, and colour is kept for business status.
+const PRACTICE_COLOR = { bg: "bg-gray-300", bar: "bg-gray-300", pill: "bg-gray-400/15 text-gray-600 dark:text-gray-300 border-gray-400/30", dot: "bg-gray-300" };
 const getEventColors = (event) => event.event_type === "Practice" ? PRACTICE_COLOR : (STATUS_COLORS[event.status] || STATUS_COLORS.lead);
 
 const STATUS_LABELS = { lead: "Tentative", confirmed: "Confirmed", completed: "Completed", cancelled: "Cancelled" };
@@ -221,8 +222,8 @@ export default function CalendarView() {
               >
                 {/* Date number */}
                 <div className={`w-7 h-7 flex items-center justify-center rounded-full text-xs font-semibold transition-all
-                  ${today ? "bg-indigo-600 text-white" : ""}
-                  ${isSelected && !today ? "ring-2 ring-indigo-400 text-white" : ""}
+                  ${today ? "bg-ink text-ink-fg" : ""}
+                  ${isSelected && !today ? "ring-2 ring-ink/60 text-white" : ""}
                   ${!today && !isSelected ? "text-gray-300" : ""}`}>
                   {format(day, "d")}
                 </div>
@@ -268,7 +269,7 @@ export default function CalendarView() {
               <div key={day.toISOString()} className="flex-1 text-center py-2 border-l border-gray-800/40">
                 <p className="text-[10px] font-medium text-gray-500 uppercase">{format(day, "EEE")}</p>
                 <div className={`w-7 h-7 mx-auto flex items-center justify-center rounded-full text-sm font-bold mt-0.5
-                  ${today ? "bg-indigo-600 text-white" : "text-gray-200"}`}>
+                  ${today ? "bg-ink text-ink-fg" : "text-gray-200"}`}>
                   {format(day, "d")}
                 </div>
               </div>
@@ -323,7 +324,7 @@ export default function CalendarView() {
             const timedEvts = eventsOnDay(day).filter(e => e.start_time || e.time);
             return (
               <div key={day.toISOString()}
-                className={`flex-1 border-l border-gray-800/40 relative ${today ? "bg-indigo-950/10" : ""}`}>
+                className={`flex-1 border-l border-gray-800/40 relative ${today ? "bg-gray-800/40" : ""}`}>
                 {/* Hour lines */}
                 {HOURS.map(h => (
                   <div key={h} className="border-t border-gray-800/40 absolute left-0 right-0"
@@ -496,7 +497,7 @@ export default function CalendarView() {
             <p className="font-bold text-white">{format(day, "d MMMM yyyy")}</p>
           </div>
           <div className="flex items-center gap-2">
-            <Link to={createPageUrl(`WorkEventDetail?date=${format(day, "yyyy-MM-dd")}`)} className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors">
+            <Link to={createPageUrl(`WorkEventDetail?date=${format(day, "yyyy-MM-dd")}`)} className="bg-ink hover:bg-ink/90 text-ink-fg text-xs px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors">
               <Plus className="w-3 h-3" /> Add
             </Link>
             <button onClick={onClose} className="text-gray-500 hover:text-white text-xs px-2 py-1.5 transition-colors">✕</button>
@@ -565,7 +566,7 @@ export default function CalendarView() {
             <div className="flex gap-2 mt-2">
               <a href={buildNavUrl(event.location_address, navApp)} target="_blank" rel="noopener noreferrer"
                 onClick={e => e.stopPropagation()}
-                className="flex items-center gap-1 text-[10px] bg-indigo-600 hover:bg-indigo-500 text-white px-2 py-1 rounded-lg transition-colors">
+                className="flex items-center gap-1 text-[10px] bg-ink hover:bg-ink/90 text-ink-fg px-2 py-1 rounded-lg transition-colors">
                 <Car className="w-3 h-3" /> Drive
               </a>
               <a href={buildUberUrl(event.location_address)} target="_blank" rel="noopener noreferrer"
@@ -598,7 +599,7 @@ export default function CalendarView() {
           <button onClick={() => navigate_cal(-1)} className="p-2 text-gray-400 hover:text-white transition-colors">
             <ChevronLeft className="w-5 h-5" />
           </button>
-          <button onClick={goToday} className="text-base font-bold text-white hover:text-indigo-400 transition-colors">
+          <button onClick={goToday} className="text-base font-bold text-white hover:text-gray-200 transition-colors">
             {headerLabel()}
           </button>
           <button onClick={() => navigate_cal(1)} className="p-2 text-gray-400 hover:text-white transition-colors">
@@ -613,7 +614,7 @@ export default function CalendarView() {
             {["month","week","day"].map(v => (
               <button key={v} onClick={() => { setView(v); setSelectedDay(null); }}
                 className={`flex-1 py-1.5 rounded-md text-xs font-semibold capitalize transition-colors
-                  ${view === v ? "bg-indigo-600 text-white" : "text-gray-400 hover:text-white"}`}>
+                  ${view === v ? "bg-gray-700 text-white" : "text-gray-400 hover:text-white"}`}>
                 {v}
               </button>
             ))}
@@ -622,16 +623,16 @@ export default function CalendarView() {
           {/* Actions */}
           <button
             onClick={() => setShowFilters(v => !v)}
-            className={`relative p-2 rounded-lg transition-colors ${showFilters || filtersActive ? "bg-indigo-600 text-white" : "bg-gray-800 text-gray-400 hover:text-white"}`}
+            className={`relative p-2 rounded-lg transition-colors ${showFilters || filtersActive ? "bg-ink text-ink-fg" : "bg-gray-800 text-gray-400 hover:text-white"}`}
             title="Filter events"
           >
             <SlidersHorizontal className="w-4 h-4" />
             {filtersActive && !showFilters && (
-              <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-indigo-300 rounded-full" />
+              <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-gray-400 rounded-full" />
             )}
           </button>
           <Link to={createPageUrl(`WorkEventDetail?date=${format(selectedDay ?? current, "yyyy-MM-dd")}`)}
-            className="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-2 rounded-lg flex items-center gap-1 text-xs font-semibold transition-colors">
+            className="bg-ink hover:bg-ink/90 text-ink-fg px-3 py-2 rounded-lg flex items-center gap-1 text-xs font-semibold transition-colors">
             <Plus className="w-4 h-4" />
           </Link>
         </div>
@@ -651,7 +652,7 @@ export default function CalendarView() {
               <h3 className="text-sm font-bold text-white uppercase tracking-wider">Filter Events</h3>
               {filtersActive && (
                 <button onClick={() => { setFilterStatus("all"); setFilterType("all"); }}
-                  className="text-xs text-indigo-400 hover:text-indigo-300 font-medium transition-colors">
+                  className="text-xs text-ink hover:text-ink/80 font-medium transition-colors">
                   Clear all
                 </button>
               )}
@@ -664,7 +665,7 @@ export default function CalendarView() {
                 <button key={s} onClick={() => setFilterStatus(s)}
                   className={`text-xs px-4 py-1.5 rounded-full border font-medium transition-colors ${
                     filterStatus === s
-                      ? "bg-indigo-600 text-white border-indigo-600"
+                      ? "bg-ink text-ink-fg border-ink/60"
                       : "text-gray-300 border-gray-600 hover:border-gray-400"
                   }`}>
                   {s === "all" ? "All" : s === "lead" ? "Tentative" : s.charAt(0).toUpperCase() + s.slice(1)}
@@ -679,7 +680,7 @@ export default function CalendarView() {
                 <button key={t} onClick={() => setFilterType(t)}
                   className={`text-xs px-4 py-1.5 rounded-full border font-medium transition-colors ${
                     filterType === t
-                      ? "bg-indigo-600 text-white border-indigo-600"
+                      ? "bg-ink text-ink-fg border-ink/60"
                       : "text-gray-300 border-gray-600 hover:border-gray-400"
                   }`}>
                   {t === "all" ? "All" : t}

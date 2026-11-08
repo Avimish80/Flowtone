@@ -69,9 +69,9 @@ export default function RecurrenceSection({ event, onChange }) {
               onChange("recurrence_rule", { frequency: "weekly", interval: 1, end_type: "count", count: 4 });
             }
           }}
-          className={`w-10 h-6 rounded-full transition-colors ${hasRule ? "bg-indigo-600" : "bg-gray-700"}`}
+          className={`w-10 h-6 rounded-full transition-colors ${hasRule ? "bg-ink" : "bg-gray-700"}`}
         >
-          <span className={`block w-4 h-4 bg-white rounded-full transition-transform mx-1 ${hasRule ? "translate-x-4" : "translate-x-0"}`} />
+          <span className={`block w-4 h-4 rounded-full transition-transform mx-1 ${hasRule ? "translate-x-4 bg-gray-950" : "translate-x-0 bg-white"}`} />
         </button>
       </div>
 
@@ -87,7 +87,7 @@ export default function RecurrenceSection({ event, onChange }) {
                   onClick={() => updateRule("frequency", f.value)}
                   className={`py-1.5 rounded-lg text-xs font-medium transition-colors ${
                     rule.frequency === f.value
-                      ? "bg-indigo-600 text-white"
+                      ? "bg-ink text-ink-fg"
                       : "bg-gray-800 text-gray-400 hover:bg-gray-700"
                   }`}
                 >
@@ -107,7 +107,7 @@ export default function RecurrenceSection({ event, onChange }) {
                 type="number"
                 min={1}
                 max={52}
-                className="w-16 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500"
+                className="w-16 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-400"
                 value={rule.interval || 1}
                 onChange={e => updateRule("interval", parseInt(e.target.value) || 1)}
               />
@@ -130,7 +130,7 @@ export default function RecurrenceSection({ event, onChange }) {
                     onClick={() => toggleDay(idx)}
                     className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                       (rule.days_of_week || []).includes(idx)
-                        ? "bg-indigo-600 text-white"
+                        ? "bg-ink text-ink-fg"
                         : "bg-gray-800 text-gray-400 hover:bg-gray-700"
                     }`}
                   >
@@ -147,19 +147,19 @@ export default function RecurrenceSection({ event, onChange }) {
             <div className="grid grid-cols-3 gap-2 mb-2">
               <button
                 onClick={() => updateRule("end_type", "never")}
-                className={`py-2 rounded-lg text-sm font-medium transition-colors ${rule.end_type === "never" ? "bg-indigo-600 text-white" : "bg-gray-800 text-gray-400 hover:bg-gray-700"}`}
+                className={`py-2 rounded-lg text-sm font-medium transition-colors ${rule.end_type === "never" ? "bg-ink text-ink-fg" : "bg-gray-800 text-gray-400 hover:bg-gray-700"}`}
               >
                 No end
               </button>
               <button
                 onClick={() => updateRule("end_type", "count")}
-                className={`py-2 rounded-lg text-sm font-medium transition-colors ${rule.end_type === "count" ? "bg-indigo-600 text-white" : "bg-gray-800 text-gray-400 hover:bg-gray-700"}`}
+                className={`py-2 rounded-lg text-sm font-medium transition-colors ${rule.end_type === "count" ? "bg-ink text-ink-fg" : "bg-gray-800 text-gray-400 hover:bg-gray-700"}`}
               >
                 After N times
               </button>
               <button
                 onClick={() => updateRule("end_type", "until")}
-                className={`py-2 rounded-lg text-sm font-medium transition-colors ${rule.end_type === "until" ? "bg-indigo-600 text-white" : "bg-gray-800 text-gray-400 hover:bg-gray-700"}`}
+                className={`py-2 rounded-lg text-sm font-medium transition-colors ${rule.end_type === "until" ? "bg-ink text-ink-fg" : "bg-gray-800 text-gray-400 hover:bg-gray-700"}`}
               >
                 Until date
               </button>
@@ -172,7 +172,7 @@ export default function RecurrenceSection({ event, onChange }) {
                   type="number"
                   min={2}
                   max={365}
-                  className="w-20 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500"
+                  className="w-20 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-400"
                   value={rule.count || 4}
                   onChange={e => updateRule("count", parseInt(e.target.value) || 4)}
                 />
@@ -181,7 +181,7 @@ export default function RecurrenceSection({ event, onChange }) {
             ) : (
               <input
                 type="date"
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500"
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-400"
                 value={rule.until || ""}
                 onChange={e => updateRule("until", e.target.value)}
               />
@@ -193,7 +193,7 @@ export default function RecurrenceSection({ event, onChange }) {
             <button
               onClick={handleCreateSeries}
               disabled={loading}
-              className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-xl py-3 text-sm font-semibold flex items-center justify-center gap-2 transition-colors"
+              className="w-full bg-ink hover:bg-ink/90 disabled:opacity-50 text-ink-fg rounded-xl py-3 text-sm font-semibold flex items-center justify-center gap-2 transition-colors"
             >
               {loading ? (
                 <><Loader2 className="w-4 h-4 animate-spin" /> Creating series...</>
@@ -212,7 +212,7 @@ export default function RecurrenceSection({ event, onChange }) {
           )}
 
           {isRecurring && (
-            <div className="bg-indigo-950/50 border border-indigo-700/40 rounded-xl p-3 text-indigo-300 text-sm">
+            <div className="bg-gray-700/50 border border-gray-700/60 rounded-xl p-3 text-gray-300 text-sm">
               ✓ This event is part of a recurring series
               {event.recurrence_index != null && ` (occurrence #${event.recurrence_index + 1})`}
             </div>

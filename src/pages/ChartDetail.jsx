@@ -25,7 +25,7 @@ const FEELS = [
 ];
 
 const labelCls = "text-xs text-gray-400 mb-1 block";
-const inputCls = "w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500 placeholder-gray-500";
+const inputCls = "w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-400 placeholder-gray-500";
 
 export default function ChartDetail() {
   const params = new URLSearchParams(window.location.search);
@@ -157,7 +157,7 @@ export default function ChartDetail() {
             onClick={handleSave}
             disabled={saving || !chart.title?.trim()}
             className={`px-4 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-colors disabled:opacity-50 ${
-              saved ? "bg-green-600 text-white" : "bg-indigo-600 hover:bg-indigo-500 text-white"
+              saved ? "bg-green-600 text-white" : "bg-ink hover:bg-ink/90 text-ink-fg"
             }`}
           >
             {saved ? <><Check className="w-4 h-4" /> Saved</> : <><Save className="w-4 h-4" /> Save</>}
@@ -187,7 +187,7 @@ export default function ChartDetail() {
                 onClick={() => onChange("chart_type", t.value)}
                 className={`flex flex-col items-center gap-1 py-3 rounded-xl border text-center transition-colors ${
                   chart.chart_type === t.value
-                    ? "border-indigo-500 bg-indigo-600/15 text-indigo-300"
+                    ? "border-ink/60 bg-gray-700/50 text-gray-300"
                     : "border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-600"
                 }`}
               >
@@ -253,7 +253,7 @@ export default function ChartDetail() {
           <label className={labelCls}>Tags</label>
           <div className="flex flex-wrap gap-1.5 mb-2">
             {(chart.tags || []).map(tag => (
-              <span key={tag} className="flex items-center gap-1 text-xs bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 px-2 py-0.5 rounded-full">
+              <span key={tag} className="flex items-center gap-1 text-xs bg-gray-700/50 text-gray-300 border border-gray-700/60 px-2 py-0.5 rounded-full">
                 {tag}
                 <button onClick={() => removeTag(tag)} className="hover:text-white">
                   <X className="w-3 h-3" />
@@ -284,7 +284,7 @@ export default function ChartDetail() {
             <label className={labelCls}>Upload File (PDF, image)</label>
             {chart.file_url ? (
               <div className="flex items-center gap-3 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2">
-                <FileText className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+                <FileText className="w-4 h-4 text-gray-400 flex-shrink-0" />
                 <span className="text-sm text-gray-300 flex-1 truncate">{chart.file_name || "Uploaded file"}</span>
                 <button onClick={() => onChange("file_url", "")} className="text-gray-500 hover:text-red-400">
                   <X className="w-4 h-4" />
@@ -293,7 +293,7 @@ export default function ChartDetail() {
             ) : (
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="w-full border-2 border-dashed border-gray-700 hover:border-indigo-500/50 rounded-xl py-4 flex flex-col items-center gap-1.5 text-gray-500 hover:text-gray-400 transition-colors"
+                className="w-full border-2 border-dashed border-gray-700 hover:border-gray-500 rounded-xl py-4 flex flex-col items-center gap-1.5 text-gray-500 hover:text-gray-400 transition-colors"
               >
                 <Upload className="w-5 h-5" />
                 <span className="text-xs">Click to upload PDF or image · max 5 MB</span>
@@ -348,8 +348,8 @@ export default function ChartDetail() {
           {linkedEvents.length > 0 && (
             <div className="space-y-1.5 mb-2">
               {linkedEvents.map(evt => (
-                <div key={evt.id} className="flex items-center gap-2 bg-indigo-600/10 border border-indigo-500/20 rounded-lg px-3 py-2">
-                  <span className="flex-1 text-sm text-indigo-300 truncate">{evt.title}</span>
+                <div key={evt.id} className="flex items-center gap-2 bg-gray-700/50 border border-gray-700/60 rounded-lg px-3 py-2">
+                  <span className="flex-1 text-sm text-gray-300 truncate">{evt.title}</span>
                   <span className="text-xs text-gray-500">{evt.date}</span>
                   <button onClick={() => toggleEvent(evt)} className="text-gray-500 hover:text-red-400">
                     <X className="w-3.5 h-3.5" />

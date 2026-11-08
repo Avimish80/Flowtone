@@ -42,7 +42,7 @@ function ConnectRow({ icon, label, sub, subError, done, doneLabel, actionLabel, 
         <button
           onClick={onAction}
           disabled={busy}
-          className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-500 transition-colors disabled:opacity-50 flex items-center gap-1.5 flex-shrink-0"
+          className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-ink text-ink-fg hover:bg-ink/90 transition-colors disabled:opacity-50 flex items-center gap-1.5 flex-shrink-0"
         >
           {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
           {actionLabel}
@@ -236,8 +236,8 @@ export default function OnboardingFlow({ onFinish }) {
         style={{ paddingTop: "max(12px, env(safe-area-inset-top))" }}
       >
         <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-900/50">
-            <Sparkles className="w-3.5 h-3.5 text-white" />
+          <div className="w-7 h-7 rounded-full bg-gray-700/50 border border-gray-700/60 flex items-center justify-center">
+            <Sparkles className="w-3.5 h-3.5 text-gray-300" />
           </div>
           <p className="text-sm font-semibold text-white">Flow</p>
         </div>
@@ -268,7 +268,7 @@ export default function OnboardingFlow({ onFinish }) {
                 key={action.label}
                 onClick={() => handleAction(action)}
                 disabled={saving}
-                className="text-left bg-indigo-600/25 border border-indigo-500/30 text-indigo-200 px-4 py-3 rounded-xl text-sm hover:bg-indigo-600/40 active:bg-indigo-600/50 transition-colors disabled:opacity-50"
+                className="text-left bg-gray-700/50 border border-gray-700/60 text-gray-200 px-4 py-3 rounded-xl text-sm hover:bg-gray-700/60 active:bg-gray-700/60 transition-colors disabled:opacity-50"
               >
                 {action.label}
               </button>
@@ -322,7 +322,7 @@ export default function OnboardingFlow({ onFinish }) {
               <button
                 onClick={() => finishWith({ skipped: false })}
                 disabled={saving}
-                className="bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors disabled:opacity-50"
+                className="bg-ink hover:bg-ink/90 text-ink-fg text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors disabled:opacity-50"
               >
                 Done
               </button>

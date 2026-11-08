@@ -57,7 +57,7 @@ export default function SortDropdown({ options, activeSort, onSortChange }) {
                     setOpen(false);
                   }}
                   className={`w-full text-left px-3 py-2 text-sm transition-colors flex items-center justify-between gap-2 ${
-                    isActive ? "bg-indigo-600/20 text-indigo-300" : "text-gray-300 hover:bg-gray-700"
+                    isActive ? "bg-gray-700/50 text-gray-300" : "text-gray-300 hover:bg-gray-700"
                   }`}
                 >
                   <span>{opt.label}</span>

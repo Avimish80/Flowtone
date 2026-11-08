@@ -50,7 +50,7 @@ export default function CSVImportModal({ onClose, onImported }) {
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800">
           <div className="flex items-center gap-2">
-            <FileText className="w-4 h-4 text-indigo-400" />
+            <FileText className="w-4 h-4 text-gray-400" />
             <span className="font-semibold text-white text-sm">Import from CSV</span>
           </div>
           <button onClick={onClose} className="text-gray-500 hover:text-white transition-colors">
@@ -69,7 +69,7 @@ export default function CSVImportModal({ onClose, onImported }) {
               </p>
               <button
                 onClick={() => fileRef.current?.click()}
-                className="w-full border-2 border-dashed border-gray-700 hover:border-indigo-500 rounded-xl py-10 flex flex-col items-center gap-3 text-gray-400 hover:text-indigo-400 transition-colors"
+                className="w-full border-2 border-dashed border-gray-700 hover:border-gray-500 rounded-xl py-10 flex flex-col items-center gap-3 text-gray-400 hover:text-gray-200 transition-colors"
               >
                 <Upload className="w-8 h-8" />
                 <span className="text-sm font-medium">Click to upload CSV</span>
@@ -88,7 +88,7 @@ export default function CSVImportModal({ onClose, onImported }) {
               <p className="text-xs text-gray-500 mb-2">Preview (first {previewLines.length} rows):</p>
               <div className="bg-gray-800 rounded-lg p-3 mb-4 overflow-x-auto">
                 {previewLines.map((line, i) => (
-                  <p key={i} className={`text-xs font-mono truncate ${i === 0 ? "text-indigo-300 font-semibold" : "text-gray-400"}`}>
+                  <p key={i} className={`text-xs font-mono truncate ${i === 0 ? "text-gray-300 font-semibold" : "text-gray-400"}`}>
                     {line}
                   </p>
                 ))}
@@ -108,7 +108,7 @@ export default function CSVImportModal({ onClose, onImported }) {
                 <button onClick={() => { setStep("upload"); setCsvText(""); setFileName(""); }} className="flex-1 bg-gray-700 hover:bg-gray-600 text-white rounded-xl py-3 text-sm font-medium transition-colors">
                   Choose different file
                 </button>
-                <button onClick={handleImport} className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl py-3 text-sm font-semibold transition-colors">
+                <button onClick={handleImport} className="flex-1 bg-ink hover:bg-ink/90 text-ink-fg rounded-xl py-3 text-sm font-semibold transition-colors">
                   Import Now
                 </button>
               </div>
@@ -117,7 +117,7 @@ export default function CSVImportModal({ onClose, onImported }) {
 
           {step === "importing" && (
             <div className="flex flex-col items-center py-8 gap-4">
-              <Loader2 className="w-10 h-10 text-indigo-400 animate-spin" />
+              <Loader2 className="w-10 h-10 text-gray-400 animate-spin" />
               <p className="text-gray-300 text-sm font-medium">Importing your data...</p>
               <p className="text-gray-500 text-xs text-center">Creating invoices, clients, and linked events. This may take a moment.</p>
             </div>
@@ -138,7 +138,7 @@ export default function CSVImportModal({ onClose, onImported }) {
                   </div>
                 ))}
               </div>
-              <button onClick={onClose} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl py-3 text-sm font-semibold transition-colors">
+              <button onClick={onClose} className="w-full bg-ink hover:bg-ink/90 text-ink-fg rounded-xl py-3 text-sm font-semibold transition-colors">
                 Done
               </button>
             </div>

@@ -20,7 +20,7 @@ const STATUS_LABELS = {
 };
 
 const STATUS_PILL = {
-  new: "bg-indigo-500/20 text-indigo-300 border-indigo-500/30",
+  new: "bg-gray-700/50 text-gray-300 border-gray-700/60",
   contacted: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
   quoted: "bg-blue-500/20 text-blue-400 border-blue-500/30",
   accepted: "bg-green-500/20 text-green-400 border-green-500/30",
@@ -193,7 +193,7 @@ export default function LeadDetail() {
     return (
       <div className="p-4 text-center py-16">
         <p className="text-base font-semibold text-white">Lead not found</p>
-        <Link to={createPageUrl("Leads")} className="text-indigo-400 text-sm mt-3 inline-block">Back to leads</Link>
+        <Link to={createPageUrl("Leads")} className="text-ink text-sm mt-3 inline-block">Back to leads</Link>
       </div>
     );
   }
@@ -204,7 +204,7 @@ export default function LeadDetail() {
   return (
     <div className="p-4 max-w-xl mx-auto pb-24">
       {/* Hero */}
-      <div className="rounded-2xl bg-gradient-to-br from-indigo-900/80 to-gray-900 border border-gray-700/60 overflow-hidden">
+      <div className="rounded-2xl bg-gradient-to-br from-gray-800/80 to-gray-900 border border-gray-700/60 overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
         <div className="p-5">
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -212,7 +212,7 @@ export default function LeadDetail() {
               <p className="text-sm text-gray-400 mt-1">
                 {[pkg?.name, lead.event_type].filter(Boolean).join(" · ") || "Enquiry"}
                 {pkg?.price != null && (
-                  <span className="text-indigo-300 font-semibold"> · {currencySymbol(pkg.currency)}{Number(pkg.price).toLocaleString()}</span>
+                  <span className="text-gray-300 font-semibold"> · {currencySymbol(pkg.currency)}{Number(pkg.price).toLocaleString()}</span>
                 )}
               </p>
             </div>
@@ -227,7 +227,7 @@ export default function LeadDetail() {
               const Icon = row.icon;
               const content = (
                 <div className="flex items-center gap-3 px-5 py-3 hover:bg-white/5 transition-colors">
-                  <Icon className="w-4 h-4 text-indigo-300 flex-shrink-0" />
+                  <Icon className="w-4 h-4 text-gray-300 flex-shrink-0" />
                   <span className="text-sm text-white truncate">{row.label}</span>
                 </div>
               );
@@ -258,7 +258,7 @@ export default function LeadDetail() {
           <button
             onClick={handleSendQuote}
             disabled={sendingQuote}
-            className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white font-semibold rounded-xl py-3 text-sm flex items-center justify-center gap-2 transition-colors"
+            className="w-full bg-ink hover:bg-ink/90 disabled:opacity-60 text-ink-fg font-semibold rounded-xl py-3 text-sm flex items-center justify-center gap-2 transition-colors"
           >
             <Send className="w-4 h-4" />
             {sendingQuote ? "Working…" : lead.status === "quoted" ? "Send quote again" : "Send quote"}
@@ -345,7 +345,7 @@ function Field({ label, value, onChange, type = "text" }) {
         type={type}
         value={value || ""}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full bg-gray-900 border border-gray-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
+        className="w-full bg-gray-900 border border-gray-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-gray-400"
       />
     </div>
   );
@@ -359,7 +359,7 @@ function buildQuoteEmail({ lead, business, total, currency, quoteUrl }) {
       <p>Hi ${firstName || "there"},</p>
       <p>Thanks for getting in touch${lead.event_date ? ` about your event on ${lead.event_date}` : ""}. Here is your quote from ${business}:</p>
       <p style="font-size:22px;font-weight:bold;margin:18px 0">${symbol}${Number(total || 0).toLocaleString("en-GB", { minimumFractionDigits: 2 })}</p>
-      <p><a href="${quoteUrl}" style="display:inline-block;background:#4f46e5;color:#fff;padding:12px 22px;border-radius:10px;text-decoration:none;font-weight:600">View and accept your quote</a></p>
+      <p><a href="${quoteUrl}" style="display:inline-block;background:#18181b;color:#fff;padding:12px 22px;border-radius:10px;text-decoration:none;font-weight:600">View and accept your quote</a></p>
       <p style="color:#555;font-size:13px">You can review the details and accept online. If you have any questions, just reply to this email.</p>
       <p>${business}</p>
     </div>

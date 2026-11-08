@@ -17,7 +17,7 @@ const PublicQuotePage = lazy(() => import('./pages/public/PublicQuotePage'));
 
 const publicFallback = (
   <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-    <div className="w-8 h-8 border-2 border-gray-700 border-t-indigo-400 rounded-full animate-spin" />
+    <div className="w-8 h-8 border-2 border-gray-700 border-t-gray-200 rounded-full animate-spin" />
   </div>
 );
 

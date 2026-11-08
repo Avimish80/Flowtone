@@ -38,7 +38,7 @@ export default function OnboardingInput({ input, onSubmit, disabled }) {
               key={option}
               onClick={() => submit(option)}
               disabled={disabled}
-              className="bg-gray-800 border border-gray-700 hover:border-indigo-500 text-gray-200 rounded-full px-4 py-2 text-sm transition-colors disabled:opacity-50"
+              className="bg-gray-800 border border-gray-700 hover:border-gray-500 text-gray-200 rounded-full px-4 py-2 text-sm transition-colors disabled:opacity-50"
             >
               {option}
             </button>
@@ -59,8 +59,8 @@ export default function OnboardingInput({ input, onSubmit, disabled }) {
             style={{
               flex: "1 1 0%",
               minWidth: 0,
-              background: "#111827",
-              border: "1px solid #374151",
+              background: "#18181b",
+              border: "1px solid #3f3f46",
               borderRadius: "16px",
               padding: "10px 14px",
               color: "white",
@@ -80,8 +80,8 @@ export default function OnboardingInput({ input, onSubmit, disabled }) {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              background: disabled || (!value.trim() && !input.defaultValue) ? "#1f2937" : "#4f46e5",
-              color: disabled || (!value.trim() && !input.defaultValue) ? "#4b5563" : "white",
+              background: disabled || (!value.trim() && !input.defaultValue) ? "#27272a" : "rgb(var(--ink))",
+              color: disabled || (!value.trim() && !input.defaultValue) ? "#52525b" : "rgb(var(--ink-fg))",
               border: "none",
               cursor: disabled ? "not-allowed" : "pointer",
             }}

@@ -734,7 +734,7 @@ export default function DocumentDetail() {
 
     return `<!DOCTYPE html>
 <html><body style="font-family:Arial,sans-serif;color:#333;max-width:600px;margin:0 auto;padding:20px">
-  <h2 style="color:#4f46e5">${profile?.business_name || 'Invoice'}</h2>
+  <h2 style="color:#18181b">${profile?.business_name || 'Invoice'}</h2>
   <p><strong>${doc.document_type === 'invoice' ? 'Invoice' : 'Estimate'} #${doc.document_number || ''}</strong></p>
   ${doc.due_date ? `<p>Due: ${format(parseISO(doc.due_date), 'd MMM yyyy')}</p>` : ''}
   <table style="width:100%;border-collapse:collapse;margin:16px 0">
@@ -884,7 +884,7 @@ export default function DocumentDetail() {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="px-4 py-1.5 rounded-lg text-sm font-medium bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white flex items-center gap-1.5 transition-colors"
+            className="px-4 py-1.5 rounded-lg text-sm font-medium bg-ink hover:bg-ink/90 disabled:opacity-50 text-ink-fg flex items-center gap-1.5 transition-colors"
           >
             {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Creating…</> : <><Save className="w-4 h-4" /> Create</>}
           </button>
@@ -962,13 +962,13 @@ export default function DocumentDetail() {
 
         {/* Quick Send Banner — for draft invoices ready to send */}
         {id && isInvoice && doc.status === "draft" && quickSendEmail && !quickSent && doc.total > 0 && (
-          <div className="bg-indigo-950/50 border border-indigo-700/40 rounded-xl px-4 py-3 flex items-center gap-3">
-            <Send className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+          <div className="bg-gray-700/50 border border-gray-700/60 rounded-xl px-4 py-3 flex items-center gap-3">
+            <Send className="w-4 h-4 text-gray-400 flex-shrink-0" />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-indigo-200">
+              <p className="text-sm font-medium text-gray-200">
                 Ready to send · <span className="sensitive">{sym}{(doc.total || 0).toFixed(2)}</span>
               </p>
-              <p className="text-xs text-indigo-400/70 truncate">
+              <p className="text-xs text-gray-500 truncate">
                 {gmailConnected ? `via Gmail to ${quickSendEmail}` : `to ${quickSendEmail}`}
               </p>
             </div>
@@ -976,7 +976,7 @@ export default function DocumentDetail() {
               <button
                 onClick={handleQuickSend}
                 disabled={quickSending}
-                className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-1.5 transition-colors"
+                className="bg-ink hover:bg-ink/90 disabled:opacity-50 text-ink-fg px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-1.5 transition-colors"
               >
                 {quickSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                 {quickSending ? "Sending…" : "Send Now"}
@@ -1026,7 +1026,7 @@ export default function DocumentDetail() {
 
         {/* Email Dialog */}
         {showEmailDialog && (
-          <div className="bg-gray-800 border border-indigo-700/40 rounded-xl p-4 space-y-3">
+          <div className="bg-gray-800 border border-gray-700/60 rounded-xl p-4 space-y-3">
             <p className="text-sm font-medium text-white">Send {typeLabel} by Email</p>
             <p className="text-xs text-gray-400">
               {gmailConnected
@@ -1037,7 +1037,7 @@ export default function DocumentDetail() {
               <label className="text-xs text-gray-400 mb-1 block">Recipient Email</label>
               <input
                 type="email"
-                className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-indigo-500"
+                className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-gray-400"
                 placeholder="client@example.com"
                 value={emailTo}
                 onChange={e => setEmailTo(e.target.value)}
@@ -1061,7 +1061,7 @@ export default function DocumentDetail() {
                   }
                 }}
                 disabled={!emailTo?.trim() || (!gmailConnected && preparingShare)}
-                className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white rounded-lg py-2 text-sm font-medium flex items-center justify-center gap-2 transition-colors"
+                className="flex-1 bg-ink hover:bg-ink/90 disabled:opacity-40 text-ink-fg rounded-lg py-2 text-sm font-medium flex items-center justify-center gap-2 transition-colors"
               >
                 {!gmailConnected && preparingShare
                   ? <><Loader2 className="w-4 h-4 animate-spin" /> Preparing PDF…</>
@@ -1093,7 +1093,7 @@ export default function DocumentDetail() {
                 </>
               )}
               {doc.status !== "converted" && (
-                <button onClick={handleConvertToInvoice} className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl py-2.5 text-sm font-medium flex items-center justify-center gap-2 transition-colors">
+                <button onClick={handleConvertToInvoice} className="flex-1 bg-ink hover:bg-ink/90 text-ink-fg rounded-xl py-2.5 text-sm font-medium flex items-center justify-center gap-2 transition-colors">
                   <ArrowRightLeft className="w-4 h-4" /> Convert to Invoice
                 </button>
               )}
@@ -1137,25 +1137,25 @@ export default function DocumentDetail() {
             sheet stays presentational and the existing quick-create modals and
             handlers keep working unchanged. */}
         {linkingType === "event" && (
-          <div className="rounded-xl border border-indigo-800/30 bg-indigo-950/20 overflow-hidden">
-            <div className="flex items-center justify-between px-3 py-2.5 border-b border-indigo-800/20">
-              <p className="text-sm font-medium text-indigo-300">Choose an event</p>
+          <div className="rounded-xl border border-gray-700/60 bg-gray-800/40 overflow-hidden">
+            <div className="flex items-center justify-between px-3 py-2.5 border-b border-gray-700/60">
+              <p className="text-sm font-medium text-gray-300">Choose an event</p>
               <button onClick={() => setLinkingType(null)} className="text-gray-500 hover:text-gray-300 transition-colors"><X className="w-4 h-4" /></button>
             </div>
-            <div className="max-h-60 overflow-y-auto divide-y divide-indigo-900/30">
+            <div className="max-h-60 overflow-y-auto divide-y divide-gray-700/50">
               {availableEvents.map(evt => {
                 const evtClient = clientMap[evt.client_id]?.name || "";
                 const dateStr = evt.date ? (() => { try { return format(parseISO(evt.date), "d MMM"); } catch { return ""; } })() : "";
                 return (
                   <button key={evt.id} onClick={() => { handleSelectEvent(evt.id); setLinkingType(null); }}
-                    className="w-full text-left px-3 py-2.5 hover:bg-indigo-900/30 transition-colors">
+                    className="w-full text-left px-3 py-2.5 hover:bg-gray-700/60 transition-colors">
                     <p className="text-sm text-white">{evt.title}</p>
                     <p className="text-xs text-gray-500">{[dateStr, evtClient].filter(Boolean).join(" · ")}</p>
                   </button>
                 );
               })}
               <button onClick={() => { handleEventDropdownChange("__new_event__"); setLinkingType(null); }}
-                className="w-full text-left px-3 py-2.5 text-indigo-400 hover:bg-indigo-900/20 text-sm transition-colors flex items-center gap-2">
+                className="w-full text-left px-3 py-2.5 text-ink hover:bg-gray-700/60 text-sm transition-colors flex items-center gap-2">
                 <Plus className="w-3.5 h-3.5" /> Create new event
               </button>
             </div>
@@ -1183,7 +1183,7 @@ export default function DocumentDetail() {
                 </button>
               ))}
               <button onClick={() => { handleClientDropdownChange("__new_client__"); setLinkingType(null); }}
-                className="w-full text-left px-3 py-2.5 text-indigo-400 hover:bg-gray-700/20 text-sm transition-colors flex items-center gap-2">
+                className="w-full text-left px-3 py-2.5 text-ink hover:bg-gray-700/20 text-sm transition-colors flex items-center gap-2">
                 <Plus className="w-3.5 h-3.5" /> Add new client
               </button>
             </div>
@@ -1286,7 +1286,7 @@ export default function DocumentDetail() {
             <div>
               <label className="text-xs text-gray-400 mb-1 block">Name *</label>
               <input
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-indigo-500"
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-gray-400"
                 placeholder="Client name"
                 value={newClientForm.name}
                 onChange={e => setNewClientForm(p => ({ ...p, name: e.target.value }))}
@@ -1297,7 +1297,7 @@ export default function DocumentDetail() {
             <div>
               <label className="text-xs text-gray-400 mb-1 block">Type</label>
               <select
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500"
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-400"
                 value={newClientForm.client_type}
                 onChange={e => setNewClientForm(p => ({ ...p, client_type: e.target.value }))}
               >
@@ -1308,7 +1308,7 @@ export default function DocumentDetail() {
               <label className="text-xs text-gray-400 mb-1 block">Email</label>
               <input
                 type="email"
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-indigo-500"
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-gray-400"
                 placeholder="client@example.com"
                 value={newClientForm.email}
                 onChange={e => setNewClientForm(p => ({ ...p, email: e.target.value }))}
@@ -1319,7 +1319,7 @@ export default function DocumentDetail() {
               <button
                 onClick={handleCreateClient}
                 disabled={!newClientForm.name.trim() || creatingClient}
-                className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-lg py-2 text-sm font-medium transition-colors"
+                className="flex-1 bg-ink hover:bg-ink/90 disabled:opacity-50 text-ink-fg rounded-lg py-2 text-sm font-medium transition-colors"
               >
                 {creatingClient ? "Creating..." : "Create Client"}
               </button>
@@ -1342,7 +1342,7 @@ export default function DocumentDetail() {
             <div>
               <label className="text-xs text-gray-400 mb-1 block">Title *</label>
               <input
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-indigo-500"
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-gray-400"
                 placeholder="e.g. Jazz Night at Blue Note"
                 value={newEventForm.title}
                 onChange={e => setNewEventForm(p => ({ ...p, title: e.target.value }))}
@@ -1355,7 +1355,7 @@ export default function DocumentDetail() {
                 <label className="text-xs text-gray-400 mb-1 block">Date</label>
                 <input
                   type="date"
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-400"
                   value={newEventForm.date}
                   onChange={e => setNewEventForm(p => ({ ...p, date: e.target.value }))}
                 />
@@ -1364,7 +1364,7 @@ export default function DocumentDetail() {
                 <label className="text-xs text-gray-400 mb-1 block">Fee</label>
                 <input
                   type="number"
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-gray-400"
                   placeholder="0"
                   value={newEventForm.base_price}
                   onChange={e => setNewEventForm(p => ({ ...p, base_price: e.target.value }))}
@@ -1374,7 +1374,7 @@ export default function DocumentDetail() {
             <div>
               <label className="text-xs text-gray-400 mb-1 block">Client</label>
               <select
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500"
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-gray-400"
                 value={newEventForm.client_id}
                 onChange={e => {
                   if (e.target.value === "__new_client__") {
@@ -1394,7 +1394,7 @@ export default function DocumentDetail() {
               <button
                 onClick={handleCreateEvent}
                 disabled={!newEventForm.title.trim() || creatingEvent}
-                className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-lg py-2 text-sm font-medium transition-colors"
+                className="flex-1 bg-ink hover:bg-ink/90 disabled:opacity-50 text-ink-fg rounded-lg py-2 text-sm font-medium transition-colors"
               >
                 {creatingEvent ? "Creating..." : "Create Event"}
               </button>

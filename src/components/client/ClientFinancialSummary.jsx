@@ -11,7 +11,7 @@ const statusColors = {
   overdue: "text-red-400",
   accepted: "text-green-400",
   rejected: "text-red-400",
-  converted: "text-indigo-400",
+  converted: "text-gray-300",
 };
 
 export default function ClientFinancialSummary({ clientId }) {

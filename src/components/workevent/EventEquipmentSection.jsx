@@ -84,7 +84,7 @@ export default function EventEquipmentSection({ event, onChange }) {
       {/* Add custom */}
       <div className="flex gap-2">
         <input
-          className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-indigo-500"
+          className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-gray-400"
           placeholder="Custom item name"
           value={customName}
           onChange={e => setCustomName(e.target.value)}
@@ -97,7 +97,7 @@ export default function EventEquipmentSection({ event, onChange }) {
 
       <button
         onClick={() => setShowPicker(!showPicker)}
-        className="w-full text-sm text-indigo-400 hover:text-indigo-300 flex items-center gap-2 py-1 transition-colors"
+        className="w-full text-sm text-ink hover:text-ink/80 flex items-center gap-2 py-1 transition-colors"
       >
         <Package className="w-4 h-4" /> Add from gear library
       </button>

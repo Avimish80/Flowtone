@@ -135,12 +135,12 @@ export default function Dashboard() {
     <div className="p-4 max-w-xl mx-auto space-y-5">
 
       {/* ── Hero: greeting + Next Up in one card ── */}
-      <div className="bg-gradient-to-br from-indigo-900/80 to-gray-900 rounded-2xl border border-indigo-700/30 overflow-hidden">
+      <div className="bg-gradient-to-br from-gray-800/80 to-gray-900 rounded-2xl border border-gray-700/60 overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
         <div className="px-5 pt-4 pb-3.5">
           <h1 className="text-lg font-semibold text-white">
             {greeting}{firstName ? `, ${firstName}` : ""}
           </h1>
-          <p className="text-xs text-indigo-200/70 mt-0.5">
+          <p className="text-xs text-gray-300 mt-0.5">
             {todayEvents.length > 0
               ? `${doneTodayCount} of ${todayEvents.length} complete today`
               : format(now, "EEEE d MMMM")}
@@ -148,10 +148,10 @@ export default function Dashboard() {
         </div>
 
         {nextGig ? (
-          <div className="border-t border-indigo-700/30 p-5">
+          <div className="border-t border-gray-700/60 p-5">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-semibold uppercase tracking-wider text-indigo-300">Next Up</span>
-              <span className="text-xs bg-indigo-600/40 text-indigo-200 px-2.5 py-0.5 rounded-full font-medium">
+              <span className="text-xs font-semibold uppercase tracking-wider text-gray-300">Next Up</span>
+              <span className="text-xs bg-gray-700/50 text-gray-200 px-2.5 py-0.5 rounded-full font-medium">
                 {getCountdown(nextGig.date, nextGig.start_time)}
               </span>
             </div>
@@ -160,18 +160,18 @@ export default function Dashboard() {
               <h2 className="text-xl font-bold text-white mb-1">{nextGig.title || "Untitled Gig"}</h2>
               <div className="flex items-center gap-3 text-sm text-gray-300 flex-wrap">
                 <span className="flex items-center gap-1">
-                  <CalendarDays className="w-3.5 h-3.5 text-indigo-400" />
+                  <CalendarDays className="w-3.5 h-3.5 text-gray-400" />
                   {getDayLabel(nextGig.date)}
                 </span>
                 {nextGig.start_time && (
                   <span className="flex items-center gap-1">
-                    <Clock className="w-3.5 h-3.5 text-indigo-400" />
+                    <Clock className="w-3.5 h-3.5 text-gray-400" />
                     {nextGig.start_time}{nextGig.end_time ? "–" + nextGig.end_time : ""}
                   </span>
                 )}
                 {clientMap[nextGig.client_id] && (
                   <span className="flex items-center gap-1">
-                    <Users className="w-3.5 h-3.5 text-indigo-400" />
+                    <Users className="w-3.5 h-3.5 text-gray-400" />
                     {clientMap[nextGig.client_id].name}
                   </span>
                 )}
@@ -196,7 +196,7 @@ export default function Dashboard() {
                   href={buildNavUrl(nextGig.location_address, navApp)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white rounded-xl py-2.5 flex items-center justify-center gap-1.5 text-xs font-medium transition-colors"
+                  className="bg-ink hover:bg-ink/90 active:bg-ink/80 text-ink-fg rounded-xl py-2.5 flex items-center justify-center gap-1.5 text-xs font-medium transition-colors"
                 >
                   <Navigation className="w-4 h-4" />
                   Directions
@@ -214,12 +214,12 @@ export default function Dashboard() {
             )}
           </div>
         ) : (
-          <div className="border-t border-indigo-700/30 p-6 text-center">
+          <div className="border-t border-gray-700/60 p-6 text-center">
             <Mic2 className="w-8 h-8 text-gray-500 mx-auto mb-2" />
             <p className="text-gray-400 text-sm mb-3">No upcoming gigs</p>
             <Link
               to={createPageUrl("WorkEventDetail")}
-              className="inline-flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm px-4 py-2 rounded-lg font-medium transition-colors"
+              className="inline-flex items-center gap-1.5 bg-ink hover:bg-ink/90 text-ink-fg text-sm px-4 py-2 rounded-lg font-medium transition-colors"
             >
               <Plus className="w-4 h-4" /> Add Event
             </Link>
@@ -248,18 +248,18 @@ export default function Dashboard() {
           to={newLeads.length === 1
             ? createPageUrl(`LeadDetail?id=${newLeads[0].id}`)
             : createPageUrl("Leads")}
-          className="flex items-center gap-3 bg-indigo-950/40 border border-indigo-800/30 rounded-xl px-4 py-3 transition-colors hover:bg-indigo-950/60"
+          className="flex items-center gap-3 bg-gray-700/50 border border-gray-700/60 rounded-xl px-4 py-3 transition-colors hover:bg-gray-700/60"
         >
-          <Users className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+          <Users className="w-4 h-4 text-gray-400 flex-shrink-0" />
           <div className="flex-1 min-w-0">
-            <p className="text-sm text-indigo-300 font-medium">
+            <p className="text-sm text-gray-300 font-medium">
               {newLeads.length} new lead{newLeads.length > 1 ? "s" : ""}
             </p>
             {newLeads.length === 1 && newLeads[0].contact_name && (
-              <p className="text-xs text-indigo-400/70 truncate">{newLeads[0].contact_name}</p>
+              <p className="text-xs text-gray-500 truncate">{newLeads[0].contact_name}</p>
             )}
           </div>
-          <ChevronRight className="w-4 h-4 text-indigo-500" />
+          <ChevronRight className="w-4 h-4 text-gray-400" />
         </Link>
       )}
 
@@ -288,7 +288,7 @@ export default function Dashboard() {
       <div>
         <div className="flex items-center justify-between mb-3">
           <h2 className="font-semibold text-gray-200 text-sm uppercase tracking-wider">This Week</h2>
-          <Link to={createPageUrl("WorkEvents")} className="text-xs text-indigo-400">See all</Link>
+          <Link to={createPageUrl("WorkEvents")} className="text-xs text-ink">See all</Link>
         </div>
         {weekEvents.length === 0 ? (
           <div className="bg-gray-800/50 rounded-xl p-5 text-center text-gray-500 text-sm">

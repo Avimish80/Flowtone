@@ -16,7 +16,7 @@ const STATUS_LABELS = {
 };
 
 const STATUS_BAR = {
-  new: "bg-indigo-500",
+  new: "bg-ink text-ink-fg",
   contacted: "bg-yellow-500",
   quoted: "bg-blue-500",
   accepted: "bg-green-500",
@@ -25,7 +25,7 @@ const STATUS_BAR = {
 };
 
 const STATUS_BADGE = {
-  new: "bg-indigo-500/20 text-indigo-300 border-indigo-500/30",
+  new: "bg-gray-700/50 text-gray-300 border-gray-700/60",
   contacted: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
   quoted: "bg-blue-500/20 text-blue-400 border-blue-500/30",
   accepted: "bg-green-500/20 text-green-400 border-green-500/30",
@@ -101,10 +101,10 @@ export default function Leads() {
 
   const tileClass = (key, active) =>
     `rounded-xl p-3 text-center transition-all border ${
-      active ? "ring-2 ring-indigo-500 scale-[1.03]" : ""
+      active ? "ring-2 ring-ink/60 scale-[1.03]" : ""
     } ${
       key === "new" && counts.new > 0
-        ? "bg-indigo-950/60 border-indigo-700/40"
+        ? "bg-gray-700/50 border-gray-700/60"
         : key === "accepted" && counts.accepted > 0
           ? "bg-green-950/40 border-green-700/30"
           : "bg-gray-800/50 border-gray-700/40"
@@ -123,7 +123,7 @@ export default function Leads() {
 
       <div className="grid grid-cols-4 gap-2 mb-5">
         <button onClick={() => toggleFilter("new")} className={tileClass("new", filter === "new")}>
-          <p className={`text-xl font-bold ${counts.new > 0 ? "text-indigo-300" : "text-white"}`}>{counts.new}</p>
+          <p className={`text-xl font-bold ${counts.new > 0 ? "text-gray-300" : "text-white"}`}>{counts.new}</p>
           <p className="text-[10px] text-gray-500 uppercase tracking-wider mt-0.5">New</p>
         </button>
         <button onClick={() => toggleFilter("quoted")} className={tileClass("quoted", filter === "quoted")}>
@@ -154,7 +154,7 @@ export default function Leads() {
               </p>
               <button
                 onClick={handleShare}
-                className="mt-6 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors"
+                className="mt-6 bg-ink hover:bg-ink/90 text-ink-fg text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors"
               >
                 Share enquiry page
               </button>

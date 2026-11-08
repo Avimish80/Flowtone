@@ -207,12 +207,12 @@ export default function Invoices() {
               <div className="fixed inset-0 z-10" onClick={() => setShowYearDropdown(false)} />
               <div className="absolute right-0 top-full mt-1 z-20 bg-gray-800 border border-gray-700 rounded-lg shadow-xl py-1 min-w-[8rem] max-h-60 overflow-y-auto">
                 <button onClick={() => { setFilterYear("all"); setShowYearDropdown(false); }}
-                  className={`w-full text-left px-3 py-2 text-sm transition-colors ${filterYear === "all" ? "bg-indigo-600 text-white" : "text-gray-300 hover:bg-gray-700"}`}>
+                  className={`w-full text-left px-3 py-2 text-sm transition-colors ${filterYear === "all" ? "bg-ink text-ink-fg" : "text-gray-300 hover:bg-gray-700"}`}>
                   All Years
                 </button>
                 {availableYears.map(yr => (
                   <button key={yr} onClick={() => { setFilterYear(yr); setShowYearDropdown(false); }}
-                    className={`w-full text-left px-3 py-2 text-sm transition-colors ${filterYear === yr ? "bg-indigo-600 text-white" : "text-gray-300 hover:bg-gray-700"}`}>
+                    className={`w-full text-left px-3 py-2 text-sm transition-colors ${filterYear === yr ? "bg-ink text-ink-fg" : "text-gray-300 hover:bg-gray-700"}`}>
                     {yr}
                   </button>
                 ))}
@@ -226,7 +226,7 @@ export default function Invoices() {
           {selectMode ? "Done" : "Select"}
         </button>
         <Link to={createPageUrl("DocumentDetail?type=invoice")}
-          className="text-indigo-400 hover:text-indigo-300 text-xs font-medium flex items-center gap-1 transition-colors">
+          className="text-ink hover:text-ink/80 text-xs font-medium flex items-center gap-1 transition-colors">
           <Plus className="w-3 h-3" /> New
         </Link>
       </div>
@@ -238,7 +238,7 @@ export default function Invoices() {
           onClick={() => setFilterStatus(filterStatus === "outstanding" ? "all" : "outstanding")}
           className={`rounded-2xl p-4 text-left transition-all border
             ${overview.overdue.length > 0 ? "bg-gradient-to-br from-amber-950/60 to-gray-900 border-amber-800/40" : "bg-gradient-to-br from-gray-800 to-gray-900 border-gray-700/50"}
-            ${filterStatus === "outstanding" ? "ring-2 ring-indigo-500 scale-[1.01]" : ""}`}
+            ${filterStatus === "outstanding" ? "ring-2 ring-ink/60 scale-[1.01]" : ""}`}
         >
           <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-1">Outstanding</p>
           <p className={`sensitive text-2xl font-bold mb-1 leading-tight ${overview.overdue.length > 0 ? "text-yellow-300" : "text-white"}`}>
@@ -258,7 +258,7 @@ export default function Invoices() {
         <button
           onClick={() => setFilterStatus(filterStatus === "sent" ? "all" : "sent")}
           className={`rounded-2xl p-4 text-left transition-all border bg-blue-950/30 border-blue-800/20
-            ${filterStatus === "sent" ? "ring-2 ring-indigo-500 scale-[1.01]" : ""}`}
+            ${filterStatus === "sent" ? "ring-2 ring-ink/60 scale-[1.01]" : ""}`}
         >
           <p className="text-[10px] font-semibold uppercase tracking-widest text-blue-400 mb-1">Sent</p>
           <p className="text-2xl font-bold text-blue-300 mb-1 leading-tight">{overview.sent.length}</p>
@@ -320,7 +320,7 @@ export default function Invoices() {
             <button
               key={tile.key}
               onClick={() => setFilterStatus(isActive ? "all" : tile.key)}
-              className={`rounded-xl p-2.5 text-left transition-all border ${tile.colors} ${isActive ? "ring-2 ring-indigo-500 scale-[1.03]" : ""}`}
+              className={`rounded-xl p-2.5 text-left transition-all border ${tile.colors} ${isActive ? "ring-2 ring-ink/60 scale-[1.03]" : ""}`}
             >
               <Icon className={`w-3 h-3 mb-1.5 ${tile.iconColor}`} />
               <p className={`text-[9px] font-bold uppercase tracking-wider mb-0.5 ${tile.labelColor}`}>{tile.label}</p>
@@ -334,7 +334,7 @@ export default function Invoices() {
       {selectMode && (
         <div className="mb-3 bg-gray-800 rounded-xl px-4 py-3 space-y-2.5">
           <div className="flex items-center gap-3">
-            <button onClick={toggleSelectAll} className="text-indigo-400 text-sm flex items-center gap-1.5">
+            <button onClick={toggleSelectAll} className="text-ink text-sm flex items-center gap-1.5">
               {selected.size === filtered.length ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
               {selected.size === filtered.length ? "Deselect all" : "Select all"}
             </button>
@@ -366,7 +366,7 @@ export default function Invoices() {
           <p className="text-xs text-gray-400">
             Showing: <span className="text-white font-medium capitalize">{filterStatus}</span>
           </p>
-          <button onClick={() => setFilterStatus("all")} className="text-xs text-indigo-400 hover:text-indigo-300">
+          <button onClick={() => setFilterStatus("all")} className="text-xs text-ink hover:text-ink/80">
             Show all
           </button>
         </div>
@@ -379,7 +379,7 @@ export default function Invoices() {
         <div className="text-center py-12 text-gray-500">
           <p className="mb-3">No invoices found</p>
           <Link to={createPageUrl("DocumentDetail?type=invoice")}
-            className="text-indigo-400 text-sm hover:text-indigo-300 transition-colors">
+            className="text-ink text-sm hover:text-ink/80 transition-colors">
             + Create invoice
           </Link>
         </div>
@@ -391,9 +391,9 @@ export default function Invoices() {
             const clientName = clientMap[item.client_id]?.name || "";
             const displayStatus = isOverdue ? "overdue" : item.status;
             const inner = (
-              <div className={`flex items-center gap-3 bg-gray-800 rounded-xl p-4 transition-colors active:bg-gray-700 ${isSelected ? "ring-2 ring-indigo-500" : ""}`}>
+              <div className={`flex items-center gap-3 bg-gray-800 rounded-xl p-4 transition-colors active:bg-gray-700 ${isSelected ? "ring-2 ring-ink/60" : ""}`}>
                 {selectMode && (
-                  <button onClick={() => toggleSelect(item.id)} className="flex-shrink-0 text-indigo-400">
+                  <button onClick={() => toggleSelect(item.id)} className="flex-shrink-0 text-ink">
                     {isSelected ? <CheckSquare className="w-5 h-5" /> : <Square className="w-5 h-5 text-gray-600" />}
                   </button>
                 )}

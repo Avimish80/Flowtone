@@ -72,7 +72,7 @@ export default function DeviceAccessRow() {
               <span className="text-xs text-gray-500 flex-shrink-0">Off</span>
             ) : (
               <button onClick={async () => { await request(); refresh(); }}
-                className="text-sm font-medium text-indigo-400 hover:text-indigo-300 flex-shrink-0">
+                className="text-sm font-medium text-ink hover:text-ink/80 flex-shrink-0">
                 Allow
               </button>
             )}
@@ -91,7 +91,7 @@ export default function DeviceAccessRow() {
               <button onClick={() => { unlinkCalendars(); setLink(null); }}
                 className="text-xs text-gray-500 hover:text-gray-300">Unlink</button>
             )}
-            <button onClick={() => setShowLink(true)} className="text-sm font-medium text-indigo-400 hover:text-indigo-300">
+            <button onClick={() => setShowLink(true)} className="text-sm font-medium text-ink hover:text-ink/80">
               {link ? "Edit" : "Link calendar"}
             </button>
           </div>

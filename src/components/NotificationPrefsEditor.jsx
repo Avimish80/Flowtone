@@ -9,12 +9,12 @@ export function Toggle({ on, onClick, disabled = false }) {
       role="switch"
       aria-checked={on}
       className={`relative flex-shrink-0 w-9 h-5 rounded-full transition-colors disabled:opacity-50 ${
-        on ? "bg-indigo-600" : "bg-gray-700"
+        on ? "bg-ink" : "bg-gray-700"
       }`}
     >
       <span
-        className={`absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
-          on ? "translate-x-4" : ""
+        className={`absolute left-0.5 top-0.5 w-4 h-4 rounded-full shadow transition-transform ${
+          on ? "translate-x-4 bg-gray-950" : "bg-white"
         }`}
       />
     </button>
@@ -59,7 +59,7 @@ export default function NotificationPrefsEditor({ prefs = {}, onChange }) {
                           const opt = timingOptions.find(o => String(o.value) === e.target.value);
                           onChange(key, timingKey, opt ? opt.value : e.target.value);
                         }}
-                        className="mt-0.5 max-w-full bg-transparent text-xs text-indigo-400 focus:outline-none cursor-pointer"
+                        className="mt-0.5 max-w-full bg-transparent text-xs text-ink focus:outline-none cursor-pointer"
                       >
                         {timingOptions.map(o => (
                           <option key={String(o.value)} value={String(o.value)} className="bg-gray-900 text-gray-200">

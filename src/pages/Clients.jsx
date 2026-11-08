@@ -8,8 +8,8 @@ import { useScrollRestore } from "@/hooks/useScrollRestore";
 import SortDropdown from "@/components/SortDropdown";
 
 const typeColors = {
-  venue: "text-purple-400", agent: "text-blue-400",
-  student: "text-green-400", band: "text-yellow-400", other: "text-gray-400"
+  venue: "text-gray-400", agent: "text-gray-400",
+  student: "text-gray-400", band: "text-gray-400", other: "text-gray-400"
 };
 
 const SORT_OPTIONS = [
@@ -69,7 +69,7 @@ export default function Clients() {
           >
             {selectMode ? "Cancel" : "Select"}
           </button>
-          <Link to={createPageUrl("ClientDetail")} className="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-2 rounded-lg flex items-center gap-1 text-sm font-medium transition-colors">
+          <Link to={createPageUrl("ClientDetail")} className="bg-ink hover:bg-ink/90 text-ink-fg px-3 py-2 rounded-lg flex items-center gap-1 text-sm font-medium transition-colors">
             <Plus className="w-4 h-4" /> New
           </Link>
         </div>
@@ -77,7 +77,7 @@ export default function Clients() {
 
       {selectMode && (
         <div className="flex items-center gap-3 mb-4 bg-gray-800 rounded-xl px-4 py-3">
-          <button onClick={toggleSelectAll} className="text-indigo-400 text-sm flex items-center gap-1.5">
+          <button onClick={toggleSelectAll} className="text-ink text-sm flex items-center gap-1.5">
             {selected.size === sorted.length ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
             {selected.size === sorted.length ? "Deselect all" : "Select all"}
           </button>
@@ -96,16 +96,16 @@ export default function Clients() {
       ) : sorted.length === 0 ? (
         <div className="text-center py-16 text-gray-500">
           <p className="mb-3">No clients yet</p>
-          <Link to={createPageUrl("ClientDetail")} className="text-indigo-400 text-sm">+ Add your first client</Link>
+          <Link to={createPageUrl("ClientDetail")} className="text-ink text-sm">+ Add your first client</Link>
         </div>
       ) : (
         <div className="space-y-2">
           {sorted.map(client => {
             const isSelected = selected.has(client.id);
             const inner = (
-              <div className={`flex items-center gap-3 bg-gray-800 rounded-xl p-4 transition-colors ${isSelected ? "ring-2 ring-indigo-500" : ""}`}>
+              <div className={`flex items-center gap-3 bg-gray-800 rounded-xl p-4 transition-colors ${isSelected ? "ring-2 ring-ink/60" : ""}`}>
                 {selectMode && (
-                  <button onClick={() => toggleSelect(client.id)} className="flex-shrink-0 text-indigo-400">
+                  <button onClick={() => toggleSelect(client.id)} className="flex-shrink-0 text-ink">
                     {isSelected ? <CheckSquare className="w-5 h-5" /> : <Square className="w-5 h-5 text-gray-600" />}
                   </button>
                 )}

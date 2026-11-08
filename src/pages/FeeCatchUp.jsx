@@ -103,7 +103,7 @@ export default function FeeCatchUp() {
 
       {withSuggestion.length > 0 && (
         <button onClick={applyAll} disabled={!!busy}
-          className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold disabled:opacity-50">
+          className="w-full py-3 rounded-xl bg-ink hover:bg-ink/90 text-ink-fg text-sm font-semibold disabled:opacity-50">
           {busy || `Accept all ${withSuggestion.length} suggestions`}
         </button>
       )}
@@ -115,7 +115,7 @@ export default function FeeCatchUp() {
 
       <div className="flex gap-3 text-xs">
         {[["all", "All"], ["suggested", "With suggestion"]].map(([k, l]) => (
-          <button key={k} onClick={() => setFilter(k)} className={filter === k ? "text-indigo-400" : "text-gray-500"}>{l}</button>
+          <button key={k} onClick={() => setFilter(k)} className={filter === k ? "text-ink" : "text-gray-500"}>{l}</button>
         ))}
       </div>
 
@@ -133,7 +133,7 @@ export default function FeeCatchUp() {
               <button onClick={() => didntHappen(event)} className="text-[11px] text-gray-500 hover:text-gray-300 flex-shrink-0">Didn't happen</button>
             </div>
             {suggestion && (
-              <p className="text-[11px] text-indigo-300">
+              <p className="text-[11px] text-gray-300">
                 {symbol}{suggestion.base} {suggestion.baseLabel}
                 {suggestion.extras.map((x) => ` + ${symbol}${x.amount} ${x.label}`).join("")}
               </p>
@@ -149,9 +149,9 @@ export default function FeeCatchUp() {
               </div>
               <button onClick={() => save({ event, suggestion })}
                 disabled={!suggestion && !(Number(amounts[event.id]) > 0)}
-                className="h-9 w-9 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-30 flex items-center justify-center flex-shrink-0"
+                className="h-9 w-9 rounded-lg bg-ink hover:bg-ink/90 disabled:opacity-30 flex items-center justify-center flex-shrink-0 text-ink-fg"
                 aria-label="Save fee">
-                <Check className="w-4 h-4 text-white" />
+                <Check className="w-4 h-4 text-ink-fg" />
               </button>
             </div>
           </div>

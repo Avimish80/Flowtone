@@ -164,7 +164,7 @@ export default function ClientDetail() {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="px-4 py-1.5 rounded-lg text-sm font-medium bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white flex items-center gap-1.5 transition-colors"
+            className="px-4 py-1.5 rounded-lg text-sm font-medium bg-ink hover:bg-ink/90 disabled:opacity-50 text-ink-fg flex items-center gap-1.5 transition-colors"
           >
             {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Creating…</> : <><Save className="w-4 h-4" /> Create</>}
           </button>
@@ -173,12 +173,12 @@ export default function ClientDetail() {
 
       {/* Hero ticket — leads the page: big, clickable client summary */}
       {id && (
-        <div className="mx-4 mt-4 bg-gradient-to-br from-indigo-900/80 to-gray-900 rounded-2xl border border-indigo-700/30 overflow-hidden">
+        <div className="mx-4 mt-4 bg-gradient-to-br from-gray-800/80 to-gray-900 rounded-2xl border border-gray-700/60 overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
           <div className="p-7">
             <div className="flex items-start justify-between gap-3">
               <h2 className="text-3xl font-bold text-white leading-tight break-words min-w-0">{client.name || "Unnamed client"}</h2>
               <span className="text-[11px] h-4 flex items-center flex-shrink-0 mt-1">
-                {savingState === "saving" && <span className="text-indigo-300/80 flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> Saving…</span>}
+                {savingState === "saving" && <span className="text-gray-400 flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> Saving…</span>}
                 {savingState === "saved" && <span className="text-green-400 flex items-center gap-1"><Check className="w-3 h-3" /> Saved</span>}
                 {savingState === "error" && <span className="text-red-400 flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> Not saved</span>}
               </span>
@@ -186,7 +186,7 @@ export default function ClientDetail() {
 
             <div className="flex flex-wrap items-center gap-1.5 mt-3">
               {client.client_type && (
-                <span className="text-xs font-medium text-indigo-200 bg-indigo-600/30 px-2.5 py-0.5 rounded-full capitalize">{client.client_type}</span>
+                <span className="text-xs font-medium text-gray-200 bg-gray-700/50 px-2.5 py-0.5 rounded-full capitalize">{client.client_type}</span>
               )}
               {(client.late_payment_flag || client.has_late_payment_history) && (
                 <span className="text-xs font-medium text-red-300 bg-red-950/60 border border-red-700/40 px-2.5 py-0.5 rounded-full flex items-center gap-1"><AlertCircle className="w-3 h-3" /> Late payer</span>
@@ -201,10 +201,10 @@ export default function ClientDetail() {
             {primaryEmail && (
               <div className="flex items-center justify-between gap-2 mt-5">
                 <a href={`mailto:${primaryEmail}`} className="flex items-center gap-2.5 text-[15px] text-gray-200 hover:text-white transition-colors min-w-0">
-                  <Mail className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+                  <Mail className="w-4 h-4 text-gray-400 flex-shrink-0" />
                   <span className="truncate">{primaryEmail}</span>
                 </a>
-                <a href={`mailto:${primaryEmail}`} className="flex items-center gap-1.5 text-xs font-medium text-indigo-200 bg-indigo-600/30 hover:bg-indigo-600/50 px-2.5 py-1 rounded-lg transition-colors flex-shrink-0">
+                <a href={`mailto:${primaryEmail}`} className="flex items-center gap-1.5 text-xs font-medium text-gray-200 bg-gray-700/50 hover:bg-gray-700/60 px-2.5 py-1 rounded-lg transition-colors flex-shrink-0">
                   <Mail className="w-3.5 h-3.5" /> Email
                 </a>
               </div>
@@ -213,14 +213,14 @@ export default function ClientDetail() {
             {primaryPhone && (
               <div className="flex items-center justify-between gap-2 mt-3">
                 <a href={`tel:${primaryPhone}`} className="flex items-center gap-2.5 text-[15px] text-gray-200 hover:text-white transition-colors min-w-0">
-                  <Phone className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+                  <Phone className="w-4 h-4 text-gray-400 flex-shrink-0" />
                   <span className="truncate">{primaryPhone}</span>
                 </a>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <a href={whatsappUrl(primaryPhone)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs font-medium text-green-300 bg-green-600/20 hover:bg-green-600/35 border border-green-700/30 px-2.5 py-1 rounded-lg transition-colors">
                     <MessageCircle className="w-3.5 h-3.5" /> WhatsApp
                   </a>
-                  <a href={`tel:${primaryPhone}`} className="flex items-center gap-1.5 text-xs font-medium text-indigo-200 bg-indigo-600/30 hover:bg-indigo-600/50 px-2.5 py-1 rounded-lg transition-colors">
+                  <a href={`tel:${primaryPhone}`} className="flex items-center gap-1.5 text-xs font-medium text-gray-200 bg-gray-700/50 hover:bg-gray-700/60 px-2.5 py-1 rounded-lg transition-colors">
                     <Phone className="w-3.5 h-3.5" /> Call
                   </a>
                 </div>
@@ -229,16 +229,16 @@ export default function ClientDetail() {
 
             {client.city && (
               <p className="flex items-center gap-2.5 mt-3 text-[15px] text-gray-300">
-                <MapPin className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+                <MapPin className="w-4 h-4 text-gray-400 flex-shrink-0" />
                 <span className="truncate">{client.city}</span>
               </p>
             )}
 
             {/* Quick action: invoice this client's un-invoiced events */}
-            <div className="flex items-center gap-2 flex-wrap mt-5 pt-5 border-t border-indigo-700/20">
+            <div className="flex items-center gap-2 flex-wrap mt-5 pt-5 border-t border-gray-700/60">
               <button
                 onClick={() => setShowInvoiceLessons(true)}
-                className="flex items-center gap-1.5 text-xs font-medium text-indigo-200 bg-indigo-600/30 hover:bg-indigo-600/50 px-3 py-1.5 rounded-lg transition-colors"
+                className="flex items-center gap-1.5 text-xs font-medium text-gray-200 bg-gray-700/50 hover:bg-gray-700/60 px-3 py-1.5 rounded-lg transition-colors"
               >
                 <FileText className="w-3.5 h-3.5" /> Invoice {invoiceNoun}
               </button>
@@ -267,7 +267,7 @@ export default function ClientDetail() {
         <div>
           <label className="text-xs text-gray-400 mb-1 block">Name *</label>
           <input
-            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500"
+            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-gray-400"
             placeholder="Client or company name"
             value={client.name || ""}
             onChange={e => onChange("name", e.target.value)}
@@ -278,7 +278,7 @@ export default function ClientDetail() {
         <div>
           <label className="text-xs text-gray-400 mb-1 block">Type</label>
           <select
-            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
+            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-gray-400"
             value={client.client_type || "other"}
             onChange={e => onChange("client_type", e.target.value)}
           >
@@ -299,7 +299,7 @@ export default function ClientDetail() {
           </div>
           <div className="flex gap-2">
             <input
-              className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-indigo-500"
+              className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-gray-400"
               placeholder="email@example.com"
               value={newEmail}
               onChange={e => { setNewEmail(e.target.value); newEmailRef.current = e.target.value; }}
@@ -323,7 +323,7 @@ export default function ClientDetail() {
           </div>
           <div className="flex gap-2">
             <input
-              className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-indigo-500"
+              className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-gray-400"
               placeholder="+44 ..."
               value={newPhone}
               onChange={e => { setNewPhone(e.target.value); newPhoneRef.current = e.target.value; }}
@@ -339,7 +339,7 @@ export default function ClientDetail() {
           <div>
             <label className="text-xs text-gray-400 mb-1 block">Currency</label>
             <select
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-gray-400"
               value={client.default_currency || "GBP"}
               onChange={e => onChange("default_currency", e.target.value)}
             >
@@ -350,7 +350,7 @@ export default function ClientDetail() {
             <label className="text-xs text-gray-400 mb-1 block">Payment Terms (days)</label>
             <input
               type="number"
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-gray-400"
               value={client.default_payment_terms_days || 30}
               onChange={e => onChange("default_payment_terms_days", parseInt(e.target.value))}
             />
@@ -361,7 +361,7 @@ export default function ClientDetail() {
         <div>
           <label className="text-xs text-gray-400 mb-1 block">Email Filter Tag</label>
           <select
-            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
+            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-gray-400"
             value={client.email_filter_tag || "none"}
             onChange={e => onChange("email_filter_tag", e.target.value)}
           >
@@ -389,7 +389,7 @@ export default function ClientDetail() {
           <label className="text-xs text-gray-400 mb-1 block">Default Fee (£)</label>
           <input
             type="number"
-            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500"
+            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-gray-400"
             placeholder="e.g. 250"
             value={client.default_fee || ""}
             onChange={e => onChange("default_fee", parseFloat(e.target.value) || null)}
@@ -401,7 +401,7 @@ export default function ClientDetail() {
         <div>
           <label className="text-xs text-gray-400 mb-1 block">Notes</label>
           <textarea
-            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 resize-none"
+            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-gray-400 resize-none"
             placeholder="Any notes about this client..."
             rows={3}
             value={client.notes || ""}
