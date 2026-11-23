@@ -35,6 +35,10 @@ app.use(
       // Allow local network IPs (phone on same WiFi during dev)
       if (/^http:\/\/192\.168\.\d+\.\d+(:\d+)?$/.test(origin)) return callback(null, true);
       if (/^http:\/\/10\.\d+\.\d+\.\d+(:\d+)?$/.test(origin)) return callback(null, true);
+      // The iPhone over Tailscale (MagicDNS name or a 100.64.0.0/10 address):
+      // the web build served from this Mac while the app runs local-first
+      if (/^http:\/\/[a-z0-9-]+\.[a-z0-9-]+\.ts\.net(:\d+)?$/.test(origin)) return callback(null, true);
+      if (/^http:\/\/100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.\d+\.\d+(:\d+)?$/.test(origin)) return callback(null, true);
       // If ALLOWED_ORIGINS is set, enforce whitelist; otherwise allow any https://
       if (ALLOWED_ORIGINS) {
         if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);

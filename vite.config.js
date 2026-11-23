@@ -74,6 +74,10 @@ export default defineConfig({
     host: true,        // listen on 0.0.0.0 so phones on the same WiFi can connect
     port: parseInt(process.env.PORT) || 5173,
     strictPort: false,
+    // The iPhone reaches this Mac by its Tailscale name. Vite refuses any
+    // hostname it does not know (403 "This host is not allowed"), so Tailscale
+    // names are allowed here.
+    allowedHosts: ['.ts.net'],
   },
   resolve: {
     alias: {
