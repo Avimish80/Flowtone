@@ -9,6 +9,7 @@ import {
   deleteSubscription,
 } from './db.js';
 import { syncAllConnectedUsers } from './lib/calendarSync.js';
+import { syncAllMailAccounts } from './lib/mailSync.js';
 
 const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY;
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY;
@@ -120,4 +121,28 @@ export function startScheduler() {
   });
 
   console.log('[scheduler] Calendar sync scheduler started (every 5 minutes)');
+
+  // ─── Background mail import (every 5 minutes) ──────────────────────
+  // Pulls new INBOX mail for every connected iCloud account into
+  // email_messages. Same in-flight guard as the calendar sync.
+  let mailSyncRunning = false;
+  cron.schedule('*/5 * * * *', async () => {
+    if (mailSyncRunning) {
+      console.warn('[scheduler] Mail sync still running; skipping this tick');
+      return;
+    }
+    mailSyncRunning = true;
+    try {
+      const res = await syncAllMailAccounts();
+      if (res.users) {
+        console.log(`[scheduler] Mail sync: ${res.ok}/${res.users} ok, ${res.failed} failed`);
+      }
+    } catch (err) {
+      console.error('[scheduler] Mail sync tick failed:', err.message ?? err);
+    } finally {
+      mailSyncRunning = false;
+    }
+  });
+
+  console.log('[scheduler] Mail sync scheduler started (every 5 minutes)');
 }

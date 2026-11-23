@@ -9,6 +9,7 @@ import billingRoutes, { handleStripeWebhook } from './routes/billing.js';
 import meRoutes from './routes/me.js';
 import publicRoutes from './routes/public.js';
 import calendarClassifyRoutes from './routes/calendarClassify.js';
+import mailRoutes from './routes/mail.js';
 import { requireAuthenticatedUser } from './lib/auth.js';
 import { startScheduler } from './scheduler.js';
 
@@ -48,6 +49,10 @@ app.use(
 
 // ─── Body Parser ───────────────────────────────────────────────────
 app.post('/api/billing/webhook', express.raw({ type: 'application/json' }), handleStripeWebhook);
+// An invoice email carries the business logo inside its HTML, far past the
+// default 100 KB. This parser runs first for that one route; the general one
+// below then leaves the already-parsed body alone.
+app.use('/api/mail/send', express.json({ limit: '8mb' }));
 app.use(express.json());
 
 // ─── Routes ────────────────────────────────────────────────────────
@@ -56,6 +61,7 @@ app.use('/api/ai', requireAuthenticatedUser, calendarClassifyRoutes);
 app.use('/api/push', pushRoutes);
 app.use('/api/gmail', gmailRoutes);
 app.use('/api/calendar', calendarRoutes);
+app.use('/api/mail', mailRoutes);
 app.use('/api/billing', billingRoutes);
 app.use('/api/me', meRoutes);
 app.use('/api/public', publicRoutes);
