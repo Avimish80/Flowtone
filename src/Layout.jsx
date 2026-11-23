@@ -16,6 +16,8 @@ import { isPushActive, schedulePushNotifications, reRegisterSubscription } from 
 import { onReminderTap } from "@/lib/localNotifications";
 import { useAppResume } from "@/lib/useAppResume";
 import { maybeSyncOnOpen } from "@/lib/calendarClient";
+import { refreshMailStatus } from "@/lib/mailSender";
+import { isICloudMailConnected } from "@/lib/icloudMailClient";
 import { syncLinkedCalendars } from "@/lib/deviceCalendarSync";
 import { appClient } from "@/api/appClient";
 import { refreshAppBadge, getUnreadCount } from "@/lib/appBadge";
@@ -39,6 +41,10 @@ const moreItems = [
   { icon: Car,      label: "Drive Mode", page: "DrivingMode" },
   { icon: Settings, label: "Settings",   page: "AppSettings" },
 ];
+
+// Shown in the More menu only while a mailbox is connected: without one the
+// Inbox has nothing in it.
+const inboxItem = { icon: Mail, label: "Inbox", page: "EmailInbox" };
 
 // Map sub-pages to their parent nav group
 const NAV_GROUP = {
@@ -164,6 +170,7 @@ export default function Layout({ children, currentPageName }) {
   // unless connected; throttled to once per 2 min inside maybeSyncOnOpen().
   useEffect(() => {
     maybeSyncOnOpen();
+    refreshMailStatus();
     const onVisible = () => {
       if (document.visibilityState === "visible") maybeSyncOnOpen();
     };
@@ -344,7 +351,10 @@ export default function Layout({ children, currentPageName }) {
               </button>
             </div>
             <div className="grid grid-cols-4 gap-3">
-              {moreItems.map(({ icon: Icon, label, page }) => (
+              {(isICloudMailConnected()
+                ? [...moreItems.slice(0, 2), inboxItem, ...moreItems.slice(2)]
+                : moreItems
+              ).map(({ icon: Icon, label, page }) => (
                 <Link
                   key={page}
                   to={createPageUrl(page)}

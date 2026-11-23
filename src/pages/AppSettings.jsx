@@ -30,6 +30,7 @@ import { isGmailConnected, getGmailEmail, connectGmail, disconnectGmail } from "
 import { connectCalendar, getCalendarStatus, syncNow as calendarSyncNow, setSyncEnabled as setCalendarSyncEnabled, disconnectCalendar } from "@/lib/calendarClient";
 import SmartCSVImport from "@/components/SmartCSVImport";
 import DeviceAccessRow from "@/components/settings/DeviceAccessRow";
+import ICloudMailRow from "@/components/settings/ICloudMailRow";
 import { exportFullApp, downloadCSV } from "@/lib/csvExport";
 import NotificationPrefsEditor, { Toggle } from "@/components/NotificationPrefsEditor";
 
@@ -890,7 +891,7 @@ export default function AppSettings() {
           )}
         </section>
 
-        {/* ── Connections (Gmail + Calendar + Navigation) ───────────── */}
+        {/* ── Connections (Gmail + iCloud Mail + Calendar + Navigation) ── */}
         <section>
           <SectionHeader icon={Link2} label="Connections" sectionKey="connections" />
           {openSections.has("connections") && (
@@ -977,6 +978,9 @@ export default function AppSettings() {
                   </div>
                 )}
               </div>
+
+              {/* iCloud Mail (app-specific password, kept encrypted on the server) */}
+              <ICloudMailRow />
 
               {/* Navigation */}
               <div className="p-4">

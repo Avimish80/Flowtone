@@ -192,7 +192,7 @@ export const ENTITY_CONFIG = {
   },
   EmailMessage: {
     table: "email_messages",
-    columns: ["subject", "from_name", "from_email", "status", "date", "snippet", "body", "thread_id"],
+    columns: ["subject", "from_name", "from_email", "status", "date", "snippet", "body", "thread_id", "message_id"],
     jsonColumns: [],
   },
   Equipment: {
