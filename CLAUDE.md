@@ -468,6 +468,16 @@ const goBack = useGoBack("Finance");  // or "WorkEvents", "Clients"
 
 ---
 
+## iCloud Mail integration (8 Nov 2026, hardened 23 Nov)
+
+- iOS gives apps no access to the Mail app, so iCloud Mail is read and sent **server-side over IMAP/SMTP** (`imap.mail.me.com:993`, `smtp.mail.me.com:587`) with an Apple **app-specific password** the user types once in Settings → Connections → iCloud Mail (`src/components/settings/ICloudMailRow.jsx`). Apple has no OAuth for iCloud Mail.
+- Server: `server/routes/mail.js` (`/api/mail/status|connect|disconnect|toggle|sync|send`, all behind `requireAuthenticatedUser`; connect attempts capped at 5 per 10 min so Apple never locks the account; `/send` has its own 8 MB body limit in `server/index.js` because invoice HTML carries the logo), `server/lib/icloudMail.js` (imapflow + mailparser + nodemailer; `data:` images become inline attachments so the logo shows; bcc lives only in the SMTP envelope; the sent copy is appended to the Sent folder), `server/lib/mailSync.js` (INBOX → `email_messages`, keyed by `message_id`, ON CONFLICT DO NOTHING so review statuses survive a re-sync; first sync = newest 150 messages of the last 30 days; `date` is the arrival time, not the sender's Date header; known client senders arrive with `payload.client_id`), 5-minute cron in `server/scheduler.js`.
+- Sync safety rules: every string is passed through `cleanText()` before it is stored (Postgres refuses NUL and half emoji); a message the database still refuses is left out instead of blocking the mailbox; a refused or unreadable password sets `sync_enabled = false`, so the timer never keeps signing in to Apple with a dead password; one sync per mailbox at a time.
+- `server/lib/mailCrypto.js`: AES-256-GCM. Key = `MAIL_SECRET_KEY` (set in `server/.env` and `server/.env.localdb`, same value, preserved by `scripts/write-local-env.mjs`); without it the key is derived from the service-role key, so changing Supabase projects would force a reconnect. Railway needs `MAIL_SECRET_KEY` too.
+- Table `mail_accounts` (migration `20261108_mail_accounts.sql`, applied locally 8 Nov 2026): RLS on with no policies — service role only, like `google_calendar_credentials`. The password never reaches the browser; `/status` returns only the address and sync state. A server whose database does not have the table yet answers `/status` with `{ connected: false, available: false }` and the Settings row hides itself.
+- Client: `src/lib/icloudMailClient.js` (status cached in localStorage, refreshed on app open from `Layout.jsx`), `src/lib/mailSender.js` = the single `isMailConnected()` / `sendEmail()` / `getSenderEmail()` used by `DocumentDetail`, `LeadDetail` and `Missions` (Gmail wins when both are connected). `EmailInbox.jsx` shows the synced inbox with a Sync button and links to Settings when nothing is connected; the More menu shows **Inbox** only while a mailbox is connected.
+- Tests: `npm test` in `server/` runs `server/test/mail-offline.test.mjs` (no Apple, no database: stand-ins for IMAP, SMTP and the Supabase REST API). **Not yet proven against a real mailbox** (23 Nov 2026): the first real connect needs Avi's app-specific password.
+
 ## Demo data (`AppSettings.jsx`)
 
 Button: **"✨ Load Connected Demo Data"**
