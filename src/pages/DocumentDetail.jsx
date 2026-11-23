@@ -18,7 +18,7 @@ import {
 } from "@/lib/invoiceTemplates";
 import InvoiceSheet from "@/components/invoice/InvoiceSheet";
 import DocumentPreview from "@/components/invoice/DocumentPreview";
-import { isGmailConnected, getGmailEmail, sendGmailEmail } from "@/lib/gmailClient";
+import { isMailConnected, getSenderEmail, getMailProviderLabel, sendEmail } from "@/lib/mailSender";
 
 const CURRENCIES = ["GBP", "USD", "EUR", "AUD", "CAD"];
 const CLIENT_TYPES = ["venue", "agent", "student", "band", "other"];
@@ -102,7 +102,7 @@ export default function DocumentDetail() {
   const [clientModalContext, setClientModalContext] = useState("invoice");
   const [bizProfile, setBizProfile] = useState(null);
   const [appSettings, setAppSettings] = useState(null);
-  const [gmailConnected, setGmailConnected] = useState(false);
+  const [mailConnected, setMailConnected] = useState(false);
   const [previewHtml, setPreviewHtml] = useState("");
 
   const isInvoice = doc.document_type === "invoice";
@@ -122,7 +122,7 @@ export default function DocumentDetail() {
     ]).then(([profiles, settingsArr]) => {
       setBizProfile(profiles[0] || null);
       setAppSettings(settingsArr[0] || null);
-      setGmailConnected(isGmailConnected());
+      setMailConnected(isMailConnected());
     }).catch(() => {});
   }, []);
 
@@ -672,12 +672,12 @@ export default function DocumentDetail() {
     setGeneratingPdf(false);
   };
 
-  // ─── Share PDF (no Gmail) ─────────────────────────────────────────
-  // When the email dialog opens without Gmail, pre-build the invoice PDF so the
+  // ─── Share PDF (no mail account connected) ─────────────────────────
+  // When the email dialog opens without a connected mail account, pre-build the invoice PDF so the
   // native share sheet can attach the actual file inside the tap gesture (iOS
   // rejects navigator.share if a slow await runs first).
   useEffect(() => {
-    if (!showEmailDialog || gmailConnected || !id) return;
+    if (!showEmailDialog || mailConnected || !id) return;
     if (shareFile || preparingShare) return;
     let cancelled = false;
     setPreparingShare(true);
@@ -691,7 +691,7 @@ export default function DocumentDetail() {
       .catch(() => {})
       .finally(() => { if (!cancelled) setPreparingShare(false); });
     return () => { cancelled = true; };
-  }, [showEmailDialog, gmailConnected, id, shareFile, preparingShare, doc.document_type, doc.document_number]);
+  }, [showEmailDialog, mailConnected, id, shareFile, preparingShare, doc.document_type, doc.document_number]);
 
   // Drop the prepared PDF when the dialog closes so edits regenerate it next time.
   useEffect(() => {
@@ -761,13 +761,13 @@ export default function DocumentDetail() {
     setSendingEmail(true);
     setShowEmailDialog(false);
     try {
-      if (gmailConnected) {
-        // Send via Gmail API
+      if (mailConnected) {
+        // Send through the connected mail account
         const profile = await appClient.entities.BusinessProfile.list().then(d => d[0] || {});
         const settings = await appClient.entities.AppSettings.list().then(d => d[0] || {});
         const subject = `${typeLabel} #${doc.document_number || ''} from ${profile?.business_name || 'us'}`;
         const htmlBody = buildInvoiceHtml(doc, profile, settings);
-        await sendGmailEmail({ to: emailTo.trim(), subject, htmlBody });
+        await sendEmail({ to: emailTo.trim(), subject, htmlBody });
         // Update status to 'sent' if still draft
         if (doc.status === 'draft' && id) {
           await appClient.entities.Document.update(id, { status: 'sent', client_email: emailTo.trim() });
@@ -798,7 +798,7 @@ export default function DocumentDetail() {
   }, [doc.client_id, doc.client_email, linkedEvent, clientMap]);
 
   const handleQuickSend = async () => {
-    if (!quickSendEmail || !gmailConnected) return;
+    if (!quickSendEmail || !mailConnected) return;
     setQuickSending(true);
     setSaveError("");
     try {
@@ -807,7 +807,7 @@ export default function DocumentDetail() {
         const profile = bizProfile || {};
         const subject = `Invoice #${doc.document_number || ''} from ${profile?.business_name || 'us'}`;
         const htmlBody = buildInvoiceHtml(doc, profile, appSettings);
-        await sendGmailEmail({ to: quickSendEmail, subject, htmlBody });
+        await sendEmail({ to: quickSendEmail, subject, htmlBody });
         await appClient.entities.Document.update(id, { status: 'sent', client_email: quickSendEmail });
         setDoc(prev => ({ ...prev, status: 'sent', client_email: quickSendEmail }));
         setQuickSent(true);
@@ -969,10 +969,10 @@ export default function DocumentDetail() {
                 Ready to send · <span className="sensitive">{sym}{(doc.total || 0).toFixed(2)}</span>
               </p>
               <p className="text-xs text-gray-500 truncate">
-                {gmailConnected ? `via Gmail to ${quickSendEmail}` : `to ${quickSendEmail}`}
+                {mailConnected ? `via ${getMailProviderLabel()} to ${quickSendEmail}` : `to ${quickSendEmail}`}
               </p>
             </div>
-            {gmailConnected ? (
+            {mailConnected ? (
               <button
                 onClick={handleQuickSend}
                 disabled={quickSending}
@@ -1029,9 +1029,9 @@ export default function DocumentDetail() {
           <div className="bg-gray-800 border border-gray-700/60 rounded-xl p-4 space-y-3">
             <p className="text-sm font-medium text-white">Send {typeLabel} by Email</p>
             <p className="text-xs text-gray-400">
-              {gmailConnected
-                ? `Sending from ${getGmailEmail()}. The ${typeLabel.toLowerCase()} will be delivered directly.`
-                : `Gmail not connected — we'll attach the ${typeLabel.toLowerCase()} PDF and open your share sheet (or email app) to send it.`}
+              {mailConnected
+                ? `Sending from ${getSenderEmail()}. The ${typeLabel.toLowerCase()} will be delivered directly.`
+                : `No email account connected — we'll attach the ${typeLabel.toLowerCase()} PDF and open your share sheet (or email app) to send it.`}
             </p>
             <div>
               <label className="text-xs text-gray-400 mb-1 block">Recipient Email</label>
@@ -1047,7 +1047,7 @@ export default function DocumentDetail() {
             <div className="flex gap-2">
               <button
                 onClick={() => {
-                  if (gmailConnected) {
+                  if (mailConnected) {
                     const templateId = resolveTemplateId(appSettings?.invoice_template);
                     // First open print dialog
                     printInvoice(docForPrint, bizProfile, appSettings, templateId);
@@ -1060,12 +1060,12 @@ export default function DocumentDetail() {
                     handleShareInvoice();
                   }
                 }}
-                disabled={!emailTo?.trim() || (!gmailConnected && preparingShare)}
+                disabled={!emailTo?.trim() || (!mailConnected && preparingShare)}
                 className="flex-1 bg-gray-700 hover:bg-gray-600 disabled:opacity-40 text-white rounded-lg py-2 text-sm font-medium flex items-center justify-center gap-2 transition-colors"
               >
-                {!gmailConnected && preparingShare
+                {!mailConnected && preparingShare
                   ? <><Loader2 className="w-4 h-4 animate-spin" /> Preparing PDF…</>
-                  : <><Mail className="w-4 h-4" /> {gmailConnected ? "Open Print + Email" : "Attach PDF + Email"}</>}
+                  : <><Mail className="w-4 h-4" /> {mailConnected ? "Open Print + Email" : "Attach PDF + Email"}</>}
               </button>
               <button onClick={() => setShowEmailDialog(false)} className="bg-gray-700 hover:bg-gray-600 text-white rounded-lg px-4 py-2 text-sm transition-colors">Cancel</button>
             </div>

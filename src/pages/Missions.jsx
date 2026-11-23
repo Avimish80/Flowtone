@@ -4,7 +4,7 @@ import { appClient } from "@/api/appClient";
 import { createPageUrl } from "@/utils";
 import { runMissionScan } from "@/lib/missionScanRunner";
 import { isGroupItem, itemKey, missionActionLabel, missionTarget } from "@/lib/actionItemScanner";
-import { isGmailConnected, sendGmailEmail } from "@/lib/gmailClient";
+import { isMailConnected, sendEmail } from "@/lib/mailSender";
 import {
   MapPin, FileText, AlertCircle, Send, Banknote, Download,
   Check, Target, RefreshCw, UserPlus, Mail, ChevronDown,
@@ -93,7 +93,7 @@ export default function Missions() {
   }
 
   // Chase a quiet lead: send a friendly follow-up with the quote link via
-  // Gmail, or fall back to a prefilled mailto draft.
+  // the connected mail account (Gmail or iCloud Mail), or fall back to a prefilled mailto draft.
   async function handleChaseLead(item) {
     const p = item.payload || {};
     if (!p.contact_email) {
@@ -106,9 +106,9 @@ export default function Missions() {
     const business = profile?.business_name || "Flowtone";
     const subject = `Following up on your quote${p.event_date ? ` — ${p.event_date}` : ""}`;
     const bodyText = `Hi ${firstName || "there"},\n\nJust checking in — did you get a chance to look at the quote I sent over${p.event_date ? ` for ${p.event_date}` : ""}?\n\n${quoteUrl ? `You can view and accept it here: ${quoteUrl}\n\n` : ""}Happy to answer any questions.\n\n${business}`;
-    if (isGmailConnected()) {
+    if (isMailConnected()) {
       try {
-        await sendGmailEmail({
+        await sendEmail({
           to: p.contact_email,
           subject,
           htmlBody: bodyText.replace(/\n/g, "<br>"),

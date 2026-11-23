@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { appClient } from "@/api/appClient";
 import { createPageUrl, currencySymbol, formatMoney } from "@/utils";
-import { isGmailConnected, sendGmailEmail } from "@/lib/gmailClient";
+import { isMailConnected, sendEmail } from "@/lib/mailSender";
 import { useToast } from "@/components/ui/use-toast";
 import { format, addDays } from "date-fns";
 import {
@@ -150,10 +150,10 @@ export default function LeadDetail() {
       });
       setLead((prev) => ({ ...prev, status: "quoted", quote_sent_at: new Date().toISOString() }));
 
-      if (isGmailConnected() && lead.contact_email) {
+      if (isMailConnected() && lead.contact_email) {
         const profile = await appClient.helpers.ensureSingletonEntity("BusinessProfile");
         const business = profile?.business_name || "Flowtone";
-        await sendGmailEmail({
+        await sendEmail({
           to: lead.contact_email,
           subject: `Your quote from ${business}`,
           htmlBody: buildQuoteEmail({ lead, business, total: doc.total, currency: doc.currency, quoteUrl }),
@@ -162,7 +162,7 @@ export default function LeadDetail() {
       } else {
         await copyQuoteLink();
         if (!lead.contact_email) toast({ description: "No email on this lead — link copied instead" });
-        else toast({ description: "Gmail not connected — quote link copied, paste it anywhere" });
+        else toast({ description: "No email account connected — quote link copied, paste it anywhere" });
       }
     } catch (err) {
       toast({ description: err.message || "Could not send the quote" });
