@@ -4,6 +4,15 @@
 
 ---
 
+## Avi Brain (Avi's shared memory, since 23 Nov 2026)
+
+- The Obsidian vault `/Users/avimishali/Obsidian/Avi Brain` holds Avi's decisions and a short status of every project; its rules are in its `AGENTS.md`. This file still rules the work here; technical detail stays in this folder.
+- Start, only for real work (not a question): one fast search, `qmd search "Flowtone" -c avi-brain` (under a second); open a note only if it bears on the job. Never read the vault through.
+- End: add one signed line to `Projects/Flowtone.md` in the vault, only when something Avi cares about happened (his decision, something live, something waiting on him). A question writes nothing.
+- Never edit the vault's `Shared/`; a clash between this folder and the vault goes to `Inbox/conflicts.md` there.
+
+---
+
 ## ⏳ SESSION HANDOFF — 10 Jul 2026 (read this first, delete when all done)
 
 Everything below is built and verified locally but **uncommitted**. Launch order matters: **run the 4 migrations in Supabase FIRST, then commit+push** (push auto-deploys Vercel + Railway together).
